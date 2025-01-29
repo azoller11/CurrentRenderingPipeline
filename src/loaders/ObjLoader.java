@@ -7,6 +7,8 @@ import org.lwjgl.system.MemoryStack;
 import toolbox.Mesh;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -166,11 +168,20 @@ public class ObjLoader {
         int vbo = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
+        /*
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer fb = stack.mallocFloat(finalData.length);
             fb.put(finalData).flip();
             glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
-        }
+        }*/
+        
+        FloatBuffer fb = ByteBuffer.allocateDirect(finalData.length * Float.BYTES)
+		                .order(ByteOrder.nativeOrder())
+		                .asFloatBuffer();
+		fb.put(finalData).flip();
+		glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+        
+        
 
         // pos => loc=0 (3 floats)
         int stride = 11 * Float.BYTES;

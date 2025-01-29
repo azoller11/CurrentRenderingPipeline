@@ -35,7 +35,7 @@ public class TextureLoader {
             IntBuffer channels = stack.mallocInt(1);
 
             // STBI_rgb_alpha forces 4 components (RGBA)
-            STBImage.stbi_set_flip_vertically_on_load(true);
+            STBImage.stbi_set_flip_vertically_on_load(false);
             imageData = STBImage.stbi_load(filePath, w, h, channels, 4);
             if (imageData == null) {
                 throw new RuntimeException("Failed to load texture file: " + filePath

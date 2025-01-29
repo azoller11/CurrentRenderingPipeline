@@ -2,6 +2,7 @@ package renderer;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.system.MemoryStack;
 
 import entities.Camera;
@@ -45,6 +46,14 @@ public class MasterRenderer {
             "src/shaders/geometry.glsl",
             "src/shaders/fragment.glsl"
         );
+        
+        
+        //General settings
+        glFrontFace(GL_CW);
+        glEnable(GL_MULTISAMPLE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 
         // 2) Create your perspective projection
         float aspect = (float) width / height;
@@ -72,6 +81,10 @@ public class MasterRenderer {
     public Matrix4f getProjectionMatrix() {
 		return projectionMatrix;
 	}
+    
+    public Matrix4f getFlatProjection() {
+        return new Matrix4f().ortho2D(0.0f, screenWidth, 0.0f, screenHeight);
+    }
 
 	/**
      * Render all entities from the perspective of the camera.
@@ -148,13 +161,9 @@ public class MasterRenderer {
         glBindTexture(GL_TEXTURE_2D, entity.getTextureId());
         shader.setUniform1i("diffuseTexture", 0);
         
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, entity.getNormalMapId());
-        shader.setUniform1i("normalMap", 1);
         
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, entity.getHeighMapId());
-        shader.setUniform1i("heightMap", 2);
+        
+       
         
         
         // --------------------------------------------------
@@ -164,6 +173,28 @@ public class MasterRenderer {
         boolean hasMetallic = (entity.getMetallicMap() != 0);
         boolean hasRoughness = (entity.getRoughnessMap() != 0);
         boolean hasAo = (entity.getAoMap() != 0);
+        boolean hasNormalMap = (entity.getNormalMapId() != 0);
+        boolean hasHeightMap = (entity.getNormalMapId() != 0);
+        
+        
+        if (hasNormalMap) {
+        	glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, entity.getNormalMapId());
+            shader.setUniform1i("normalMap", 1);
+        }
+        
+        if (hasHeightMap) {
+        	 glActiveTexture(GL_TEXTURE2);
+             glBindTexture(GL_TEXTURE_2D, entity.getHeighMapId());
+             shader.setUniform1i("heightMap", 2);
+             //parallax scale
+             if (entity.getParallaxScale() != null) {
+            	 shader.setUniform1f("parallaxScale", entity.getParallaxScale().x);
+                 shader.setUniform1f("minLayers", entity.getParallaxScale().y);
+                 shader.setUniform1f("maxLayers", entity.getParallaxScale().z);
+             }
+             
+        }
 
         // If a texture ID != 0, we bind it. Otherwise skip binding
         if (hasMetallic) {
@@ -186,13 +217,23 @@ public class MasterRenderer {
         shader.setUniform1i("hasMetallic",  hasMetallic ? 1 : 0);
         shader.setUniform1i("hasRoughness", hasRoughness ? 1 : 0);
         shader.setUniform1i("hasAo",        hasAo ? 1 : 0);
+        
+        shader.setUniform1i("hasNormal",  hasNormalMap ? 1 : 0);
+        shader.setUniform1i("hasHeight", hasHeightMap ? 1 : 0);
+        
 
         // If you still use "shineDamper"/"reflectivity" for older code, you can set them
         shader.setUniform1f("shineDamper", entity.getShineDamper());
         shader.setUniform1f("reflectivity", entity.getReflectivity());
         
     
-        
+        if (entity.isHasTransparency()) {
+        	GL11.glDisable(GL11.GL_CULL_FACE);
+    		//GL11.glCullFace(GL11.GL_BACK);
+        } else {
+        	GL11.glEnable(GL11.GL_CULL_FACE);
+    		GL11.glCullFace(GL11.GL_BACK);
+        }
         
 
         //shader.setUniform1f("shineDamper", entity.getShineDamper());

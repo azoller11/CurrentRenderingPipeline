@@ -112,6 +112,13 @@ public class Camera {
             up
         );
     }
+    
+    public Matrix4f getFlatViewMatrix() {
+        return new Matrix4f().identity();
+    }
+    
+  
+    
 
     public Vector3f getPosition() { return position; }
 }

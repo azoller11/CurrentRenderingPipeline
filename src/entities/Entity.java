@@ -16,7 +16,10 @@ public class Entity {
     
     private int textureId;
     private int normalMapId;
+    
     private int heighMapId;
+ // Parallax
+    private Vector3f parallaxScale ;
     
     private int albedoMap;
     private int metallicMap;
@@ -25,6 +28,8 @@ public class Entity {
     
     private float shineDamper = 0;
     private float reflectivity = 0;
+    
+    private boolean hasTransparency;
     
     
     
@@ -146,6 +151,22 @@ public class Entity {
 
 	public void setScale(float scale) {
 		this.scale = scale;
+	}
+
+	public Vector3f getParallaxScale() {
+		return parallaxScale;
+	}
+
+	public void setParallaxScale(Vector3f parallaxScale) {
+		this.parallaxScale = parallaxScale;
+	}
+
+	public boolean isHasTransparency() {
+		return hasTransparency;
+	}
+
+	public void setHasTransparency(boolean hasTransparency) {
+		this.hasTransparency = hasTransparency;
 	}
 
 	

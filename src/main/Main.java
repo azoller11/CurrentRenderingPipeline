@@ -9,6 +9,7 @@ import debugRenderer.DebugRenderer;
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
+import gui.TextureRenderer;
 import loaders.ObjLoader;
 import loaders.TextureLoader;
 import renderer.MasterRenderer;
@@ -43,6 +44,8 @@ public class Main {
     private MasterRenderer masterRenderer;
     // The debug renderer
     private DebugRenderer debugRenderer;
+    //Texture renderer
+    private TextureRenderer textureRenderer;
     
     // A simple camera
     private Camera camera;
@@ -78,7 +81,7 @@ public class Main {
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 
-        window = glfwCreateWindow(width, height, "Multiple Cubes Demo", NULL, NULL);
+        window = glfwCreateWindow(width, height, "Elk Engine 2", NULL, NULL);
         if (window == NULL) {
             throw new RuntimeException("Failed to create the GLFW window");
         }
@@ -93,14 +96,13 @@ public class Main {
 
         debugRenderer = new DebugRenderer();
         
-        debugRenderer.addPoint(new Vector3f(0, 1, 0), new Vector3f(1, 0, 0)); // Red point
-        debugRenderer.addLine(new Vector3f(-1, 0, 0), new Vector3f(1, 0, 0), new Vector3f(0, 1, 0)); // Green line
-        debugRenderer.addTriangle(
-            new Vector3f(0, 0, 0), 
-            new Vector3f(1, 0, 0), 
-            new Vector3f(0, 1, 0), 
-            new Vector3f(0, 0, 1) // Blue triangle
-        );
+        textureRenderer = new TextureRenderer();
+        
+        gui.Texture texture1 = new gui.Texture("res/peeling-painted-metal_albedo.png", 0.0f,0.0f, 100.0f, 100.0f);
+        gui.Texture texture2 = new gui.Texture("res/peeling-painted-metal_albedo.png");
+
+        // Add Textures to Renderer
+        textureRenderer.addTexture(texture1);
         
         
         
@@ -129,36 +131,54 @@ public class Main {
     	private int aoMap;
          */
         
-        
+        //uniform float parallaxScale = 0.12;
+        //uniform int minLayers = 120; 
+        //uniform int maxLayers = 160;
         
 
         // Create multiple entities with different positions
         Entity cube1 = new Entity(planeMesh, TextureLoader.loadTexture("box.png"), new Vector3f(-1, 0, 0), new Vector3f(0,0,0), 1f);
         cube1.setNormalMapId(TextureLoader.loadTexture("boxNormal.png"));
         cube1.setHeighMapId(TextureLoader.loadTexture("boxHeightMap.png"));
+        cube1.setParallaxScale(new Vector3f(0.12f, 120, 160));
           cube1.setReflectivity(0.1f);
           cube1.setShineDamper(1);
         cube1.setMetallicMap(metallicMapTexture);
         cube1.setAoMap(aoMapTexture);
         cube1.setRoughnessMap(roughnessMapTexture);
+        
+        
         Entity cube2 = new Entity(cubeMesh, TextureId, new Vector3f(+10, 10, 0), new Vector3f(0,0,0), 1f);
         cube2.setNormalMapId(normalTexture);
         cube2.setHeighMapId(heightMapTexture);
+        cube2.setParallaxScale(new Vector3f(0.12f, 120, 160));
         cube2.setReflectivity(10);
         cube2.setShineDamper(100);
         Entity cube3 = new Entity(boxMesh, TextureId, new Vector3f(30, 20, 0),  new Vector3f(0,0,0), 1f);
         cube3.setNormalMapId(normalTexture);
         cube3.setHeighMapId(heightMapTexture);
+        cube3.setParallaxScale(new Vector3f(0.12f, 120, 160));
         cube3.setReflectivity(10);
         cube3.setShineDamper(100);
+        
+        
+        Entity cube4 = new Entity(ObjLoader.loadObj("tallPine4"), TextureLoader.loadTexture("pineTexture3.png"), new Vector3f(5, 0, 0), new Vector3f(0,0,0), 1f);
+        //cube4.setNormalMapId(TextureLoader.loadTexture("boxNormal.png"));
+        //cube4.setHeighMapId(TextureLoader.loadTexture("boxHeightMap.png"));
+        cube4.setReflectivity(0.1f);
+        cube4.setShineDamper(1);
+        cube4.setHasTransparency(true);
+        //cube4.setMetallicMap(metallicMapTexture);
+        //cube4.setAoMap(aoMapTexture);
+        //cube4.setRoughnessMap(roughnessMapTexture);
 
         entities.add(cube1);
-        debugRenderer.addSphere(cube1.getPosition(), cube1.getMesh().getFurthestPoint(), new Vector3f(0,1,0));
         entities.add(cube2);
         entities.add(cube3);
+        entities.add(cube4);
         
         
-        lights.add(new Light(new Vector3f(0,30,0), new Vector3f(10,10,1))); 
+        lights.add(new Light(new Vector3f(0,30,0), new Vector3f(1,1,1))); 
 
 	     
         // A point light at (2,1,0) with color = (1,0.8,0.7), attenuation(1,0.09,0.032)
@@ -241,6 +261,11 @@ public class Main {
 
             // Could add more interesting transforms as well
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
+            
+            //Render Texture
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            textureRenderer.render(masterRenderer.getFlatProjection(),  camera.getFlatViewMatrix());
           
             EngineSettings.updateSettings(window);
             glfwSwapBuffers(window);
@@ -251,6 +276,7 @@ public class Main {
         // Cleanup
         masterRenderer.cleanup();
         debugRenderer.cleanup();
+        textureRenderer.cleanUp();
         glfwFreeCallbacks(window);
         glfwDestroyWindow(window);
         glfwTerminate();

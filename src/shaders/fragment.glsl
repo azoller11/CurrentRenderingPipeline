@@ -1,16 +1,7 @@
 #version 400 core
 
-in GS_OUT {
-    vec2 uv;
-    vec3 wPosition;
-    vec3 wNormal;
-    vec3 wTangent;
-} fs_in;
-
-out vec4 outColor;
-
 // -----------------------------------------------------------------------------
-// Structs & Uniforms
+ // Structs & Uniforms
 // -----------------------------------------------------------------------------
 struct Light {
     vec3 position;    // If attenuation == (0,0,0), interpret as directional
@@ -24,9 +15,9 @@ uniform Light lights[16];
 uniform vec3 cameraPos;
 
 // Parallax
-uniform float parallaxScale = 0.14;
-uniform int minLayers = 120; 
-uniform int maxLayers = 160;
+uniform float parallaxScale;
+uniform float minLayers; 
+uniform float maxLayers;
 
 // Base textures
 uniform sampler2D diffuseTexture;
@@ -38,10 +29,11 @@ uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
 
-// Whether each PBR map is present
-uniform int hasMetallic;  // 1 if metallicMap is bound, 0 if missing
-uniform int hasRoughness; // 1 if roughnessMap is bound, 0 if missing
-uniform int hasAo;        // 1 if aoMap is bound, 0 if missing
+uniform int hasNormal;      // 1 if normalMap is bound, 0 if missing
+uniform int hasHeight;      // 1 if heightMap is bound, 0 if missing
+uniform int hasMetallic;    // 1 if metallicMap is bound, 0 if missing
+uniform int hasRoughness;   // 1 if roughnessMap is bound, 0 if missing
+uniform int hasAo;          // 1 if aoMap is bound, 0 if missing
 
 // Old fallback uniforms
 uniform float reflectivity; // "specular intensity"
@@ -49,12 +41,23 @@ uniform float shineDamper;  // "specular exponent"
 
 const float PI = 3.14159265359;
 
-
-//Debug uniform
+// Debug uniform
 uniform int debugMode;
 
 // -----------------------------------------------------------------------------
-// Parallax Occlusion
+ // Inputs and Outputs
+// -----------------------------------------------------------------------------
+in GS_OUT {
+    vec2 uv;
+    vec3 wPosition;
+    vec3 wNormal;
+    vec3 wTangent;
+} fs_in;
+
+out vec4 outColor;
+
+// -----------------------------------------------------------------------------
+ // Parallax Occlusion Mapping
 // -----------------------------------------------------------------------------
 vec2 parallaxOcclusionMapping(vec2 baseUV, vec3 viewDirTangent) {
     viewDirTangent.y = -viewDirTangent.y;
@@ -80,7 +83,7 @@ vec2 parallaxOcclusionMapping(vec2 baseUV, vec3 viewDirTangent) {
 }
 
 // -----------------------------------------------------------------------------
-// Cook–Torrance Helpers
+ // Cook–Torrance Helpers
 // -----------------------------------------------------------------------------
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
@@ -149,7 +152,7 @@ vec3 pbrLight(
 }
 
 // -----------------------------------------------------------------------------
-// Fallback Lighting (Lambert + Phong) for missing PBR
+ // Fallback Lighting (Lambert + Phong) for missing PBR
 // -----------------------------------------------------------------------------
 vec3 fallbackLight(
     vec3 N, vec3 V,
@@ -191,33 +194,59 @@ vec3 fallbackLight(
 }
 
 // -----------------------------------------------------------------------------
-// MAIN
+ // MAIN
 // -----------------------------------------------------------------------------
 void main() {
-    // 1) TBN
+    // 1) TBN Matrix
     vec3 N = normalize(fs_in.wNormal);
     vec3 T = normalize(fs_in.wTangent);
-    vec3 B = normalize(cross(N, T));
+    vec3 B = normalize(cross(N, T) * (gl_FrontFacing ? 1.0 : -1.0)); // Flip for correct winding
+
     mat3 TBN = mat3(T, B, N);
 
-    // 2) View vector
+    // 2) View vector in World Space
     vec3 Vworld = normalize(cameraPos - fs_in.wPosition);
-    vec3 Vtangent= normalize(TBN * Vworld);
+    vec3 Vtangent = normalize(TBN * Vworld);
 
-    // 3) Parallax
-    vec2 displacedUV = parallaxOcclusionMapping(fs_in.uv, Vtangent);
+    // 3) Parallax Occlusion Mapping
+    vec2 displacedUV;
+    if (hasHeight == 1 && parallaxScale > 0.0) {
+        displacedUV = parallaxOcclusionMapping(fs_in.uv, Vtangent);
+    } else {
+        displacedUV = fs_in.uv; // No parallax or height map missing, use original UV
+    }
 
-    // 4) Normal map
-    vec3 mapNormal = texture(normalMap, displacedUV).rgb;
-    mapNormal = normalize(mapNormal * 2.0 - 1.0);
-    vec3 Nworld  = normalize(TBN * mapNormal);
+    // 4) Normal Mapping
+    vec3 Nworld;
+    if (hasNormal == 1) {
+	    // Sample and transform the normal map
+	    vec3 mapNormal = texture(normalMap, displacedUV).rgb;
+	    mapNormal = normalize(mapNormal * 2.0 - 1.0);
+	    Nworld = normalize(TBN * mapNormal);
+	
+	    // Flip the normal if it's a back face
+	    if (!gl_FrontFacing) {
+	        Nworld = -Nworld;
+	    }
+	} else {
+	    // Use the geometry normal if normal map is missing
+	    Nworld = gl_FrontFacing ? N : -N;
+	}
 
-    // 5) Base color
-    vec3 baseColor = texture(diffuseTexture, displacedUV).rgb;
+    // 5) Base Color
+    vec4 diffuseSample = texture(diffuseTexture, displacedUV);
+    vec3 baseColor = diffuseSample.rgb;
 
-    // 6) Are any PBR maps present?
-    //    If no PBR maps at all => fallback
-    bool hasAnyPBR = (hasMetallic==1 || hasRoughness==1 || hasAo==1);
+    // Discard transparent pixels (assuming alpha channel is used for transparency)
+    float alphaThreshold = 0.1;
+	float smoothAlpha = smoothstep(alphaThreshold - 0.05, alphaThreshold + 0.05, diffuseSample.a);
+	if (smoothAlpha < 0.05) {
+	    discard;
+	}
+	
+	
+    // 6) Check for PBR Maps
+    bool hasAnyPBR = (hasMetallic == 1 || hasRoughness == 1 || hasAo == 1);
 
     // 7) Prepare PBR or fallback values
     float metallic  = 0.0;
@@ -225,81 +254,106 @@ void main() {
     float ao        = 1.0;
 
     if (hasAnyPBR) {
-        // If we have metallic, read it, else default = 0
-        if (hasMetallic==1) {
+        // Metallic
+        if (hasMetallic == 1) {
             metallic = texture(metallicMap, displacedUV).r;
-            metallic = clamp(metallic, 0.17, 1.0);
+            metallic = clamp(metallic, 0.0, 1.0);
         }
-        // If we have roughness, read it, else default = 0.5
-        if (hasRoughness==1) {
+
+        // Roughness
+        if (hasRoughness == 1) {
             roughness = texture(roughnessMap, displacedUV).r;
-            roughness = clamp(roughness, 0.17, 1.0);
+            roughness = clamp(roughness, 0.0, 1.0);
         }
-        // If we have AO, read it, else default=1
-        if (hasAo==1) {
+
+        // Ambient Occlusion
+        if (hasAo == 1) {
             ao = texture(aoMap, displacedUV).r;
-            ao = clamp(ao, 0.17, 1.0);
+            ao = clamp(ao, 0.0, 1.0);
         }
     }
 
-    // 8) Summation
+    // 8) Lighting Calculation
     vec3 V  = normalize(Vworld);
     vec3 finalColor = vec3(0.0);
 
     if (!hasAnyPBR) {
-        // old fallback
-        for(int i=0; i<numLights; i++){
+        // Use fallback lighting model
+        for(int i = 0; i < numLights; i++) {
             finalColor += fallbackLight(Nworld, V, baseColor, reflectivity, shineDamper, lights[i]);
         }
     }
     else {
-        // partial or full PBR
-        for(int i=0; i<numLights; i++){
-            // F0 = mix(0.04, baseColor) by metallic
+        // Use PBR lighting model
+        for(int i = 0; i < numLights; i++) {
+            // Calculate F0 based on metallic property
             vec3 F0 = mix(vec3(0.04), baseColor, metallic);
             finalColor += pbrLight(Nworld, V, baseColor, metallic, roughness, F0, lights[i]);
         }
-        // multiply by AO if we have it
-        if (hasAo==1) {
+        // Apply Ambient Occlusion if available
+        if (hasAo == 1) {
             finalColor *= ao;
         }
     }
-    
 
-    outColor = vec4(finalColor, 1.0);
-    
-    
-     // Debug Mode Handling
+    // 9) Assign the final color
+    outColor = vec4(finalColor, smoothAlpha);
+
+    // -----------------------------------------------------------------------------
+    // Debug Mode Handling
+    // -----------------------------------------------------------------------------
     switch (debugMode) {
         case 1: // Visualize World Normals
             outColor = vec4((Nworld * 0.5) + 0.5, 1.0);
             break;
         case 2: // Visualize Tangent Space Normals
-            outColor = vec4((mapNormal * 0.5) + 0.5, 1.0);
+            if (hasNormal == 1) {
+                vec3 mapNormal = texture(normalMap, displacedUV).rgb;
+                mapNormal = normalize(mapNormal * 2.0 - 1.0);
+                outColor = vec4((mapNormal * 0.5) + 0.5, 1.0);
+            } else {
+                outColor = vec4((N * 0.5) + 0.5, 1.0);
+            }
             break;
         case 3: // Visualize UV Coordinates
             outColor = vec4(displacedUV, 0.0, 1.0);
             break;
         case 4: // Visualize Depth
-            float depth = gl_FragCoord.z / gl_FragCoord.w;
-            outColor = vec4(vec3(depth), 1.0);
+            {
+                // Assuming a perspective projection matrix is used
+                float depth = gl_FragCoord.z / gl_FragCoord.w;
+                outColor = vec4(vec3(depth), 1.0);
+            }
             break;
         case 5: // Visualize Material Properties (Metallic)
-            outColor = vec4(vec3(texture(metallicMap, displacedUV).r), 1.0);
+            if (hasMetallic == 1) {
+                outColor = vec4(vec3(texture(metallicMap, displacedUV).r), 1.0);
+            } else {
+                outColor = vec4(vec3(0.0), 1.0); // Default metallic value
+            }
             break;
         case 6: // Visualize Surface Curvature
-            float curvature = dot(normalize(Nworld), vec3(0.0, 0.0, 1.0));
-            outColor = vec4(curvature, curvature, curvature, 1.0);
+            {
+                // Simple curvature approximation using normal's Y component
+                float curvature = abs(Nworld.y);
+                outColor = vec4(vec3(curvature), 1.0);
+            }
             break;
         case 7: // Visualize View Vector
-            float viewIntensity = dot(normalize(Vworld), normalize(Nworld));
-            outColor = vec4(vec3(viewIntensity), 1.0);
+            {
+                float viewIntensity = dot(normalize(Vworld), normalize(Nworld));
+                outColor = vec4(vec3(viewIntensity), 1.0);
+            }
             break;
         case 8: // Heat Maps for Performance (placeholder for computational intensity)
-            float computeIntensity = 0.5; // Placeholder: replace with actual computation
-            outColor = vec4(computeIntensity, 0.0, 1.0 - computeIntensity, 1.0);
+            {
+                // Placeholder: Replace with actual performance metrics if available
+                float computeIntensity = 0.5; 
+                outColor = vec4(computeIntensity, 0.0, 1.0 - computeIntensity, 1.0);
+            }
             break;
         default:
+            // No debug mode; retain the computed color
             break;
     }
 }
