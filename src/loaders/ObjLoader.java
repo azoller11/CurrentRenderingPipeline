@@ -1,0 +1,292 @@
+package loaders;
+
+import org.joml.Vector2f;
+import org.joml.Vector3f;
+import org.lwjgl.system.MemoryStack;
+
+import toolbox.Mesh;
+
+import java.io.*;
+import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.lwjgl.opengl.GL40.*;
+
+/**
+ * OBJ Loader that parses:
+ *   v  (positions)
+ *   vt (texture coords)
+ *   vn (normals)
+ *   f  (faces) referencing v/t/n indices
+ *
+ * Produces a Mesh with layout (11 floats/vertex):
+ *   [pos.x, pos.y, pos.z,
+ *    uv.x, uv.y,
+ *    normal.x, normal.y, normal.z,
+ *    tangent.x, tangent.y, tangent.z]
+ */
+public class ObjLoader {
+
+    private static final String RES_LOC = "res/";
+
+    // Basic container for each "vertex" in the OBJ (pos/uv/normal).
+    // We'll compute tangents per unique vertex as well.
+    static class VertexData {
+        Vector3f position;
+        Vector2f uv;
+        Vector3f normal;
+        // We'll accumulate tangent here
+        Vector3f tangent = new Vector3f(0,0,0);
+
+        public VertexData(Vector3f pos, Vector2f uv, Vector3f nor) {
+            this.position = pos;
+            this.uv = uv;
+            this.normal = nor;
+        }
+    }
+
+    public static Mesh loadObj(String objFileName) {
+        File objFile = new File(RES_LOC + objFileName + ".obj");
+
+        List<Vector3f> positions = new ArrayList<>();
+        List<Vector2f> texCoords = new ArrayList<>();
+        List<Vector3f> normals   = new ArrayList<>();
+
+        // Index lists from faces
+        List<Integer> indicesPos = new ArrayList<>();
+        List<Integer> indicesTex = new ArrayList<>();
+        List<Integer> indicesNor = new ArrayList<>();
+        
+        float furthestDistanceSquared = 0.0f; // Store squared distance to avoid sqrt computations
+
+
+        // 1) Parse the OBJ
+        try (FileReader fr = new FileReader(objFile);
+             BufferedReader reader = new BufferedReader(fr))
+        {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.startsWith("v ")) {
+                	Vector3f position = parseVector3f(line);
+                    
+                 // Update furthest distance
+                    float distanceSquared = position.lengthSquared(); // Faster than computing sqrt
+                    if (distanceSquared > furthestDistanceSquared) {
+                        furthestDistanceSquared = distanceSquared;
+                    }
+                    positions.add(position);
+                } 
+                else if (line.startsWith("vt ")) {
+                    texCoords.add(parseVector2f(line));
+                } 
+                else if (line.startsWith("vn ")) {
+                    normals.add(parseVector3f(line));
+                } 
+                else if (line.startsWith("f ")) {
+                    parseFace(line, indicesPos, indicesTex, indicesNor);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading OBJ file: " + objFile.getAbsolutePath(), e);
+        }
+
+        // 2) Build a VertexData list for each unique v/t/n combination
+        // We have an index for pos, tex, nor. We'll create a VertexData for each combination
+        // and store them in an array. Then we'll have a final "indexList" for the actual order.
+
+        // However, in your code, you're using a "fully expanded" approach (1 index for each face vertex).
+        // So we'll just build the final "expanded" array as well. For each face vertex, we create a VertexData.
+
+        int numVertices = indicesPos.size(); // 3 per face for a triangle
+        VertexData[] vertexDataArray = new VertexData[numVertices];
+
+        for (int i = 0; i < numVertices; i++) {
+            int pIndex = indicesPos.get(i) - 1; // OBJ is 1-based
+            int tIndex = indicesTex.get(i) - 1;
+            int nIndex = indicesNor.get(i) - 1;
+
+            Vector3f pos = positions.get(pIndex);
+
+            Vector2f uv = (tIndex >= 0 && tIndex < texCoords.size())
+                            ? texCoords.get(tIndex)
+                            : new Vector2f(0.0f, 0.0f);
+
+            Vector3f nor = (nIndex >= 0 && nIndex < normals.size())
+                            ? normals.get(nIndex)
+                            : new Vector3f(0,1,0);
+
+            vertexDataArray[i] = new VertexData(pos, uv, nor);
+        }
+
+        // 3) Compute tangents face-by-face
+        // Each face is 3 consecutive vertices in "vertexDataArray"
+        // i.e. (i, i+1, i+2) for i = 0, 3, 6, ...
+        for (int i = 0; i < numVertices; i += 3) {
+            VertexData v0 = vertexDataArray[i];
+            VertexData v1 = vertexDataArray[i+1];
+            VertexData v2 = vertexDataArray[i+2];
+
+            computeTangentsForTriangle(v0, v1, v2);
+        }
+
+        // 4) Build final float[] with 11 floats per vertex
+        //    (pos.x, pos.y, pos.z, uv.x, uv.y, normal.x, normal.y, normal.z, tangent.x, tangent.y, tangent.z)
+        float[] finalData = new float[numVertices * 11];
+        int floatIndex = 0;
+        for (int i = 0; i < numVertices; i++) {
+            VertexData vd = vertexDataArray[i];
+
+            finalData[floatIndex++] = vd.position.x;
+            finalData[floatIndex++] = vd.position.y;
+            finalData[floatIndex++] = vd.position.z;
+
+            finalData[floatIndex++] = vd.uv.x;
+            finalData[floatIndex++] = vd.uv.y;
+
+            finalData[floatIndex++] = vd.normal.x;
+            finalData[floatIndex++] = vd.normal.y;
+            finalData[floatIndex++] = vd.normal.z;
+
+            // Now normalize the tangent (in case a vertex is shared among faces)
+            vd.tangent.normalize();
+            finalData[floatIndex++] = vd.tangent.x;
+            finalData[floatIndex++] = vd.tangent.y;
+            finalData[floatIndex++] = vd.tangent.z;
+        }
+
+        float furthestDistance = (float) Math.sqrt(furthestDistanceSquared);
+
+        
+        // 5) Create VAO, VBO
+        int vao = glGenVertexArrays();
+        glBindVertexArray(vao);
+
+        int vbo = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer fb = stack.mallocFloat(finalData.length);
+            fb.put(finalData).flip();
+            glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+        }
+
+        // pos => loc=0 (3 floats)
+        int stride = 11 * Float.BYTES;
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0L);
+        glEnableVertexAttribArray(0);
+
+        // uv => loc=1 (2 floats)
+        glVertexAttribPointer(1, 2, GL_FLOAT, false, stride, 3L * Float.BYTES);
+        glEnableVertexAttribArray(1);
+
+        // normal => loc=2 (3 floats)
+        glVertexAttribPointer(2, 3, GL_FLOAT, false, stride, 5L * Float.BYTES);
+        glEnableVertexAttribArray(2);
+
+        // tangent => loc=3 (3 floats)
+        glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 8L * Float.BYTES);
+        glEnableVertexAttribArray(3);
+
+        glBindVertexArray(0);
+
+        return new Mesh(vao, numVertices, furthestDistance);
+    }
+
+    // ---------------------------------------------------
+    //  Tangent Calculation for a Single Triangle
+    // ---------------------------------------------------
+    private static void computeTangentsForTriangle(VertexData v0, VertexData v1, VertexData v2) {
+        // pos edges
+        Vector3f edgePos1 = new Vector3f(v1.position).sub(v0.position);
+        Vector3f edgePos2 = new Vector3f(v2.position).sub(v0.position);
+
+        // uv edges
+        Vector2f edgeUV1 = new Vector2f(v1.uv).sub(v0.uv);
+        Vector2f edgeUV2 = new Vector2f(v2.uv).sub(v0.uv);
+
+        float r = (edgeUV1.x * edgeUV2.y - edgeUV1.y * edgeUV2.x);
+        if (Math.abs(r) < 0.0001f) {
+            // Avoid division by zero, or handle degenerate UV
+            r = 0.0001f;
+        }
+        float inv = 1.0f / r;
+
+        Vector3f tangent = new Vector3f(
+            inv * (edgePos1.x * edgeUV2.y - edgePos2.x * edgeUV1.y),
+            inv * (edgePos1.y * edgeUV2.y - edgePos2.y * edgeUV1.y),
+            inv * (edgePos1.z * edgeUV2.y - edgePos2.z * edgeUV1.y)
+        );
+
+        // Accumulate into each vertex
+        v0.tangent.add(tangent);
+        v1.tangent.add(tangent);
+        v2.tangent.add(tangent);
+    }
+
+    
+		
+
+    // ---------------------------------------------------
+    //  Helpers
+    // ---------------------------------------------------
+
+    private static Vector3f parseVector3f(String line) {
+        // e.g. "v 0.1 1.2 2.3" or "vn 0.5 0.6 0.7"
+        String[] tokens = line.split("\\s+");
+        float x = Float.parseFloat(tokens[1]);
+        float y = Float.parseFloat(tokens[2]);
+        float z = Float.parseFloat(tokens[3]);
+        return new Vector3f(x, y, z);
+    }
+
+    private static Vector2f parseVector2f(String line) {
+        // e.g. "vt 0.5 0.6"
+        String[] tokens = line.split("\\s+");
+        float u = Float.parseFloat(tokens[1]);
+        float v = Float.parseFloat(tokens[2]);
+
+        // Flip the V to match typical OBJ convention
+        v = 1.0f - v;
+
+        return new Vector2f(u, v);
+    }
+
+    /**
+     * Parse a face line: "f v1/t1/n1 v2/t2/n2 v3/t3/n3"
+     * We store the indices in separate lists (positions, texCoords, normals).
+     */
+    private static void parseFace(String line,
+                                  List<Integer> indicesPos,
+                                  List<Integer> indicesTex,
+                                  List<Integer> indicesNor)
+    {
+        // e.g. "f 1/1/1 2/2/2 3/3/3"
+        String[] tokens = line.split("\\s+");
+        // tokens[0] = "f"
+
+        // For a triangle face, we expect 3 vertices
+        for (int i = 1; i <= 3; i++) {
+            String[] parts = tokens[i].split("/");
+            // parts[0] = posIndex
+            // parts[1] = texIndex
+            // parts[2] = norIndex
+
+            int posIndex = Integer.parseInt(parts[0]);
+            indicesPos.add(posIndex);
+
+            int texIndex = 0;
+            if (parts.length > 1 && !parts[1].isEmpty()) {
+                texIndex = Integer.parseInt(parts[1]);
+            }
+            indicesTex.add(texIndex);
+
+            int norIndex = 0;
+            if (parts.length > 2 && !parts[2].isEmpty()) {
+                norIndex = Integer.parseInt(parts[2]);
+            }
+            indicesNor.add(norIndex);
+        }
+    }
+}

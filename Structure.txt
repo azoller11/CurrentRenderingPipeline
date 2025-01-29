@@ -1,0 +1,16 @@
+your-project/
+ ┣ src/
+ ┃ ┣ main/
+ ┃ ┃ ┣ java/
+ ┃ ┃ ┃ ┣ demo/
+ ┃ ┃ ┃ ┃ ┣ Main.java
+ ┃ ┃ ┃ ┃ ┣ MeshUtil.java
+ ┃ ┃ ┃ ┃ ┗ ShaderProgram.java
+ ┃ ┃ ┗ resources/
+ ┃ ┃   ┗ shaders/
+ ┃ ┃     ┣ vertex.glsl
+ ┃ ┃     ┣ tess_control.glsl
+ ┃ ┃     ┣ tess_eval.glsl
+ ┃ ┃     ┣ geometry.glsl
+ ┃ ┃     ┗ fragment.glsl
+ ┗ pom.xml (or gradle.build, etc.)
