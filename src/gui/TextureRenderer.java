@@ -5,7 +5,7 @@ import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL40;
 import shaders.ShaderProgram;
-import gui.Texture;
+import gui.GuiTexture;
 
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
@@ -17,7 +17,7 @@ public class TextureRenderer {
     private ShaderProgram shaderProgram;
     private int vaoId;
     private int vboId;
-    private List<Texture> textures;
+    private List<GuiTexture> textures;
 
     // Quad vertices (positions and texture coordinates)
     private static final float[] VERTICES = {
@@ -74,22 +74,22 @@ public class TextureRenderer {
         glBindVertexArray(0);
     }
 
-    public void addTexture(Texture texture) {
+    public void addTexture(GuiTexture texture) {
         textures.add(texture);
     }
     
     public void addTexture(String filePath, float posX, float posY, float scaleX, float scaleY) {
-        Texture newTexture = new Texture(filePath, posX, posY, scaleX, scaleY);
+        GuiTexture newTexture = new GuiTexture(filePath, posX, posY, scaleX, scaleY);
         textures.add(newTexture);
     }
 
-    public void removeTexture(Texture texture) {
+    public void removeTexture(GuiTexture texture) {
         textures.remove(texture);
     }
 
     FloatBuffer projBuffer;
     FloatBuffer viewBuffer;
-    Texture texture;
+    GuiTexture texture;
     Matrix4f model;
     FloatBuffer modelBuffer;
     public void render(Matrix4f projection, Matrix4f view) {
@@ -136,7 +136,7 @@ public class TextureRenderer {
     public void cleanUp() {
         glDeleteBuffers(vboId);
         glDeleteVertexArrays(vaoId);
-        for (Texture texture : textures) {
+        for (GuiTexture texture : textures) {
             texture.destroy();
         }
     }

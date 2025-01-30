@@ -10,7 +10,6 @@ import entities.Entity;
 import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
-import shadows.ShadowMapRenderer;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
@@ -29,7 +28,7 @@ public class MasterRenderer {
     private final ShaderProgram shader;
     private final Matrix4f projectionMatrix;
     
-    private final ShadowMapRenderer shadowMapRenderer;
+    //private final ShadowMapRenderer shadowMapRenderer;
     
     private int screenWidth, screenHeight;
     
@@ -80,7 +79,7 @@ public class MasterRenderer {
         projectionMatrix = new Matrix4f().perspective(fov, aspect, near, far);
         
      // Initialize the ShadowMapRenderer
-        shadowMapRenderer = new ShadowMapRenderer();
+        //shadowMapRenderer = new ShadowMapRenderer();
     }
 
     public Matrix4f getProjectionMatrix() {
@@ -96,7 +95,7 @@ public class MasterRenderer {
      */
     public void render(List<Entity> entities, List<Light> lights, Camera camera) {
     	// 1. Render shadow maps for each light
-        //shadowMapRenderer.renderShadowMaps(entities, lights);
+    	//shadowMapRenderer.renderShadowMaps(entities, lights, camera);
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
      // 2. Reset viewport to window dimensions to prevent distortion
@@ -246,8 +245,6 @@ public class MasterRenderer {
         }
         
 
-        //shader.setUniform1f("shineDamper", entity.getShineDamper());
-        //shader.setUniform1f("reflectivity", entity.getReflectivity());
         
 
         //  Bind the entity's mesh
@@ -261,31 +258,7 @@ public class MasterRenderer {
         glBindVertexArray(0);
     }
 
-    private void bindShadowMaps(List<Light> lights, ShaderProgram shader) {
-        int textureUnit = 10; // Starting texture unit for shadow maps to avoid conflicts
-        shader.setUniform1i("numLights", lights.size());
 
-        for (int i = 0; i < lights.size(); i++) {
-            Light light = lights.get(i);
-            String shadowMapUniform = "shadowMaps[" + i + "]";
-            glActiveTexture(GL_TEXTURE0 + textureUnit);
-            glBindTexture(GL_TEXTURE_2D, light.getShadowMapTexture());
-            shader.setUniform1i(shadowMapUniform, textureUnit);
-            
-            
-            System.out.println(light.getShadowMapTexture());
-            
-            // Pass light space matrix
-            String matrixUniform = "lightSpaceMatrices[" + i + "]";
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                FloatBuffer fb = stack.mallocFloat(16);
-                light.getLightSpaceMatrix().get(fb);
-                shader.setUniformMat4(matrixUniform, false, fb);
-            }
-
-            textureUnit++;
-        }
-    }
 
     /**
      * Cleanup the shader (call at end of program).

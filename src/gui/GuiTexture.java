@@ -11,7 +11,7 @@ import java.util.Map;
 
 import static org.lwjgl.opengl.GL40.*;
 
-public class Texture {
+public class GuiTexture {
     private int textureId;
     private int width;
     private int height;
@@ -24,9 +24,9 @@ public class Texture {
     private float scaleY;
     
     // Cache to store loaded textures
-    private static final Map<String, Texture> textureCache = new HashMap<>();
+    private static final Map<String, GuiTexture> textureCache = new HashMap<>();
 
-    public Texture(String filePath) {
+    public GuiTexture(String filePath) {
         this.filePath = filePath;
         loadTexture(filePath);
         // Initialize position and scale
@@ -36,7 +36,7 @@ public class Texture {
         scaleY = 1.0f;
     }
     
-    public Texture(String filePath, float posX, float posY, float scaleX, float scaleY) {
+    public GuiTexture(String filePath, float posX, float posY, float scaleX, float scaleY) {
         this.filePath = filePath;
         this.posX = posX;
         this.posY = posY;

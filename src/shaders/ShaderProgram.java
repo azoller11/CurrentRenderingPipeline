@@ -133,6 +133,22 @@ public class ShaderProgram {
             glUniformMatrix4fv(loc, transpose, matrixBuffer);
         }
     }
+    
+    public void setUniformMat4(String name, boolean transpose, float[] matrix) {
+        int loc = getUniformLocation(name);
+        if (loc >= 0) {
+            glUniformMatrix4fv(loc, transpose, matrix);
+        }
+    }
+
+    public void setUniformMat4(String name, boolean transpose, Matrix4f matrix) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer fb = stack.mallocFloat(16);
+            matrix.get(fb);
+            setUniformMat4(name, transpose, fb);
+        }
+    }
+
 
     public void setUniform1i(String name, int value) {
         int loc = getUniformLocation(name);

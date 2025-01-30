@@ -98,8 +98,8 @@ public class Main {
         
         textureRenderer = new TextureRenderer();
         
-        gui.Texture texture1 = new gui.Texture("res/peeling-painted-metal_albedo.png", 0.0f,0.0f, 100.0f, 100.0f);
-        gui.Texture texture2 = new gui.Texture("res/peeling-painted-metal_albedo.png");
+        gui.GuiTexture texture1 = new gui.GuiTexture("res/peeling-painted-metal_albedo.png", 0.0f,0.0f, 100.0f, 100.0f);
+        gui.GuiTexture texture2 = new gui.GuiTexture("res/peeling-painted-metal_albedo.png");
 
         // Add Textures to Renderer
         textureRenderer.addTexture(texture1);

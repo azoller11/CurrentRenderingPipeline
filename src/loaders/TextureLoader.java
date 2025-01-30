@@ -2,7 +2,7 @@ package loaders;
 
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
-import gui.Texture;
+import gui.GuiTexture;
 
 import java.io.File;
 import java.nio.ByteBuffer;
