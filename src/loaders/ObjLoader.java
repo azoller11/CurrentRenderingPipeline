@@ -11,7 +11,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.lwjgl.opengl.GL40.*;
 
@@ -32,6 +34,9 @@ public class ObjLoader {
 
     private static final String RES_LOC = "res/";
 
+    // Cache to store loaded meshes
+    private static final Map<String, Mesh> meshCache = new HashMap<>();
+
     // Basic container for each "vertex" in the OBJ (pos/uv/normal).
     // We'll compute tangents per unique vertex as well.
     static class VertexData {
@@ -39,7 +44,7 @@ public class ObjLoader {
         Vector2f uv;
         Vector3f normal;
         // We'll accumulate tangent here
-        Vector3f tangent = new Vector3f(0,0,0);
+        Vector3f tangent = new Vector3f(0, 0, 0);
 
         public VertexData(Vector3f pos, Vector2f uv, Vector3f nor) {
             this.position = pos;
@@ -48,45 +53,52 @@ public class ObjLoader {
         }
     }
 
+    /**
+     * Loads an OBJ model. If the model has already been loaded, it returns the cached Mesh.
+     *
+     * @param objFileName The name of the OBJ file (without the .obj extension)
+     * @return The loaded Mesh
+     */
     public static Mesh loadObj(String objFileName) {
+        // Check if the mesh is already loaded and cached
+        if (meshCache.containsKey(objFileName)) {
+            //System.out.println("Model \"" + objFileName + "\" retrieved from cache.");
+            return meshCache.get(objFileName);
+        }
+
         File objFile = new File(RES_LOC + objFileName + ".obj");
 
         List<Vector3f> positions = new ArrayList<>();
         List<Vector2f> texCoords = new ArrayList<>();
-        List<Vector3f> normals   = new ArrayList<>();
+        List<Vector3f> normals = new ArrayList<>();
 
         // Index lists from faces
         List<Integer> indicesPos = new ArrayList<>();
         List<Integer> indicesTex = new ArrayList<>();
         List<Integer> indicesNor = new ArrayList<>();
-        
-        float furthestDistanceSquared = 0.0f; // Store squared distance to avoid sqrt computations
 
+        float furthestDistanceSquared = 0.0f; // Store squared distance to avoid sqrt computations
 
         // 1) Parse the OBJ
         try (FileReader fr = new FileReader(objFile);
-             BufferedReader reader = new BufferedReader(fr))
-        {
+             BufferedReader reader = new BufferedReader(fr)) {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
                 if (line.startsWith("v ")) {
-                	Vector3f position = parseVector3f(line);
-                    
-                 // Update furthest distance
+                    Vector3f position = parseVector3f(line);
+
+                    // Update furthest distance
                     float distanceSquared = position.lengthSquared(); // Faster than computing sqrt
                     if (distanceSquared > furthestDistanceSquared) {
                         furthestDistanceSquared = distanceSquared;
                     }
                     positions.add(position);
-                } 
-                else if (line.startsWith("vt ")) {
+                } else if (line.startsWith("vt ")) {
                     texCoords.add(parseVector2f(line));
-                } 
-                else if (line.startsWith("vn ")) {
+                } else if (line.startsWith("vn ")) {
                     normals.add(parseVector3f(line));
-                } 
-                else if (line.startsWith("f ")) {
+                } else if (line.startsWith("f ")) {
                     parseFace(line, indicesPos, indicesTex, indicesNor);
                 }
             }
@@ -112,12 +124,12 @@ public class ObjLoader {
             Vector3f pos = positions.get(pIndex);
 
             Vector2f uv = (tIndex >= 0 && tIndex < texCoords.size())
-                            ? texCoords.get(tIndex)
-                            : new Vector2f(0.0f, 0.0f);
+                    ? texCoords.get(tIndex)
+                    : new Vector2f(0.0f, 0.0f);
 
             Vector3f nor = (nIndex >= 0 && nIndex < normals.size())
-                            ? normals.get(nIndex)
-                            : new Vector3f(0,1,0);
+                    ? normals.get(nIndex)
+                    : new Vector3f(0, 1, 0);
 
             vertexDataArray[i] = new VertexData(pos, uv, nor);
         }
@@ -127,8 +139,8 @@ public class ObjLoader {
         // i.e. (i, i+1, i+2) for i = 0, 3, 6, ...
         for (int i = 0; i < numVertices; i += 3) {
             VertexData v0 = vertexDataArray[i];
-            VertexData v1 = vertexDataArray[i+1];
-            VertexData v2 = vertexDataArray[i+2];
+            VertexData v1 = vertexDataArray[i + 1];
+            VertexData v2 = vertexDataArray[i + 2];
 
             computeTangentsForTriangle(v0, v1, v2);
         }
@@ -160,7 +172,6 @@ public class ObjLoader {
 
         float furthestDistance = (float) Math.sqrt(furthestDistanceSquared);
 
-        
         // 5) Create VAO, VBO
         int vao = glGenVertexArrays();
         glBindVertexArray(vao);
@@ -174,14 +185,12 @@ public class ObjLoader {
             fb.put(finalData).flip();
             glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
         }*/
-        
+
         FloatBuffer fb = ByteBuffer.allocateDirect(finalData.length * Float.BYTES)
-		                .order(ByteOrder.nativeOrder())
-		                .asFloatBuffer();
-		fb.put(finalData).flip();
-		glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
-        
-        
+                .order(ByteOrder.nativeOrder())
+                .asFloatBuffer();
+        fb.put(finalData).flip();
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
 
         // pos => loc=0 (3 floats)
         int stride = 11 * Float.BYTES;
@@ -202,7 +211,13 @@ public class ObjLoader {
 
         glBindVertexArray(0);
 
-        return new Mesh(vao, numVertices, furthestDistance);
+        Mesh mesh = new Mesh(vao, numVertices, furthestDistance);
+
+        // Store the loaded mesh in the cache
+        meshCache.put(objFileName, mesh);
+        //System.out.println("Model \"" + objFileName + "\" loaded and cached.");
+
+        return mesh;
     }
 
     // ---------------------------------------------------
@@ -225,9 +240,9 @@ public class ObjLoader {
         float inv = 1.0f / r;
 
         Vector3f tangent = new Vector3f(
-            inv * (edgePos1.x * edgeUV2.y - edgePos2.x * edgeUV1.y),
-            inv * (edgePos1.y * edgeUV2.y - edgePos2.y * edgeUV1.y),
-            inv * (edgePos1.z * edgeUV2.y - edgePos2.z * edgeUV1.y)
+                inv * (edgePos1.x * edgeUV2.y - edgePos2.x * edgeUV1.y),
+                inv * (edgePos1.y * edgeUV2.y - edgePos2.y * edgeUV1.y),
+                inv * (edgePos1.z * edgeUV2.y - edgePos2.z * edgeUV1.y)
         );
 
         // Accumulate into each vertex
@@ -235,9 +250,6 @@ public class ObjLoader {
         v1.tangent.add(tangent);
         v2.tangent.add(tangent);
     }
-
-    
-		
 
     // ---------------------------------------------------
     //  Helpers
@@ -271,8 +283,7 @@ public class ObjLoader {
     private static void parseFace(String line,
                                   List<Integer> indicesPos,
                                   List<Integer> indicesTex,
-                                  List<Integer> indicesNor)
-    {
+                                  List<Integer> indicesNor) {
         // e.g. "f 1/1/1 2/2/2 3/3/3"
         String[] tokens = line.split("\\s+");
         // tokens[0] = "f"

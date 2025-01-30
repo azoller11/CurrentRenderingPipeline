@@ -22,7 +22,7 @@ public class EngineSettings {
 	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;
 	
 	//Computation
-	public static boolean MemoryUsage = false;
+	public static boolean MemoryUsage = true;
 	
 	
 	

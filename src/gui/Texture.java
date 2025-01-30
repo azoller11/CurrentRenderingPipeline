@@ -6,6 +6,8 @@ import org.lwjgl.stb.STBImage;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.lwjgl.opengl.GL40.*;
 
@@ -20,6 +22,9 @@ public class Texture {
     private float posY;
     private float scaleX;
     private float scaleY;
+    
+    // Cache to store loaded textures
+    private static final Map<String, Texture> textureCache = new HashMap<>();
 
     public Texture(String filePath) {
         this.filePath = filePath;

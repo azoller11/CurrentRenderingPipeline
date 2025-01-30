@@ -33,7 +33,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Main {
 
     private long window;
-    private final int width = 1200;
+    private final int width = 900;
     private final int height = 600;
     
     private int frames = 0;
@@ -123,7 +123,9 @@ public class Main {
         int roughnessMapTexture = TextureLoader.loadTexture("peeling-painted-metal_height.png");
         int aoMapTexture = TextureLoader.loadTexture("peeling-painted-metal_ao.png");
         
-        
+        TextureLoader.loadTexture("peeling-painted-metal_metallic.png");
+        TextureLoader.loadTexture("peeling-painted-metal_metallic.png");
+        TextureLoader.loadTexture("peeling-painted-metal_metallic.png");
         
         /*
    		private int metallicMap;
@@ -242,11 +244,11 @@ public class Main {
 
             // Example: rotate the second cube around Y
             for (Entity e : entities) {
-            	debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint(), new Vector3f(0,0,1));
+            	//debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint(), new Vector3f(0,0,1));
             }
             
             for (Light e : lights) {
-            	debugRenderer.addSphere(e.getPosition(), 1,e.getColor());
+            	//debugRenderer.addSphere(e.getPosition(), 1,e.getColor());
             }
             if (!EngineSettings.grabMouse)
             	picker.update(window);

@@ -11,6 +11,7 @@ import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
 import shadows.ShadowMapRenderer;
+import toolbox.Frustum;
 import toolbox.Mesh;
 
 import java.nio.FloatBuffer;
@@ -31,6 +32,8 @@ public class MasterRenderer {
     private final ShadowMapRenderer shadowMapRenderer;
     
     private int screenWidth, screenHeight;
+    
+    private Frustum frustum;
 
     // For each frame, we’ll set up the "view" from the camera.
     // We keep the "projection" in a single place here for simplicity.
@@ -53,6 +56,8 @@ public class MasterRenderer {
         glEnable(GL_MULTISAMPLE);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        frustum = new Frustum();
 
 
         // 2) Create your perspective projection
@@ -133,10 +138,11 @@ public class MasterRenderer {
 
        // bindShadowMaps(lights, shader);
         
-        
+        frustum.calculateFrustum(projectionMatrix, view);
         // 5) For each entity, build the model matrix and draw
         for (Entity entity : entities) {
-            drawEntity(entity);
+        	if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint()))
+        		drawEntity(entity);
         }
 
         shader.unbind();
