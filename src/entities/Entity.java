@@ -30,6 +30,7 @@ public class Entity {
     private float reflectivity = 0;
     
     private boolean hasTransparency;
+    private boolean hasOpaque;
     
     
     
@@ -167,6 +168,14 @@ public class Entity {
 
 	public void setHasTransparency(boolean hasTransparency) {
 		this.hasTransparency = hasTransparency;
+	}
+
+	public boolean isHasOpaque() {
+		return hasOpaque;
+	}
+
+	public void setHasOpaque(boolean hasOpaque) {
+		this.hasOpaque = hasOpaque;
 	}
 
 	

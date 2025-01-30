@@ -143,8 +143,8 @@ public class Main {
         cube1.setNormalMapId(TextureLoader.loadTexture("boxNormal.png"));
         cube1.setHeighMapId(TextureLoader.loadTexture("boxHeightMap.png"));
         cube1.setParallaxScale(new Vector3f(0.12f, 120, 160));
-          cube1.setReflectivity(0.1f);
-          cube1.setShineDamper(1);
+          //cube1.setReflectivity(0.1f);
+          //cube1.setShineDamper(1);
         cube1.setMetallicMap(metallicMapTexture);
         cube1.setAoMap(aoMapTexture);
         cube1.setRoughnessMap(roughnessMapTexture);
@@ -156,12 +156,14 @@ public class Main {
         cube2.setParallaxScale(new Vector3f(0.12f, 120, 160));
         cube2.setReflectivity(10);
         cube2.setShineDamper(100);
+        
         Entity cube3 = new Entity(boxMesh, TextureId, new Vector3f(30, 20, 0),  new Vector3f(0,0,0), 1f);
         cube3.setNormalMapId(normalTexture);
         cube3.setHeighMapId(heightMapTexture);
         cube3.setParallaxScale(new Vector3f(0.12f, 120, 160));
-        cube3.setReflectivity(10);
-        cube3.setShineDamper(100);
+        cube3.setMetallicMap(metallicMapTexture);
+        cube3.setAoMap(aoMapTexture);
+        cube3.setRoughnessMap(roughnessMapTexture);
         
         
         Entity cube4 = new Entity(ObjLoader.loadObj("tallPine4"), TextureLoader.loadTexture("pineTexture3.png"), new Vector3f(5, 0, 0), new Vector3f(0,0,0), 1f);
@@ -173,11 +175,22 @@ public class Main {
         //cube4.setMetallicMap(metallicMapTexture);
         //cube4.setAoMap(aoMapTexture);
         //cube4.setRoughnessMap(roughnessMapTexture);
+        
+        Entity cube5 = new Entity(cubeMesh, TextureLoader.loadTexture("colorWheel.png"), new Vector3f(5, 3, 5), new Vector3f(0,0,0), 1f);
+        //cube4.setNormalMapId(TextureLoader.loadTexture("boxNormal.png"));
+        //cube4.setHeighMapId(TextureLoader.loadTexture("boxHeightMap.png"));
+        cube5.setReflectivity(0.1f);
+        cube5.setShineDamper(1);
+        cube5.setHasOpaque(true);
+        //cube4.setMetallicMap(metallicMapTexture);
+        //cube4.setAoMap(aoMapTexture);
+        //cube4.setRoughnessMap(roughnessMapTexture);
 
         entities.add(cube1);
         entities.add(cube2);
         entities.add(cube3);
         entities.add(cube4);
+        entities.add(cube5);
         
         
         lights.add(new Light(new Vector3f(0,30,0), new Vector3f(1,1,1))); 
@@ -243,14 +256,20 @@ public class Main {
             camera.handleInput(window, deltaTime);
 
             // Example: rotate the second cube around Y
-            for (Entity e : entities) {
-            	//debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint(), new Vector3f(0,0,1));
+            if (EngineSettings.VisualiseObjects) {
+            	for (Entity e : entities) {
+                	debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint(), new Vector3f(0,0,1));
+                }
             }
             
-            for (Light e : lights) {
-            	//debugRenderer.addSphere(e.getPosition(), 1,e.getColor());
+            
+            if (EngineSettings.VisualiseLights) {
+            	for (Light e : lights) {
+                	debugRenderer.addSphere(e.getPosition(), 1,e.getColor());
+                }
             }
-            if (!EngineSettings.grabMouse)
+            
+            if (!EngineSettings.grabMouse && EngineSettings.MouseItemPicker)
             	picker.update(window);
             
             

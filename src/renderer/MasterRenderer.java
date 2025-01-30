@@ -169,7 +169,11 @@ public class MasterRenderer {
         
         
         
-       
+       if (entity.isHasOpaque()) {
+    	   shader.setUniform1f("isOpaquePass", 1);
+       } else {
+    	   shader.setUniform1f("isOpaquePass", 0);
+       }
         
         
         // --------------------------------------------------

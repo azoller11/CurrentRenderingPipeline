@@ -18,14 +18,17 @@ public class Camera {
     private Vector3f up      = new Vector3f();
     private final Vector3f worldUp = new Vector3f(0,1,0);
 
-    // movement & mouse settings
+    // Movement & mouse settings
     private float moveSpeed = 16.5f;
     private float mouseSensitivity = 0.1f;
 
-    // track last mouse pos
+    // Track last mouse pos
     private double lastMouseX;
     private double lastMouseY;
     private boolean firstMouse = true;
+
+    // To detect changes in grabMouse state
+    private boolean previousGrabMouse = false;
 
     public Camera(Vector3f startPos, float startYaw, float startPitch) {
         this.position = new Vector3f(startPos);
@@ -51,7 +54,7 @@ public class Camera {
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
             position.fma(velocity, right);
         }
-        // optional vertical
+        // Optional vertical movement
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
             position.y += velocity;
         }
@@ -59,36 +62,48 @@ public class Camera {
             position.y -= velocity;
         }
 
-        // Mouse movement => yaw/pitch
-        // Hide/lock mouse
-        if (EngineSettings.grabMouse)
-        	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        else
-        	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        
+        // Handle mouse grabbing
+        if (EngineSettings.grabMouse) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+
+        // Detect if grabMouse state has changed
+        if (EngineSettings.grabMouse != previousGrabMouse) {
+            firstMouse = true; // Reset mouse handling
+            previousGrabMouse = EngineSettings.grabMouse;
+        }
+
         double[] mx = new double[1];
         double[] my = new double[1];
         glfwGetCursorPos(window, mx, my);
+
         if (firstMouse) {
             lastMouseX = mx[0];
             lastMouseY = my[0];
             firstMouse = false;
         }
-        float offsetX = (float)(mx[0] - lastMouseX) * mouseSensitivity;
-        float offsetY = (float)(lastMouseY - my[0]) * mouseSensitivity; 
-        lastMouseX = mx[0];
-        lastMouseY = my[0];
 
-        yaw   += offsetX;
-        pitch += offsetY;
+        // Only handle mouse movement if grabMouse is enabled
+        if (EngineSettings.grabMouse) {
+            float offsetX = (float)(mx[0] - lastMouseX) * mouseSensitivity;
+            float offsetY = (float)(lastMouseY - my[0]) * mouseSensitivity; 
+            lastMouseX = mx[0];
+            lastMouseY = my[0];
 
-        if (pitch >  89f) pitch =  89f;
-        if (pitch < -89f) pitch = -89f;
+            yaw   += offsetX;
+            pitch += offsetY;
 
-        if (EngineSettings.grabMouse)
-        	updateVectors();
-        
-        //System.out.println(position);
+            // Constrain the pitch
+            if (pitch >  89f) pitch =  89f;
+            if (pitch < -89f) pitch = -89f;
+
+            updateVectors();
+        }
+
+        // If grabMouse is not enabled, you might want to handle camera rotation differently
+        // For example, not updating yaw and pitch based on mouse movement
     }
 
     // Recompute front/right/up from yaw & pitch
@@ -96,9 +111,9 @@ public class Camera {
         float radYaw   = (float)Math.toRadians(yaw);
         float radPitch = (float)Math.toRadians(pitch);
 
-        front.x = (float)(Math.cos(radPitch)*Math.cos(radYaw));
+        front.x = (float)(Math.cos(radPitch) * Math.cos(radYaw));
         front.y = (float)(Math.sin(radPitch));
-        front.z = (float)(Math.cos(radPitch)*Math.sin(radYaw));
+        front.z = (float)(Math.cos(radPitch) * Math.sin(radYaw));
         front.normalize();
 
         front.cross(worldUp, right).normalize();
@@ -116,9 +131,6 @@ public class Camera {
     public Matrix4f getFlatViewMatrix() {
         return new Matrix4f().identity();
     }
-    
-  
-    
 
     public Vector3f getPosition() { return position; }
 }

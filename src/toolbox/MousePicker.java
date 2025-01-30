@@ -9,6 +9,7 @@ import java.util.List;
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
+import settings.EngineSettings;
 
 /**
  * A more advanced MousePicker for dragging Entities/Lights in 3D.
@@ -129,27 +130,34 @@ public class MousePicker {
         Entity bestEntity = null;
 
         // Check Entities
-        for (Entity e : entities) {
-            Vector3f center = e.getPosition(); // Assume bounding sphere
-            float radius = e.getMesh().getFurthestPoint();
-            float dist = distanceRayToPoint(ray, center);
-            if (dist < radius && dist < closestDist) {
-                closestDist = dist;
-                bestEntity = e;
+        if (EngineSettings.ObjectPicker) {
+        	for (Entity e : entities) {
+                Vector3f center = e.getPosition(); // Assume bounding sphere
+                float radius = e.getMesh().getFurthestPoint();
+                float dist = distanceRayToPoint(ray, center);
+                if (dist < radius && dist < closestDist) {
+                    closestDist = dist;
+                    bestEntity = e;
+                }
             }
         }
+        
 
         // Check Lights
         Light bestLight = null;
-        for (Light L : lights) {
-            Vector3f pos = L.getPosition();
-            float dist = distanceRayToPoint(ray, pos);
-            if (dist < pickRadius && dist < closestDist) {
-                closestDist = dist;
-                bestLight = L;
-                bestEntity = null; // Lights take priority
+        if (EngineSettings.LightPicker) {
+        	
+            for (Light L : lights) {
+                Vector3f pos = L.getPosition();
+                float dist = distanceRayToPoint(ray, pos);
+                if (dist < pickRadius && dist < closestDist) {
+                    closestDist = dist;
+                    bestLight = L;
+                    bestEntity = null; // Lights take priority
+                }
             }
         }
+        
 
         if (bestEntity != null) {
             pickedEntity = bestEntity;

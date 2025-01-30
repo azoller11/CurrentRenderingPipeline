@@ -2,6 +2,7 @@ package settings;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.glfw.GLFW.glfwGetKey;
+import org.joml.Vector2f;
 
 import org.lwjgl.opengl.GL11;
 
@@ -17,12 +18,20 @@ public class EngineSettings {
 	public static boolean FillMode = true;
 	public static boolean WireFrameMode = false;
 	public static boolean PointMode = false;
+	public static boolean VisualiseObjects = false;
+	public static boolean VisualiseLights = false;
 	
 	//Graphics
 	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;
 	
 	//Computation
-	public static boolean MemoryUsage = true;
+	public static boolean MemoryUsage = false;
+	
+	//Editor
+	public static boolean MouseItemPicker = true;
+	public static boolean ObjectPicker = true;
+	public static boolean LightPicker = true;
+	
 	
 	
 	
@@ -44,6 +53,10 @@ public class EngineSettings {
 			keyPressing = false; // Reset the state when the key is released
 		}
 		
+		
+		
+		
+		
 		//OpenGL
 		if (PointMode) {
 			GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_FILL);
@@ -56,6 +69,8 @@ public class EngineSettings {
 		if (PointMode) {
 			GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_POINT);
 		}
+		
+		
 		
 		//Graphics
 		

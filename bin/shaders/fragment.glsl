@@ -44,6 +44,9 @@ const float PI = 3.14159265359;
 // Debug uniform
 uniform int debugMode;
 
+// New Uniform for Opaque Pass
+uniform int isOpaquePass;
+
 // -----------------------------------------------------------------------------
  // Inputs and Outputs
 // -----------------------------------------------------------------------------
@@ -219,32 +222,39 @@ void main() {
     // 4) Normal Mapping
     vec3 Nworld;
     if (hasNormal == 1) {
-	    // Sample and transform the normal map
-	    vec3 mapNormal = texture(normalMap, displacedUV).rgb;
-	    mapNormal = normalize(mapNormal * 2.0 - 1.0);
-	    Nworld = normalize(TBN * mapNormal);
-	
-	    // Flip the normal if it's a back face
-	    if (!gl_FrontFacing) {
-	        Nworld = -Nworld;
-	    }
-	} else {
-	    // Use the geometry normal if normal map is missing
-	    Nworld = gl_FrontFacing ? N : -N;
-	}
+        // Sample and transform the normal map
+        vec3 mapNormal = texture(normalMap, displacedUV).rgb;
+        mapNormal = normalize(mapNormal * 2.0 - 1.0);
+        Nworld = normalize(TBN * mapNormal);
+    
+        // Flip the normal if it's a back face
+        if (!gl_FrontFacing) {
+            Nworld = -Nworld;
+        }
+    } else {
+        // Use the geometry normal if normal map is missing
+        Nworld = gl_FrontFacing ? N : -N;
+    }
 
-    // 5) Base Color
+    // 5) Base Color and Alpha Handling
     vec4 diffuseSample = texture(diffuseTexture, displacedUV);
     vec3 baseColor = diffuseSample.rgb;
+    
+    float finalAlpha;
+    
+    if (isOpaquePass == 1) {
+        // Opaque Object: Full opacity
+        finalAlpha = 1.0;
+    } else {
+        // Semi-Transparent Object: Use texture's alpha with smoothing
+        float alphaThreshold = 0.1;
+        float smoothAlpha = smoothstep(alphaThreshold - 0.05, alphaThreshold + 0.05, diffuseSample.a);
+        if (smoothAlpha < 0.05) {
+            discard;
+        }
+        finalAlpha = smoothAlpha;
+    }
 
-    // Discard transparent pixels (assuming alpha channel is used for transparency)
-    float alphaThreshold = 0.1;
-	float smoothAlpha = smoothstep(alphaThreshold - 0.05, alphaThreshold + 0.05, diffuseSample.a);
-	if (smoothAlpha < 0.05) {
-	    discard;
-	}
-	
-	
     // 6) Check for PBR Maps
     bool hasAnyPBR = (hasMetallic == 1 || hasRoughness == 1 || hasAo == 1);
 
@@ -296,8 +306,8 @@ void main() {
         }
     }
 
-    // 9) Assign the final color
-    outColor = vec4(finalColor, smoothAlpha);
+    // 9) Assign the final color with alpha
+    outColor = vec4(finalColor, finalAlpha);
 
     // -----------------------------------------------------------------------------
     // Debug Mode Handling
