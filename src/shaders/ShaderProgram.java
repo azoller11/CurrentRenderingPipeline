@@ -1,5 +1,6 @@
 package shaders;
 
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f; // Changed to JOML's Vector3f for consistency
 import org.lwjgl.opengl.GL40;
@@ -234,6 +235,22 @@ public class ShaderProgram {
             glUniformMatrix4fv(location, false, buffer);
         }
     }
+
+    public void setUniformMat3(String name, Matrix3f matrix) {
+        int location = getUniformLocation(name);
+        if (location < 0) {
+            System.err.println("Warning: Uniform '" + name + "' not found!");
+            return;
+        }
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer buffer = stack.mallocFloat(9);
+            matrix.get(buffer);
+            // Use glUniformMatrix3fv instead of glUniformMatrix4fv for a 3x3 matrix.
+            glUniformMatrix3fv(location, false, buffer);
+        }
+    }
+
 
 
     /*

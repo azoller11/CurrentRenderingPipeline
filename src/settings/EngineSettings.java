@@ -28,10 +28,10 @@ public class EngineSettings {
 	public static boolean VisualiseLights = false;
 	
 	//Graphics
-	public static DebugMode ShaderDebug = DebugMode.VISUALIZE_SHADOWS;
+	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;
 	
 	//Computation
-	public static boolean MemoryUsage = true;
+	public static boolean MemoryUsage = false;
 	
 	//Editor
 	public static boolean MouseItemPicker = true;
@@ -115,7 +115,8 @@ public class EngineSettings {
 	    VISUALIZE_SURFACE_CURVATURE(6),
 	    VISUALIZE_VIEW_VECTOR(7),
 	    VISUALIZE_PERFORMANCE_HEAT_MAP(8),
-	    VISUALIZE_SHADOWS(9);
+	    VISUALIZE_WORLDPOS(9),
+	    VISUALIZE_LIGHTDIR(10);
 
 	    private final int value;
 

@@ -177,11 +177,11 @@ vec3 fallbackLight(
     // Light direction + attenuation
     vec3 lightDir;
     float denom = 1.0;
-    bool isDirectional = all(lessThanEqual(L.attenuation, vec3(0.000001)));
+    bool isDirectional = true;
     vec3 fragPos = fs_in.wPosition;
 
     if(isDirectional) {
-        lightDir = normalize(-L.position);
+        lightDir = normalize(L.position);
     } else {
         vec3 toLight = L.position - fragPos;
         float dist   = length(toLight);
@@ -372,6 +372,17 @@ void main() {
                 outColor = vec4(computeIntensity, 0.0, 1.0 - computeIntensity, 1.0);
             }
             break;
+        case 9:
+	        {
+	        	outColor = vec4(fs_in.wPosition * 0.01, 1.0);
+	        }
+        	break;
+        case 10:
+	        {
+	        	vec3 lightDirDebug = normalize(lights[0].position - fs_in.wPosition);
+   				 outColor = vec4((lightDirDebug * 0.5) + 0.5, 1.0);
+	        }
+        	break;
         default:
             // No debug mode; retain the computed color
             break;

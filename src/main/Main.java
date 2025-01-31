@@ -105,7 +105,7 @@ public class Main {
         
         textureRenderer = new TextureRenderer();
         
-        skyboxRenderer = new SkyboxRenderer();
+        skyboxRenderer = new SkyboxRenderer(window);
         
         gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
         
@@ -116,7 +116,7 @@ public class Main {
             }
         });
         
-        gui.GuiTexture texture1 = new gui.GuiTexture(1, 0.0f,0.0f, 100.0f, 100.0f);
+        gui.GuiTexture texture1 = new gui.GuiTexture(12, 0.0f,0.0f, 100.0f, 100.0f);
         textureRenderer.addTexture(texture1);
 
 
@@ -131,7 +131,7 @@ public class Main {
         // Create a single "cube" mesh
         //Mesh cubeMesh = Mesh.createCube();
         Mesh cubeMesh = ObjLoader.loadObj("crate");
-        Mesh boxMesh = ObjLoader.loadObj("crate");
+        Mesh boxMesh = ObjLoader.loadObj("sphere");
         Mesh planeMesh = ObjLoader.loadObj("plane");
         
         int TextureId = TextureLoader.loadTexture("peeling-painted-metal_albedo.png");
@@ -216,20 +216,26 @@ public class Main {
         	int scale = 1000;
         	Entity cubec = new Entity(boxMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 100,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
         	cubec.setNormalMapId(normalTexture);
-        	cubec.setHeighMapId(heightMapTexture);
-        	cubec.setParallaxScale(new Vector3f(0.12f, 120, 160));
+        	//cubec.setHeighMapId(heightMapTexture);
+        	//cubec.setParallaxScale(new Vector3f(0.12f, 120, 160));
         	cubec.setMetallicMap(metallicMapTexture);
         	cubec.setAoMap(aoMapTexture);
         	cubec.setRoughnessMap(roughnessMapTexture);
+        	
+        	 cube2.setReflectivity(10);
+             cube2.setShineDamper(100);
         	entities.add(cubec);
         }
         
-        
+        //Sun
         lights.add(new Light(new Vector3f(10000, 20000,0), new Vector3f(2,2,2))); 
-
+        //Moon
+        lights.add(new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0))); 
+        
 	     
         // A point light at (2,1,0) with color = (1,0.8,0.7), attenuation(1,0.09,0.032)
 	    
+        /*
         lights.add(new Light(
 	         new Vector3f(2,10,0),
 	         new Vector3f(1.0f, 0.8f, 0.7f),
@@ -255,7 +261,7 @@ public class Main {
 		         new Vector3f(10.0f, 10.0f, 0.7f),
 		         new Vector3f(1, 0.09f, 0.032f)
 		     ));
-	     
+	     */
 	     
 	     //Mouse picker
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
@@ -282,6 +288,11 @@ public class Main {
                 frames = 0;
                 timeCounter -= 1.0;
             }
+            
+            
+            //Do sun movement
+            
+            
             
             // Get Mouse Position
             double[] mouseX = new double[1];
@@ -322,7 +333,7 @@ public class Main {
             // Could add more interesting transforms as well
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
             
-            skyboxRenderer.render(camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0), 1000);
+            skyboxRenderer.render(camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000);            
             
             
             //Render Texture
