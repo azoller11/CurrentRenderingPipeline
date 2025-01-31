@@ -2,27 +2,33 @@ package settings;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.glfw.GLFW.glfwGetKey;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.joml.Vector2f;
 
 import org.lwjgl.opengl.GL11;
 
 import main.Main;
+import toolbox.Mesh;
 
 public class EngineSettings {
 	
 	//General
 	public static boolean pause = false;
 	public static boolean grabMouse = true;
+	public static boolean overTexture = false;
 	
 	//OpenGL
 	public static boolean FillMode = true;
 	public static boolean WireFrameMode = false;
-	public static boolean PointMode = false;
+	public static boolean PointMode = false; 
 	public static boolean VisualiseObjects = false;
-	public static boolean VisualiseLights = false;
+	public static boolean VisualiseLights = true;
 	
 	//Graphics
-	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;
+	public static DebugMode ShaderDebug = DebugMode.VISUALIZE_SHADOWS;
 	
 	//Computation
 	public static boolean MemoryUsage = false;
@@ -33,7 +39,10 @@ public class EngineSettings {
 	public static boolean LightPicker = true;
 	
 	
-	
+	 // Cache to store loaded meshes
+    public static final Map<String, Mesh> meshCache = new HashMap<>();
+    // Cache to store loaded textures
+    public static final Map<String, Integer> textureCache = new HashMap<>();
 	
 	
 	public static boolean keyPressing = false;
@@ -105,7 +114,8 @@ public class EngineSettings {
 	    VISUALIZE_MATERIAL_PROPERTIES(5),
 	    VISUALIZE_SURFACE_CURVATURE(6),
 	    VISUALIZE_VIEW_VECTOR(7),
-	    VISUALIZE_PERFORMANCE_HEAT_MAP(8);
+	    VISUALIZE_PERFORMANCE_HEAT_MAP(8),
+	    VISUALIZE_SHADOWS(9);
 
 	    private final int value;
 

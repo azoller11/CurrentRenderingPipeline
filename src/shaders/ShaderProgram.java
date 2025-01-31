@@ -119,7 +119,7 @@ public class ShaderProgram {
     }
 
     // Uniform utility methods
-    private int getUniformLocation(String name) {
+    public int getUniformLocation(String name) {
         int loc = glGetUniformLocation(programId, name);
         if (loc < 0) {
             System.err.println("Warning: Uniform '" + name + "' not found!");
@@ -163,6 +163,13 @@ public class ShaderProgram {
             glUniform3f(loc, x, y, z);
         }
     }
+    
+    public void setUniform4f(String name, float x, float y, float z, float a) {
+        int loc = getUniformLocation(name);
+        if (loc >= 0) {
+            glUniform4f(loc, x, y, z, a);
+        }
+    }
 
     public void setUniform3f(String name, Vector3f vec) {
         setUniform3f(name, vec.x, vec.y, vec.z);
@@ -204,8 +211,10 @@ public class ShaderProgram {
             setUniform3f(prefix + ".color", l.getColor());
             // attenuation
             setUniform3f(prefix + ".attenuation", l.getAttenuation());
+            // type
         }
     }
+
 
     public int getProgramId() {
         return programId;

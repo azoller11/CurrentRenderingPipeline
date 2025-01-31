@@ -1,8 +1,10 @@
+
 package loaders;
 
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
 import gui.GuiTexture;
+import settings.EngineSettings;
 
 import java.io.File;
 import java.nio.ByteBuffer;
@@ -22,21 +24,14 @@ public class TextureLoader {
 
     private static final String TEXTURE_DIR = "res/";
 
-    // Cache to store loaded textures
-    private static final Map<String, Integer> textureCache = new HashMap<>();
+    
 
-    /**
-     * Loads a texture from e.g. "res/textures/diffuse.png"
-     * and returns the OpenGL texture ID.
-     *
-     * @param filename  "diffuse.png" (omit path if you like)
-     * @return          The GL texture ID.
-     */
+   
     public static int loadTexture(String filename) {
         
-        if (textureCache.containsKey(filename)) {
+        if (EngineSettings.textureCache.containsKey(filename)) {
             //System.out.println("Texture \"" + filename + "\" retrieved from cache.");
-            return textureCache.get(filename);
+            return EngineSettings.textureCache.get(filename);
         }
         
         // 1) Load image file into a ByteBuffer with STB
@@ -94,8 +89,48 @@ public class TextureLoader {
         // 4) Free the raw image data from CPU
         STBImage.stbi_image_free(imageData);
         
-        textureCache.put(filename, textureId);
+        EngineSettings.textureCache.put(filename, textureId);
 
         return textureId;
     }
+
+    public static int loadExplicitTexture(String filename) {
+        if (EngineSettings.textureCache.containsKey(filename)) {
+            return EngineSettings.textureCache.get(filename);
+        }
+
+        String filePath = TEXTURE_DIR + filename;
+        int width, height;
+        ByteBuffer imageData;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer channels = stack.mallocInt(1);
+
+            STBImage.stbi_set_flip_vertically_on_load(false);
+            imageData = STBImage.stbi_load(filePath, w, h, channels, 4);
+            if (imageData == null) {
+                throw new RuntimeException("Failed to load texture file: " + filePath
+                    + "\n" + STBImage.stbi_failure_reason());
+            }
+            width = w.get();
+            height = h.get();
+        }
+
+        int textureId = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, textureId);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
+            GL_RGBA, GL_UNSIGNED_BYTE, imageData);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        STBImage.stbi_image_free(imageData);
+        EngineSettings.textureCache.put(filename, textureId);
+
+        return textureId;
+    }
+
 }

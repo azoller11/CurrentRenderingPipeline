@@ -18,6 +18,7 @@ import toolbox.Mesh;
 import toolbox.MousePicker;
 
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,15 +99,22 @@ public class Main {
         
         textureRenderer = new TextureRenderer();
         
-        gui.GuiTexture texture1 = new gui.GuiTexture("res/peeling-painted-metal_albedo.png", 0.0f,0.0f, 100.0f, 100.0f);
-        gui.GuiTexture texture2 = new gui.GuiTexture("res/peeling-painted-metal_albedo.png");
+        gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
+        
+        gui.GuiButton button1 = new gui.GuiButton("colorWheel.png", 100, 100, 100, 100, new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("Button clicked!");
+            }
+        });
+
 
         // Add Textures to Renderer
-        textureRenderer.addTexture(texture1);
+     
         
+        textureRenderer.addTexture(button1);
         
-        
-        // Create the camera, starting at (0,0,5)
+        // Create the camera, starting at (0,0,5) 
         camera = new Camera(new Vector3f(0,0,0), 0f, 0f);
 
         // Create a single "cube" mesh
@@ -227,7 +235,8 @@ public class Main {
 	     
 	     //Mouse picker
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
-        
+	        gui.GuiTexture texture1 = new gui.GuiTexture(15, 0.0f,0.0f, 100.0f, 100.0f);
+	        textureRenderer.addTexture(texture1);
 
         // Basic GL states
         glEnable(GL_DEPTH_TEST);
@@ -239,7 +248,6 @@ public class Main {
     private void loop() {
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
-
             double currentTime = glfwGetTime();
             float deltaTime = (float)(currentTime - lastTime);
             lastTime = currentTime;
@@ -251,6 +259,14 @@ public class Main {
                 frames = 0;
                 timeCounter -= 1.0;
             }
+            
+            // Get Mouse Position
+            double[] mouseX = new double[1];
+            double[] mouseY = new double[1];
+            glfwGetCursorPos(window, mouseX, mouseY);
+
+            // Adjust Y-coordinate since OpenGL uses bottom-left as (0,0)
+            double adjustedMouseY = height - mouseY[0];
 
             // Update camera (WASD + mouse)
             camera.handleInput(window, deltaTime);
@@ -269,7 +285,7 @@ public class Main {
                 }
             }
             
-            if (!EngineSettings.grabMouse && EngineSettings.MouseItemPicker)
+            if (!EngineSettings.grabMouse && EngineSettings.MouseItemPicker && !EngineSettings.overTexture)
             	picker.update(window);
             
             
@@ -286,7 +302,7 @@ public class Main {
             //Render Texture
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            textureRenderer.render(masterRenderer.getFlatProjection(),  camera.getFlatViewMatrix());
+            textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
           
             EngineSettings.updateSettings(window);
             glfwSwapBuffers(window);

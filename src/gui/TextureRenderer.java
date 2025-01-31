@@ -6,6 +6,7 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL40;
 import shaders.ShaderProgram;
 import gui.GuiTexture;
+import settings.EngineSettings;
 
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
@@ -92,7 +93,7 @@ public class TextureRenderer {
     GuiTexture texture;
     Matrix4f model;
     FloatBuffer modelBuffer;
-    public void render(Matrix4f projection, Matrix4f view) {
+    public void render(Matrix4f projection, Matrix4f view, double mouseX, double mouseY) {
         shaderProgram.bind();
 
         // Set projection and view matrices
@@ -107,12 +108,34 @@ public class TextureRenderer {
         }
 
         glBindVertexArray(vaoId);
-
+        EngineSettings.overTexture = false;
         for (int i = 0; i < textures.size(); i++) {
             texture = textures.get(i);
+            
+            
+            shaderProgram.setUniform1f("brightness", 1.0f);
+            if (!EngineSettings.grabMouse) {
+            	texture.checkOver(mouseX, mouseY);
+                
+                if (texture instanceof GuiButton) {
+                    GuiButton button = (GuiButton) texture;
+                    button.checkClick(mouseX, mouseY);
+                    shaderProgram.setUniform1f("brightness", button.getBrightness()); // Pass brightness to shader
+                } else {
+                    
+                }
+            }
+            
+            
             // Bind texture to texture unit 0
-            texture.bind(0);
-            shaderProgram.setUniformSampler("textureSampler", 0);
+            if (texture.hasTexture()) {
+                texture.bind(0);
+                shaderProgram.setUniformSampler("textureSampler", 0);
+                shaderProgram.setUniform1i("useTexture", 1);
+            } else {
+                shaderProgram.setUniform4f("solidColor", texture.getColor().x,texture.getColor().y,texture.getColor().z,texture.getColor().w);
+                shaderProgram.setUniform1i("useTexture", 0);
+            }
 
             // Calculate model matrix for position and scale
             model = new Matrix4f()
@@ -127,6 +150,8 @@ public class TextureRenderer {
             glDrawElements(GL_TRIANGLES, INDICES.length, GL_UNSIGNED_INT, 0);
             // Unbind texture
             texture.unbind(0);
+            
+            
         }
 
         glBindVertexArray(0);
