@@ -220,6 +220,22 @@ public class ShaderProgram {
         return programId;
     }
 
+    public void setUniformMat4(String name, Matrix4f matrix) {
+        int location = getUniformLocation(name); // Get the uniform location
+        if (location < 0) {
+            System.err.println("Warning: Uniform '" + name + "' not found in shader program!");
+            return;
+        }
+
+        // Convert Matrix4f to a FloatBuffer and upload it to the shader
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer buffer = stack.mallocFloat(16);
+            matrix.get(buffer);
+            glUniformMatrix4fv(location, false, buffer);
+        }
+    }
+
+
     /*
     public void setUniformMat4(String name, Matrix4f matrix) {
         int location = getUniformLocation(name); // Get the location of the uniform in the shader program

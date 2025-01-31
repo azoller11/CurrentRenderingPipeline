@@ -14,6 +14,7 @@ import loaders.ObjLoader;
 import loaders.TextureLoader;
 import renderer.MasterRenderer;
 import settings.EngineSettings;
+import skybox.SkyboxRenderer;
 import toolbox.Mesh;
 import toolbox.MousePicker;
 
@@ -22,6 +23,7 @@ import org.joml.Vector4f;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -41,12 +43,16 @@ public class Main {
     private double timeCounter = 0.0;
     public static int currentFPS = 0; // optional: store current FPS
 
+    public Random random = new Random();
+    
     // The central renderer
     private MasterRenderer masterRenderer;
     // The debug renderer
     private DebugRenderer debugRenderer;
     //Texture renderer
     private TextureRenderer textureRenderer;
+    //Skybox renderer
+    private SkyboxRenderer skyboxRenderer;
     
     // A simple camera
     private Camera camera;
@@ -99,6 +105,8 @@ public class Main {
         
         textureRenderer = new TextureRenderer();
         
+        skyboxRenderer = new SkyboxRenderer();
+        
         gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
         
         gui.GuiButton button1 = new gui.GuiButton("colorWheel.png", 100, 100, 100, 100, new Runnable() {
@@ -107,6 +115,9 @@ public class Main {
                 System.out.println("Button clicked!");
             }
         });
+        
+        gui.GuiTexture texture1 = new gui.GuiTexture(1, 0.0f,0.0f, 100.0f, 100.0f);
+        textureRenderer.addTexture(texture1);
 
 
         // Add Textures to Renderer
@@ -201,7 +212,20 @@ public class Main {
         entities.add(cube5);
         
         
-        lights.add(new Light(new Vector3f(0,30,0), new Vector3f(1,1,1))); 
+        for (int i = 0; i < 8000; i++) {
+        	int scale = 1000;
+        	Entity cubec = new Entity(boxMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 100,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
+        	cubec.setNormalMapId(normalTexture);
+        	cubec.setHeighMapId(heightMapTexture);
+        	cubec.setParallaxScale(new Vector3f(0.12f, 120, 160));
+        	cubec.setMetallicMap(metallicMapTexture);
+        	cubec.setAoMap(aoMapTexture);
+        	cubec.setRoughnessMap(roughnessMapTexture);
+        	entities.add(cubec);
+        }
+        
+        
+        lights.add(new Light(new Vector3f(10000, 20000,0), new Vector3f(2,2,2))); 
 
 	     
         // A point light at (2,1,0) with color = (1,0.8,0.7), attenuation(1,0.09,0.032)
@@ -235,8 +259,7 @@ public class Main {
 	     
 	     //Mouse picker
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
-	        gui.GuiTexture texture1 = new gui.GuiTexture(15, 0.0f,0.0f, 100.0f, 100.0f);
-	        textureRenderer.addTexture(texture1);
+	        
 
         // Basic GL states
         glEnable(GL_DEPTH_TEST);
@@ -299,6 +322,9 @@ public class Main {
             // Could add more interesting transforms as well
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
             
+            skyboxRenderer.render(camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0), 1000);
+            
+            
             //Render Texture
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -312,6 +338,7 @@ public class Main {
     private void cleanup() {
         // Cleanup
         masterRenderer.cleanup();
+        skyboxRenderer.cleanUp();
         debugRenderer.cleanup();
         textureRenderer.cleanUp();
         glfwFreeCallbacks(window);

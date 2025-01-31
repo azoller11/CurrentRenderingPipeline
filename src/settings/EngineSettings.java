@@ -15,7 +15,7 @@ import toolbox.Mesh;
 
 public class EngineSettings {
 	
-	//General
+	//General 
 	public static boolean pause = false;
 	public static boolean grabMouse = true;
 	public static boolean overTexture = false;
@@ -25,13 +25,13 @@ public class EngineSettings {
 	public static boolean WireFrameMode = false;
 	public static boolean PointMode = false; 
 	public static boolean VisualiseObjects = false;
-	public static boolean VisualiseLights = true;
+	public static boolean VisualiseLights = false;
 	
 	//Graphics
 	public static DebugMode ShaderDebug = DebugMode.VISUALIZE_SHADOWS;
 	
 	//Computation
-	public static boolean MemoryUsage = false;
+	public static boolean MemoryUsage = true;
 	
 	//Editor
 	public static boolean MouseItemPicker = true;
