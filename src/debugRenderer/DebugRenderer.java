@@ -18,7 +18,7 @@ public class DebugRenderer {
     private final int maxVertices = 500000;
     private final int vaoId;
     private final int vboId;
-    private final ShaderProgram shader;
+    private final ShaderProgram shader; 
 
     private final List<DebugObject> debugObjects = new ArrayList<>();
     private final float[] buffer = new float[maxVertices * 6]; // 6 floats per vertex (position + color)

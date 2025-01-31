@@ -4,6 +4,7 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
 
+import settings.EngineSettings;
 import toolbox.Mesh;
 
 import java.io.*;
@@ -34,8 +35,7 @@ public class ObjLoader {
 
     private static final String RES_LOC = "res/";
 
-    // Cache to store loaded meshes
-    private static final Map<String, Mesh> meshCache = new HashMap<>();
+   
 
     // Basic container for each "vertex" in the OBJ (pos/uv/normal).
     // We'll compute tangents per unique vertex as well.
@@ -61,9 +61,9 @@ public class ObjLoader {
      */
     public static Mesh loadObj(String objFileName) {
         // Check if the mesh is already loaded and cached
-        if (meshCache.containsKey(objFileName)) {
+        if (EngineSettings.meshCache.containsKey(objFileName)) {
             //System.out.println("Model \"" + objFileName + "\" retrieved from cache.");
-            return meshCache.get(objFileName);
+            return EngineSettings.meshCache.get(objFileName);
         }
 
         File objFile = new File(RES_LOC + objFileName + ".obj");
@@ -214,7 +214,7 @@ public class ObjLoader {
         Mesh mesh = new Mesh(vao, numVertices, furthestDistance);
 
         // Store the loaded mesh in the cache
-        meshCache.put(objFileName, mesh);
+        EngineSettings.meshCache.put(objFileName, mesh);
         //System.out.println("Model \"" + objFileName + "\" loaded and cached.");
 
         return mesh;
