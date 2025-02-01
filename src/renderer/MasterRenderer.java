@@ -10,7 +10,6 @@ import entities.Entity;
 import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
-import shadows.ShadowMapRenderer;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
@@ -29,7 +28,7 @@ public class MasterRenderer {
     private final ShaderProgram shader;
     private final Matrix4f projectionMatrix;
     
-    private final ShadowMapRenderer shadowMapRenderer;
+    //private final ShadowMapRenderer shadowMapRenderer;
     
     private int screenWidth, screenHeight;
     
@@ -42,14 +41,40 @@ public class MasterRenderer {
     	this.screenHeight = height;
     	this.screenWidth = width;
         // 1) Load/compile/link your pipeline
+    	/*
         shader = new ShaderProgram(
             "src/shaders/vertex.glsl",
             "src/shaders/tess_control.glsl",
             "src/shaders/tess_eval.glsl",
             "src/shaders/geometry.glsl",
             "src/shaders/fragment.glsl"
-        );
+        );*/
+    	
+	   String vertex =  "src/shaders/vertex.glsl";
+	   String tess_control =  "src/shaders/tess_control.glsl";
+	   String tess_eval =  "src/shaders/tess_eval.glsl";
+	   String geometry =  "src/shaders/geometry.glsl";
+	   String fragment =  "src/shaders/fragment.glsl";
+	   
+	   String[] additionalVertexShaders = new String[] {
+			   
+	   };
+            
+	   String[] additionalFragmentShaders = new String[] {
+			   "src/shadersModular/fresnel.glsl",
+			   "src/shadersModular/parallaxOcclusionMapping.glsl",
+	   };
+	   
+	   String[] additionalGeometryShaders = new String[] {
+			  
+	   };
         
+	   shader = new ShaderProgram(vertex, tess_control, tess_eval, geometry,fragment, 
+			   additionalVertexShaders,
+			   additionalFragmentShaders,
+			   additionalGeometryShaders
+			   
+			   );
         
         //General settings
         glFrontFace(GL_CW);
@@ -80,7 +105,7 @@ public class MasterRenderer {
         projectionMatrix = new Matrix4f().perspective(fov, aspect, near, far);
         
      // Initialize the ShadowMapRenderer
-        shadowMapRenderer = new ShadowMapRenderer();
+        //shadowMapRenderer = new ShadowMapRenderer();
     }
 
     public Matrix4f getProjectionMatrix() {
@@ -96,8 +121,7 @@ public class MasterRenderer {
      */
     public void render(List<Entity> entities, List<Light> lights, Camera camera) {
     	// 1. Render shadow maps for each light
-    	shadowMapRenderer.renderCubeShadowMaps(entities, lights);
-    	
+    	//shadowMapRenderer.renderShadowMaps(entities, lights, camera);
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
      // 2. Reset viewport to window dimensions to prevent distortion
@@ -137,7 +161,7 @@ public class MasterRenderer {
             shader.setUniformMat4("view", false, fb);
         }
 
-        bindShadowMaps(lights, shader);
+       // bindShadowMaps(lights, shader);
         
         frustum.calculateFrustum(projectionMatrix, view);
         // 5) For each entity, build the model matrix and draw
@@ -259,47 +283,6 @@ public class MasterRenderer {
 
         glBindVertexArray(0);
     }
-
-    
-    private void bindShadowMaps(List<Light> lights, ShaderProgram shader) {
-        // Maximum lights supported by the shader (should match your shader's declaration)
-        final int MAX_LIGHTS = 4;
-        final int NUM_CUBE_MATRICES = 6;
-        int numLightsToBind = Math.min(lights.size(), MAX_LIGHTS);
-        int textureUnit = 10; // Starting texture unit for shadow maps to avoid conflicts
-
-        shader.setUniform1i("numLights", numLightsToBind);
-
-        // Allocate a FloatBuffer for the entire flattened array:
-        // (MAX_LIGHTS * NUM_CUBE_MATRICES) matrices, each 16 floats.
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer allMatricesBuffer = stack.mallocFloat(MAX_LIGHTS * NUM_CUBE_MATRICES * 16);
-            
-            for (int i = 0; i < numLightsToBind; i++) {
-                Light light = lights.get(i);
-
-                // Bind the cube map texture (using samplerCube array in the shader)
-                String shadowMapUniform = "shadowCubeMaps[" + i + "]";
-                glActiveTexture(GL_TEXTURE0 + textureUnit);
-                glBindTexture(GL_TEXTURE_CUBE_MAP, light.getShadowMapTexture());
-                shader.setUniform1i(shadowMapUniform, textureUnit);
-                System.out.println("Light " + i + " cube map texture ID: " + light.getShadowMapTexture());
-
-                // Get the 6 matrices for this light.
-                Matrix4f[] matrices = light.getCubeShadowMatrices();
-                // Copy these 6 matrices into the big FloatBuffer at the proper offset.
-                for (int j = 0; j < NUM_CUBE_MATRICES; j++) {
-                    // Calculate the offset: (i * NUM_CUBE_MATRICES + j) * 16
-                    int offset = (i * NUM_CUBE_MATRICES + j) * 16;
-                    matrices[j].get(offset, allMatricesBuffer);
-                }
-                textureUnit++;
-            }
-            // Upload the entire flattened array.
-            //shader.setUniformMat4Array("cubeShadowMatrices", allMatricesBuffer, MAX_LIGHTS * NUM_CUBE_MATRICES);
-        }
-    }
-
 
 
 

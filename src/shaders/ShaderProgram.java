@@ -9,6 +9,7 @@ import org.lwjgl.system.MemoryStack;
 
 import entities.Light;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -20,6 +21,7 @@ import static org.lwjgl.opengl.GL40.*;
 public class ShaderProgram {
     private final int programId;
 
+    //For a straight path
     public ShaderProgram(String vertPath,
                          String tessControlPath,
                          String tessEvalPath,
@@ -101,7 +103,134 @@ public class ShaderProgram {
 
         return shaderId;
     }
+    //
+    
+    
+    //For a modular approach
+        private static String loadShaderSource(String[] filePaths) {
+        StringBuilder source = new StringBuilder();
+        for (String filePath : filePaths) {
+            try {
+                List<String> lines = Files.readAllLines(Paths.get(filePath));
+                for (String line : lines) {
+                    source.append(line).append("\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new RuntimeException("Failed to load shader file: " + filePath);
+            }
+        }
+        return source.toString();
+    }
+    
+    private static String[] concatenatePaths(String mainPath, String[] additionalPaths) {
+        String[] allPaths = new String[additionalPaths.length + 1];
+        allPaths[0] = mainPath;
+        System.arraycopy(additionalPaths, 0, allPaths, 1, additionalPaths.length);
+        return allPaths;
+    }
 
+    
+    private static int compileShader(String type, String[] filePaths) {
+    // Load and concatenate the shader files
+    String source = loadShaderSource(filePaths);
+
+    // Select the correct shader type based on the argument
+    int shaderType;
+    switch (type) {
+        case "vertex":
+            shaderType = GL_VERTEX_SHADER;
+            break;
+        case "fragment":
+            shaderType = GL_FRAGMENT_SHADER;
+            break;
+        case "geometry":
+            shaderType = GL_GEOMETRY_SHADER;
+            break;
+        case "tessellation_control":
+            shaderType = GL_TESS_CONTROL_SHADER;
+            break;
+        case "tessellation_eval":
+            shaderType = GL_TESS_EVALUATION_SHADER;
+            break;
+        default:
+            throw new IllegalArgumentException("Unknown shader type: " + type);
+    }
+
+    int shaderId = glCreateShader(shaderType);
+    glShaderSource(shaderId, source);
+    glCompileShader(shaderId);
+
+    // Check for compile status
+    int status = glGetShaderi(shaderId, GL_COMPILE_STATUS);
+    if (status == GL_FALSE) {
+        String log = glGetShaderInfoLog(shaderId);
+        throw new RuntimeException("Shader compile error:\n" + log);
+    }
+
+    return shaderId;
+}
+
+    
+    public ShaderProgram(String vertPath,
+		            String tessControlPath,
+		            String tessEvalPath,
+		            String geomPath,
+		            String fragPath,
+		            String[] additionalVertexShaders,
+		            String[] additionalFragmentShaders,
+		            String[] additionalGeometryShaders) {
+		// Create a program handle
+		programId = glCreateProgram();
+		if (programId == 0) {
+		throw new IllegalStateException("Could not create ShaderProgram!");
+		}
+		
+		// Compile the main shaders if the path is not null
+		int vs = compileShader("vertex", concatenatePaths(vertPath, additionalVertexShaders));
+		int tcs = compileShader("tessellation_control", new String[]{tessControlPath});
+		int tes = compileShader("tessellation_eval", new String[]{tessEvalPath});
+		int gs = compileShader("geometry", concatenatePaths(geomPath, additionalGeometryShaders));
+		int fs = compileShader("fragment", concatenatePaths(fragPath, additionalFragmentShaders));
+		
+		// Attach the shaders
+		glAttachShader(programId, vs);
+		glAttachShader(programId, tcs);
+		glAttachShader(programId, tes);
+		glAttachShader(programId, gs);
+		glAttachShader(programId, fs);
+		
+		// Link the program
+		glLinkProgram(programId);
+		
+		// Check for linking errors
+		int linked = glGetProgrami(programId, GL_LINK_STATUS);
+		if (linked == 0) {
+		String log = glGetProgramInfoLog(programId);
+		throw new RuntimeException("Program link failed:\n" + log);
+		}
+		
+		// Detach and delete shaders after successful linking
+		glDetachShader(programId, vs);
+		glDetachShader(programId, tcs);
+		glDetachShader(programId, tes);
+		glDetachShader(programId, gs);
+		glDetachShader(programId, fs);
+		
+		glDeleteShader(vs);
+		glDeleteShader(tcs);
+		glDeleteShader(tes);
+		glDeleteShader(gs);
+		glDeleteShader(fs);
+		}
+
+
+    
+    //
+    
+    
+    
+    
     // Activate (use) this shader program
     public void bind() {
         glUseProgram(programId);

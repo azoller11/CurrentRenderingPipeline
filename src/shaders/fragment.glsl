@@ -1,5 +1,10 @@
 #version 400 core
 
+
+vec3 fresnelSchlick(float cosTheta, vec3 F0);
+
+vec2 parallaxOcclusionMapping(vec2 baseUV, vec3 viewDirTangent);
+
 // -----------------------------------------------------------------------------
 // Structs & Uniforms
 // -----------------------------------------------------------------------------
@@ -48,45 +53,8 @@ uniform int debugMode;
 uniform int isOpaquePass;
 
 // Shadow uniforms
-const int NUM_SAMPLES = 20;
-vec3 sampleOffsetDirections[NUM_SAMPLES] = vec3[](
-    vec3( 1,  1,  1), vec3(-1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1),
-    vec3( 1,  1, -1), vec3(-1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1),
-    vec3( 1,  0,  0), vec3(-1,  0,  0), vec3( 0,  1,  0), vec3( 0, -1,  0),
-    vec3( 0,  0,  1), vec3( 0,  0, -1), vec3( 1,  1,  0), vec3(-1,  1,  0),
-    vec3( 1, -1,  0), vec3(-1, -1,  0), vec3( 0,  1,  1), vec3( 0, -1, -1)
-);
-uniform samplerCube shadowCubeMaps[16];
-uniform float shadowFarPlane = 1000;
 
-// -----------------------------------------------------------------------------
-// Cube Shadow Mapping Function (PCF for Point Lights)
-// -----------------------------------------------------------------------------
-float calculatePointLightShadow(int lightIndex, vec3 fragPos) {
-    // Compute vector from light to fragment
-    vec3 fragToLight = fragPos - lights[lightIndex].position;
-    float currentDistance = length(fragToLight);
-    float bias = 0.05; // Adjust to taste
-    float shadow = 0.0;
-    int samples = NUM_SAMPLES;
-    
-    // Compute a sampling disk radius based on view distance
-    float viewDistance = length(cameraPos - fragPos);
-    float diskRadius = (1.0 + (viewDistance / shadowFarPlane)) / 25.0;
-    
-    for (int i = 0; i < samples; i++) {
-        vec3 sampleVec = fragToLight + sampleOffsetDirections[i] * diskRadius;
-        // Sample the cube map depth (stored in [0,1])
-        float closestDistance = texture(shadowCubeMaps[lightIndex], sampleVec).r;
-        // Scale to actual depth using the far plane
-        closestDistance *= shadowFarPlane;
-        if (currentDistance - bias > closestDistance) {
-            shadow += 1.0;
-        }
-    }
-    shadow /= float(samples);
-    return clamp(shadow, 0.0, 1.0);
-}
+
 
 // -----------------------------------------------------------------------------
 // Inputs and Outputs
@@ -100,38 +68,7 @@ in GS_OUT {
 
 out vec4 outColor;
 
-// -----------------------------------------------------------------------------
-// Parallax Occlusion Mapping
-// -----------------------------------------------------------------------------
-vec2 parallaxOcclusionMapping(vec2 baseUV, vec3 viewDirTangent) {
-    viewDirTangent.y = -viewDirTangent.y;
-    float viewAngle = dot(vec3(0,0,1), viewDirTangent);
-    int numSteps = int(mix(float(maxLayers), float(minLayers), viewAngle));
 
-    vec2 deltaUV = (parallaxScale * viewDirTangent.xy) / float(numSteps);
-    vec2 currUV  = baseUV;
-
-    float layerDepth = 0.0;
-    float layerStep  = 1.0 / float(numSteps);
-
-    for (int i = 0; i < numSteps; i++) {
-        float height = texture(heightMap, currUV).r;
-        if (layerDepth > height) {
-            break;
-        }
-        currUV -= deltaUV;
-        layerDepth += layerStep;
-    }
-
-    return currUV;
-}
-
-// -----------------------------------------------------------------------------
-// Cook–Torrance Helpers
-// -----------------------------------------------------------------------------
-vec3 fresnelSchlick(float cosTheta, vec3 F0) {
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
 
 // -----------------------------------------------------------------------------
 // PBR Lighting
@@ -316,19 +253,6 @@ void main() {
     // 8) Lighting Calculation
     vec3 V = normalize(Vworld);
     vec3 finalColor = vec3(0.0);
-    
-     // Loop over each light
-    for (int i = 0; i < numLights; i++) {
-        // Compute shadow factor for the current light using cube shadow mapping
-        float shadow = calculatePointLightShadow(i, fs_in.wPosition);
-        
-        if (!hasAnyPBR) {
-            //finalColor += fallbackLight(Nworld, V, baseColor, reflectivity, shineDamper, lights[i], shadow);
-        } else {
-            vec3 F0 = mix(vec3(0.04), baseColor, metallic);
-            //finalColor += pbrLight(Nworld, V, baseColor, metallic, roughness, F0, lights[i], shadow);
-        }
-    }
 
     if (!hasAnyPBR) {
         // Use fallback lighting model
