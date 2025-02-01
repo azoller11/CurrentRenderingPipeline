@@ -74,6 +74,47 @@ public class Light {
         lightSpaceMatrix = new Matrix4f();
     }
 
+    // New method: Computes and returns an array of six view–projection matrices for cube map shadow mapping.
+    public Matrix4f[] getCubeShadowMatrices() {
+        Matrix4f[] shadowMatrices = new Matrix4f[6];
+
+        // Create a perspective projection matrix with a 90° FOV, aspect ratio 1, and the light's near and far planes.
+        Matrix4f proj = new Matrix4f().perspective((float) Math.toRadians(90.0f), 1.0f, nearPlane, farPlane);
+
+        // Define the look directions for each cube face.
+        Vector3f[] lookDirs = new Vector3f[] {
+            new Vector3f( 1.0f,  0.0f,  0.0f),  // +X
+            new Vector3f(-1.0f,  0.0f,  0.0f),  // -X
+            new Vector3f( 0.0f,  1.0f,  0.0f),  // +Y
+            new Vector3f( 0.0f, -1.0f,  0.0f),  // -Y
+            new Vector3f( 0.0f,  0.0f,  1.0f),  // +Z
+            new Vector3f( 0.0f,  0.0f, -1.0f)   // -Z
+        };
+
+        // Define the up vectors for each cube face.
+        Vector3f[] upDirs = new Vector3f[] {
+            new Vector3f(0.0f, -1.0f,  0.0f),   // +X
+            new Vector3f(0.0f, -1.0f,  0.0f),   // -X
+            new Vector3f(0.0f,  0.0f,  1.0f),   // +Y
+            new Vector3f(0.0f,  0.0f, -1.0f),   // -Y
+            new Vector3f(0.0f, -1.0f,  0.0f),   // +Z
+            new Vector3f(0.0f, -1.0f,  0.0f)    // -Z
+        };
+
+        // Compute the view-projection matrix for each cube face.
+        for (int i = 0; i < 6; i++) {
+            Matrix4f view = new Matrix4f().lookAt(
+                position,
+                new Vector3f(position).add(lookDirs[i]),
+                upDirs[i]
+            );
+            shadowMatrices[i] = new Matrix4f();
+            proj.mul(view, shadowMatrices[i]);
+        }
+
+        return shadowMatrices;
+    }
+
     // Getters for the shadow map resources.
     public int getShadowMapFBO() {
         return shadowMapFBO;

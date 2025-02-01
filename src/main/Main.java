@@ -266,7 +266,7 @@ public class Main {
 		     ));
 	     
 	     
-	     gui.GuiTexture texture1 = new gui.GuiTexture(46, 0.0f,0.0f, 100.0f, 100.0f);
+	     gui.GuiTexture texture1 = new gui.GuiTexture(12, 0.0f,0.0f, 100.0f, 100.0f);
 	        textureRenderer.addTexture(texture1);
 	     
 	     //Mouse picker

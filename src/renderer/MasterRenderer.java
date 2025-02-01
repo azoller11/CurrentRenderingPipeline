@@ -137,7 +137,7 @@ public class MasterRenderer {
             shader.setUniformMat4("view", false, fb);
         }
 
-        //bindShadowMaps(lights, shader);
+        bindShadowMaps(lights, shader);
         
         frustum.calculateFrustum(projectionMatrix, view);
         // 5) For each entity, build the model matrix and draw
@@ -262,30 +262,45 @@ public class MasterRenderer {
 
     
     private void bindShadowMaps(List<Light> lights, ShaderProgram shader) {
+        // Maximum lights supported by the shader (should match your shader's declaration)
+        final int MAX_LIGHTS = 4;
+        final int NUM_CUBE_MATRICES = 6;
+        int numLightsToBind = Math.min(lights.size(), MAX_LIGHTS);
         int textureUnit = 10; // Starting texture unit for shadow maps to avoid conflicts
-        shader.setUniform1i("numLights", lights.size());
 
-        for (int i = 0; i < lights.size(); i++) {
-            Light light = lights.get(i);
-            String shadowMapUniform = "shadowMaps[" + i + "]";
-            glActiveTexture(GL_TEXTURE0 + textureUnit);
-            glBindTexture(GL_TEXTURE_2D, light.getShadowMapTexture());
-            shader.setUniform1i(shadowMapUniform, textureUnit);
+        shader.setUniform1i("numLights", numLightsToBind);
+
+        // Allocate a FloatBuffer for the entire flattened array:
+        // (MAX_LIGHTS * NUM_CUBE_MATRICES) matrices, each 16 floats.
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer allMatricesBuffer = stack.mallocFloat(MAX_LIGHTS * NUM_CUBE_MATRICES * 16);
             
-            
-            System.out.println(light.getShadowMapTexture());
-            
-            // Pass light space matrix
-            String matrixUniform = "lightSpaceMatrices[" + i + "]";
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                FloatBuffer fb = stack.mallocFloat(16);
-                light.getLightSpaceMatrix().get(fb);
-                shader.setUniformMat4(matrixUniform, false, fb);
+            for (int i = 0; i < numLightsToBind; i++) {
+                Light light = lights.get(i);
+
+                // Bind the cube map texture (using samplerCube array in the shader)
+                String shadowMapUniform = "shadowCubeMaps[" + i + "]";
+                glActiveTexture(GL_TEXTURE0 + textureUnit);
+                glBindTexture(GL_TEXTURE_CUBE_MAP, light.getShadowMapTexture());
+                shader.setUniform1i(shadowMapUniform, textureUnit);
+                System.out.println("Light " + i + " cube map texture ID: " + light.getShadowMapTexture());
+
+                // Get the 6 matrices for this light.
+                Matrix4f[] matrices = light.getCubeShadowMatrices();
+                // Copy these 6 matrices into the big FloatBuffer at the proper offset.
+                for (int j = 0; j < NUM_CUBE_MATRICES; j++) {
+                    // Calculate the offset: (i * NUM_CUBE_MATRICES + j) * 16
+                    int offset = (i * NUM_CUBE_MATRICES + j) * 16;
+                    matrices[j].get(offset, allMatricesBuffer);
+                }
+                textureUnit++;
             }
-
-            textureUnit++;
+            // Upload the entire flattened array.
+            //shader.setUniformMat4Array("cubeShadowMatrices", allMatricesBuffer, MAX_LIGHTS * NUM_CUBE_MATRICES);
         }
     }
+
+
 
 
     /**

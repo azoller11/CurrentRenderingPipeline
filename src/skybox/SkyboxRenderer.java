@@ -16,7 +16,7 @@ public class SkyboxRenderer {
     private Vector3f topColor;
     private Vector3f bottomColor;
 
-    private float sunAngle = 0.0f; // Controls the sun position
+    private float sunAngle = 0.27f; // Controls the sun position
     private float scrollSpeed = 0.02f; // Adjusts sun movement per scroll
 
     // New variables for sun & moon brightness & size
@@ -44,6 +44,7 @@ public class SkyboxRenderer {
             } else if (sunAngle < -1.0f) {
                 sunAngle += 2.0f;
             }
+            System.out.print(sunAngle);
         });
     }
 
