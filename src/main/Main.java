@@ -265,9 +265,19 @@ public class Main {
 		         new Vector3f(1, 0.09f, 0.032f)
 		     ));
 	     
+	    
 	     
-	     gui.GuiTexture texture1 = new gui.GuiTexture(12, 0.0f,0.0f, 100.0f, 100.0f);
+	     gui.GuiTexture texture1 = new gui.GuiTexture(34070, 0.0f,0.0f, 100.0f, 100.0f);
 	        textureRenderer.addTexture(texture1);
+	        
+	        gui.GuiTexture texture3 = new gui.GuiTexture(34071, 0.0f,0.0f, 200.0f, 100.0f);
+	        textureRenderer.addTexture(texture3);
+	        
+	        gui.GuiTexture texture4 = new gui.GuiTexture(34072, 0.0f,0.0f, 300.0f, 100.0f);
+	        textureRenderer.addTexture(texture4);
+	        
+	        gui.GuiTexture texture5 = new gui.GuiTexture(34073, 0.0f,0.0f, 400.0f, 100.0f);
+	        textureRenderer.addTexture(texture5);
 	     
 	     //Mouse picker
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);

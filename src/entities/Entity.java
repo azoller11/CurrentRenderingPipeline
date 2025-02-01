@@ -1,5 +1,6 @@
 package entities;
 
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -177,6 +178,19 @@ public class Entity {
 	public void setHasOpaque(boolean hasOpaque) {
 		this.hasOpaque = hasOpaque;
 	}
+	
+	public Matrix4f getModelMatrix() {
+        Matrix4f modelMatrix = new Matrix4f();
+        // Translate to the entity's position
+        modelMatrix.translate(position);
+        // Apply rotations (convert degrees to radians)
+        modelMatrix.rotateX((float) Math.toRadians(rotation.x))
+                   .rotateY((float) Math.toRadians(rotation.y))
+                   .rotateZ((float) Math.toRadians(rotation.z));
+        // Apply scaling
+        modelMatrix.scale(scale);
+        return modelMatrix;
+    }
 
 	
 }
