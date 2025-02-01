@@ -24,8 +24,8 @@ public class EngineSettings {
 	public static boolean FillMode = true;
 	public static boolean WireFrameMode = false;
 	public static boolean PointMode = false; 
-	public static boolean VisualiseObjects = false;
-	public static boolean VisualiseLights = false;
+	public static boolean VisualiseObjects = true;
+	public static boolean VisualiseLights = true;
 	
 	//Graphics
 	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;

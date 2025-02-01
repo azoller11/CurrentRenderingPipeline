@@ -48,79 +48,73 @@ public class SkyboxRenderer {
     }
 
     public void render(Matrix4f viewMatrix, Matrix4f projectionMatrix, Light sun, Light moon, int scale) {
-        shader.bind();
-
-        float sunHeightFactor = 180.0f; // How high the sun can go
-
-        // ☀️ Compute Sun Position
-        float angle = sunAngle * (float) Math.PI * 2.0f;
-        float sunX = (float) Math.cos(angle) * 100.0f;
-        float sunY = (float) Math.sin(angle) * sunHeightFactor;
-        float sunZ = (float) Math.sin(angle) * 100.0f;
-
-        sun.setPosition(new Vector3f(sunX, sunY, sunZ));
-
-        // 🌙 Compute Moon Position (Opposite of Sun)
-        float moonX = -sunX;
-        float moonY = -sunY;
-        float moonZ = -sunZ;
-
-        moon.setPosition(new Vector3f(moonX, moonY, moonZ));
-
-        // 🌅 Update Sun & Moon Colors & Intensities
-        updateSkyColors(sunY);
-        updateLightIntensity(sun, moon);
-
-        // 🏙 Remove translation from view matrix
-        Matrix4f skyboxView = new Matrix4f(viewMatrix).scale(scale);
-        skyboxView.m30(0);
-        skyboxView.m31(0);
-        skyboxView.m32(0);
-        
-        
-
-        // 🌄 Set uniforms
-        shader.setUniformMat4("view", skyboxView);
-        shader.setUniformMat4("projection", projectionMatrix);
-        shader.setUniform3f("topColor", topColor);
-        shader.setUniform3f("bottomColor", bottomColor);
-        shader.setUniform3f("sunPosition", sun.getPosition());
-        shader.setUniform3f("sunColor", sun.getColor());
-        shader.setUniform3f("moonPosition", moon.getPosition());
-        shader.setUniform3f("moonColor", moon.getColor());
-
-        // 🌌 Set both Sun and Moon as light sources
-        shader.setUniform3f("light1Position", sun.getPosition());
-        shader.setUniform3f("light1Color", sun.getColor());
-        shader.setUniform3f("light2Position", moon.getPosition());
-        shader.setUniform3f("light2Color", moon.getColor());
-
-        // ☀️🌙 Pass in Sun & Moon size
-        shader.setUniform1f("sunSize", sunSize);
-        shader.setUniform1f("moonSize", moonSize);
-        
-        shader.setUniform1f("bloomAmount", 0.02f);
-
-
-        if (!loadedSecView) {
-        	Matrix3f invRotation = new Matrix3f();
-            skyboxView.get3x3(invRotation);
-            //invRotation.transpose();
-            shader.setUniformMat3("invViewRotation", invRotation);
-            loadedSecView = true;
-        }
-        
-
-
-        // 🌌 Render Skybox
-        glBindVertexArray(vao);
-        glEnableVertexAttribArray(0);
-        glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
-        glDisableVertexAttribArray(0);
-        glBindVertexArray(0);
-
-        shader.unbind();
-    }
+	    shader.bind();
+	
+	    // Increase the vertical multiplier for higher sun/moon movement
+	    float sunHeightFactor = 1000.0f; // Increased from 180.0f
+	
+	    // ☀️ Compute Sun Position with increased horizontal and vertical distances
+	    float angle = sunAngle * (float) Math.PI * 2.0f;
+	    float sunX = (float) Math.cos(angle) * 1000.0f;  // Horizontal distance
+	    float sunY = (float) Math.sin(angle) * sunHeightFactor; // Vertical distance now higher
+	    float sunZ = (float) Math.sin(angle) * 1000.0f;   // Horizontal distance
+	
+	    sun.setPosition(new Vector3f(sunX, sunY, sunZ));
+	    
+	    // 🌙 Compute Moon Position (Opposite of Sun)
+	    float moonX = -sunX;
+	    float moonY = -sunY;
+	    float moonZ = -sunZ;
+	    moon.setPosition(new Vector3f(moonX, moonY, moonZ));
+	
+	    // Update sky colors and light intensities based on the sun's height
+	    updateSkyColors(sunY);
+	    updateLightIntensity(sun, moon);
+	
+	    // 🏙 Remove translation from view matrix for the skybox
+	    Matrix4f skyboxView = new Matrix4f(viewMatrix).scale(scale);
+	    skyboxView.m30(0);
+	    skyboxView.m31(0);
+	    skyboxView.m32(0);
+	    
+	    // Set uniforms for shaders
+	    shader.setUniformMat4("view", skyboxView);
+	    shader.setUniformMat4("projection", projectionMatrix);
+	    shader.setUniform3f("topColor", topColor);
+	    shader.setUniform3f("bottomColor", bottomColor);
+	    shader.setUniform3f("sunPosition", sun.getPosition());
+	    shader.setUniform3f("sunColor", sun.getColor());
+	    shader.setUniform3f("moonPosition", moon.getPosition());
+	    shader.setUniform3f("moonColor", moon.getColor());
+	
+	    // Set both Sun and Moon as light sources
+	    shader.setUniform3f("light1Position", sun.getPosition());
+	    shader.setUniform3f("light1Color", sun.getColor());
+	    shader.setUniform3f("light2Position", moon.getPosition());
+	    shader.setUniform3f("light2Color", moon.getColor());
+	
+	    // Pass in Sun & Moon size
+	    shader.setUniform1f("sunSize", sunSize);
+	    shader.setUniform1f("moonSize", moonSize);
+	    
+	    shader.setUniform1f("bloomAmount", 0.02f);
+	
+	    if (loadedSecView) {
+	         Matrix3f invRotation = new Matrix3f();
+	         skyboxView.get3x3(invRotation);
+	         shader.setUniformMat3("invViewRotation", invRotation);
+	         loadedSecView = true;
+	    }
+	
+	    // Render Skybox
+	    glBindVertexArray(vao);
+	    glEnableVertexAttribArray(0);
+	    glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
+	    glDisableVertexAttribArray(0);
+	    glBindVertexArray(0);
+	
+	    shader.unbind();
+	}
 
     // 🔆 Adjust Light Intensity Based on Horizon Position
     private void updateLightIntensity(Light sun, Light moon) {

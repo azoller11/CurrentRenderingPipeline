@@ -3,6 +3,7 @@ package shaders;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f; // Changed to JOML's Vector3f for consistency
+import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL40;
 import org.lwjgl.system.MemoryStack;
 
@@ -251,7 +252,49 @@ public class ShaderProgram {
         }
     }
 
+    public void setUniformMat4(String name, FloatBuffer fb) {
+        // Get the location of the uniform variable from the shader program.
+        int location = glGetUniformLocation(programId, name);
+        if (location < 0) {
+            System.err.println("Warning: Uniform '" + name + "' not found or is not used in shader.");
+            return;
+        }
+        // Upload the 4x4 matrix. The 'false' flag indicates that the matrix is not transposed.
+        glUniformMatrix4fv(location, false, fb);
+    }
 
+    public void setUniformMat4Array(String uniformName, FloatBuffer fb, int count) {
+        // Get the location of the uniform array in the shader
+        int location = glGetUniformLocation(programId, uniformName);
+        if (location < 0) {
+            System.err.println("Warning: Uniform '" + uniformName + "' not found or inactive in shader.");
+            return;
+        }
+        
+        // Upload the array of matrices.
+        // count is the number of mat4's, fb should contain count * 16 floats.
+        glUniformMatrix4fv2(location, count, false, fb);
+    }
+
+    private void glUniformMatrix4fv2(int location, int count, boolean transpose, FloatBuffer fb) {
+        // Ensure the buffer has enough data.
+        if (fb.remaining() < count * 16) {
+            throw new IllegalArgumentException("The FloatBuffer does not contain enough data. " +
+                "Expected " + (count * 16) + " floats, but got " + fb.remaining());
+        }
+        
+        // Save the original limit of the buffer.
+        int originalLimit = fb.limit();
+        
+        // Set the limit so that only count * 16 floats will be used.
+        fb.limit(fb.position() + count * 16);
+        
+        // Upload the matrix array.
+        GL20.glUniformMatrix4fv(location, transpose, fb);
+        
+        // Restore the original limit.
+        fb.limit(originalLimit);
+    }
 
     /*
     public void setUniformMat4(String name, Matrix4f matrix) {

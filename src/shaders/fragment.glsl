@@ -1,10 +1,10 @@
 #version 400 core
 
 // -----------------------------------------------------------------------------
- // Structs & Uniforms
+// Structs & Uniforms
 // -----------------------------------------------------------------------------
 struct Light {
-    vec3 position;    // If attenuation == (0,0,0), interpret as directional
+    vec3 position;    // For point lights, this is the light position.
     vec3 color;
     vec3 attenuation; // (const, linear, quad)
 };
@@ -51,14 +51,8 @@ uniform int isOpaquePass;
 
 
 
-//------------------------------------------------------------------------
-// Shadows
-//------------------------------------------------------------------------
-
-
-
 // -----------------------------------------------------------------------------
- // Inputs and Outputs
+// Inputs and Outputs
 // -----------------------------------------------------------------------------
 in GS_OUT {
     vec2 uv;
@@ -70,7 +64,7 @@ in GS_OUT {
 out vec4 outColor;
 
 // -----------------------------------------------------------------------------
- // Parallax Occlusion Mapping
+// Parallax Occlusion Mapping
 // -----------------------------------------------------------------------------
 vec2 parallaxOcclusionMapping(vec2 baseUV, vec3 viewDirTangent) {
     viewDirTangent.y = -viewDirTangent.y;
@@ -83,9 +77,9 @@ vec2 parallaxOcclusionMapping(vec2 baseUV, vec3 viewDirTangent) {
     float layerDepth = 0.0;
     float layerStep  = 1.0 / float(numSteps);
 
-    for(int i=0; i<numSteps; i++){
+    for (int i = 0; i < numSteps; i++) {
         float height = texture(heightMap, currUV).r;
-        if(layerDepth > height) {
+        if (layerDepth > height) {
             break;
         }
         currUV -= deltaUV;
@@ -96,13 +90,15 @@ vec2 parallaxOcclusionMapping(vec2 baseUV, vec3 viewDirTangent) {
 }
 
 // -----------------------------------------------------------------------------
- // Cook–Torrance Helpers
+// Cook–Torrance Helpers
 // -----------------------------------------------------------------------------
 vec3 fresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-// PBR lighting
+// -----------------------------------------------------------------------------
+// PBR Lighting
+// -----------------------------------------------------------------------------
 vec3 pbrLight(
     vec3 N, vec3 V, 
     vec3 baseColor, 
@@ -111,29 +107,22 @@ vec3 pbrLight(
     vec3 F0,
     Light L
 ) {
-    // Light direction + attenuation
-    vec3 lightDir;
-    float denom = 1.0;
-
-    bool isDirectional = all(lessThanEqual(L.attenuation, vec3(0.000001)));
+    // Compute light direction and attenuation (always treated as point light)
     vec3 fragPos = fs_in.wPosition;
+    vec3 toLight = L.position - fragPos;
+    float dist   = length(toLight);
+    vec3 lightDir = normalize(toLight);
 
-    if(isDirectional) {
-        lightDir = normalize(-L.position);
-    } else {
-        vec3 toLight = L.position - fragPos;
-        float dist   = length(toLight);
-        lightDir     = normalize(toLight);
-
-        denom = L.attenuation.x + L.attenuation.y * dist +
-                L.attenuation.z * (dist*dist);
-        if(denom < 0.0001) denom=0.0001;
+    float denom = L.attenuation.x + L.attenuation.y * dist +
+                  L.attenuation.z * (dist * dist);
+    if (denom < 0.0001) {
+        denom = 0.0001;
     }
 
     float NdotL = max(dot(N, lightDir), 0.0);
-    if(NdotL <= 0.0) return vec3(0.0);
+    if (NdotL <= 0.0) return vec3(0.0);
 
-    // Cook–Torrance
+    // Cook–Torrance BRDF
     vec3 H = normalize(V + lightDir);
     float NdotV = max(dot(N, V), 0.0);
     float NdotH = max(dot(N, H), 0.0);
@@ -141,12 +130,12 @@ vec3 pbrLight(
 
     float alpha    = roughness * roughness;
     float alphaSqr = alpha * alpha;
-    float denomD   = (NdotH*NdotH)*(alphaSqr - 1.0) + 1.0;
+    float denomD   = (NdotH * NdotH) * (alphaSqr - 1.0) + 1.0;
     float D        = alphaSqr / (PI * denomD * denomD);
 
-    float k  = (alpha + 1.0)*(alpha + 1.0) / 8.0;
-    float G1V= NdotV / (NdotV*(1.0 - k) + k);
-    float G1L= NdotL / (NdotL*(1.0 - k) + k);
+    float k  = (alpha + 1.0) * (alpha + 1.0) / 8.0;
+    float G1V = NdotV / (NdotV * (1.0 - k) + k);
+    float G1L = NdotL / (NdotL * (1.0 - k) + k);
     float G  = G1V * G1L;
 
     vec3 F = fresnelSchlick(VdotH, F0);
@@ -159,13 +148,13 @@ vec3 pbrLight(
     kD *= (1.0 - metallic);
 
     vec3 diffuse = (kD * baseColor) / PI;
-    vec3 radiance= L.color / denom;
+    vec3 radiance = L.color / denom;
 
     return (diffuse + specular) * radiance * NdotL;
 }
 
 // -----------------------------------------------------------------------------
- // Fallback Lighting (Lambert + Phong) for missing PBR
+// Fallback Lighting (Lambert + Phong) for missing PBR
 // -----------------------------------------------------------------------------
 vec3 fallbackLight(
     vec3 N, vec3 V,
@@ -173,41 +162,35 @@ vec3 fallbackLight(
     float reflectivity,
     float shineDamper,
     Light L
-){
-    // Light direction + attenuation
-    vec3 lightDir;
-    float denom = 1.0;
-    bool isDirectional = true;
+) {
+    // Compute light direction and attenuation (always treated as point light)
     vec3 fragPos = fs_in.wPosition;
+    vec3 toLight = L.position - fragPos;
+    float dist   = length(toLight);
+    vec3 lightDir = normalize(toLight);
 
-    if(isDirectional) {
-        lightDir = normalize(L.position);
-    } else {
-        vec3 toLight = L.position - fragPos;
-        float dist   = length(toLight);
-        lightDir     = normalize(toLight);
-
-        denom = L.attenuation.x + L.attenuation.y * dist 
-                + L.attenuation.z * dist*dist;
-        if(denom<0.0001) denom=0.0001;
+    float denom = L.attenuation.x + L.attenuation.y * dist + 
+                  L.attenuation.z * (dist * dist);
+    if (denom < 0.0001) {
+        denom = 0.0001;
     }
 
     float NdotL = max(dot(N, lightDir), 0.0);
-    if(NdotL<=0.0) return vec3(0.0);
+    if (NdotL <= 0.0) return vec3(0.0);
 
     // Diffuse (Lambert)
-    vec3 diff = baseColor * (NdotL/denom) * L.color;
+    vec3 diff = baseColor * (NdotL / denom) * L.color;
 
-    // Phong Spec
+    // Phong Specular
     vec3 R = reflect(-lightDir, N);
     float specFactor = pow(max(dot(R, V), 0.0), shineDamper) * reflectivity;
-    vec3 spec = (specFactor / denom)* L.color;
+    vec3 spec = (specFactor / denom) * L.color;
 
     return diff + spec;
 }
 
 // -----------------------------------------------------------------------------
- // MAIN
+// MAIN
 // -----------------------------------------------------------------------------
 void main() {
     // 1) TBN Matrix
@@ -294,18 +277,17 @@ void main() {
     }
 
     // 8) Lighting Calculation
-    vec3 V  = normalize(Vworld);
+    vec3 V = normalize(Vworld);
     vec3 finalColor = vec3(0.0);
 
     if (!hasAnyPBR) {
         // Use fallback lighting model
-        for(int i = 0; i < numLights; i++) {
+        for (int i = 0; i < numLights; i++) {
             finalColor += fallbackLight(Nworld, V, baseColor, reflectivity, shineDamper, lights[i]);
         }
-    }
-    else {
+    } else {
         // Use PBR lighting model
-        for(int i = 0; i < numLights; i++) {
+        for (int i = 0; i < numLights; i++) {
             // Calculate F0 based on metallic property
             vec3 F0 = mix(vec3(0.04), baseColor, metallic);
             finalColor += pbrLight(Nworld, V, baseColor, metallic, roughness, F0, lights[i]);
@@ -373,16 +355,16 @@ void main() {
             }
             break;
         case 9:
-	        {
-	        	outColor = vec4(fs_in.wPosition * 0.01, 1.0);
-	        }
-        	break;
+            {
+                outColor = vec4(fs_in.wPosition * 0.01, 1.0);
+            }
+            break;
         case 10:
-	        {
-	        	vec3 lightDirDebug = normalize(lights[0].position - fs_in.wPosition);
-   				 outColor = vec4((lightDirDebug * 0.5) + 0.5, 1.0);
-	        }
-        	break;
+            {
+                vec3 lightDirDebug = normalize(lights[0].position - fs_in.wPosition);
+                outColor = vec4((lightDirDebug * 0.5) + 0.5, 1.0);
+            }
+            break;
         default:
             // No debug mode; retain the computed color
             break;

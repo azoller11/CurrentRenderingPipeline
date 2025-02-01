@@ -116,8 +116,7 @@ public class Main {
             }
         });
         
-        gui.GuiTexture texture1 = new gui.GuiTexture(12, 0.0f,0.0f, 100.0f, 100.0f);
-        textureRenderer.addTexture(texture1);
+      
 
 
         // Add Textures to Renderer
@@ -212,7 +211,7 @@ public class Main {
         entities.add(cube5);
         
         
-        for (int i = 0; i < 8000; i++) {
+        for (int i = 0; i < 0; i++) {
         	int scale = 1000;
         	Entity cubec = new Entity(boxMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 100,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
         	cubec.setNormalMapId(normalTexture);
@@ -233,11 +232,15 @@ public class Main {
         lights.add(new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0))); 
         
 	     
+        
+      
+        
+        
         // A point light at (2,1,0) with color = (1,0.8,0.7), attenuation(1,0.09,0.032)
 	    
-        /*
+       
         lights.add(new Light(
-	         new Vector3f(2,10,0),
+	         new Vector3f(2,0,0),
 	         new Vector3f(1.0f, 0.8f, 0.7f),
 	         new Vector3f(1, 0.09f, 0.032f)
 	     ));
@@ -261,7 +264,10 @@ public class Main {
 		         new Vector3f(10.0f, 10.0f, 0.7f),
 		         new Vector3f(1, 0.09f, 0.032f)
 		     ));
-	     */
+	     
+	     
+	     gui.GuiTexture texture1 = new gui.GuiTexture(46, 0.0f,0.0f, 100.0f, 100.0f);
+	        textureRenderer.addTexture(texture1);
 	     
 	     //Mouse picker
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
