@@ -34,6 +34,8 @@ void main()
         b.x * tes_in[0].wNormal +
         b.y * tes_in[1].wNormal +
         b.z * tes_in[2].wNormal;
+        
+        
 
     tes_out.wTangent =
         b.x * tes_in[0].wTangent +

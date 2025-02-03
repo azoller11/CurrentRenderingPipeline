@@ -22,6 +22,8 @@ void main() {
     tcs_out[gl_InvocationID].wPosition = tcs_in[gl_InvocationID].wPosition;
     tcs_out[gl_InvocationID].wNormal   = tcs_in[gl_InvocationID].wNormal;
     tcs_out[gl_InvocationID].wTangent  = tcs_in[gl_InvocationID].wTangent;
+    
+   
 
     // minimal tess
     gl_TessLevelInner[0] = 1.0;

@@ -3,7 +3,6 @@ package loaders;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryStack;
-
 import settings.EngineSettings;
 import toolbox.Mesh;
 
@@ -12,9 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.lwjgl.opengl.GL40.*;
 
@@ -22,7 +19,7 @@ import static org.lwjgl.opengl.GL40.*;
  * OBJ Loader that parses:
  *   v  (positions)
  *   vt (texture coords)
- *   vn (normals)
+ *   vn (normals) -- but these will be recomputed for smooth shading!
  *   f  (faces) referencing v/t/n indices
  *
  * Produces a Mesh with layout (11 floats/vertex):
@@ -30,23 +27,26 @@ import static org.lwjgl.opengl.GL40.*;
  *    uv.x, uv.y,
  *    normal.x, normal.y, normal.z,
  *    tangent.x, tangent.y, tangent.z]
+ *
+ * This version computes smooth normals by averaging the face normals for all vertices
+ * sharing the same position.
  */
 public class ObjLoader {
 
     private static final String RES_LOC = "res/";
 
-   
-
     // Basic container for each "vertex" in the OBJ (pos/uv/normal).
-    // We'll compute tangents per unique vertex as well.
+    // We now also store the original position index for proper normal averaging.
     static class VertexData {
+        int posIndex;
         Vector3f position;
         Vector2f uv;
         Vector3f normal;
         // We'll accumulate tangent here
         Vector3f tangent = new Vector3f(0, 0, 0);
 
-        public VertexData(Vector3f pos, Vector2f uv, Vector3f nor) {
+        public VertexData(int posIndex, Vector3f pos, Vector2f uv, Vector3f nor) {
+            this.posIndex = posIndex;
             this.position = pos;
             this.uv = uv;
             this.normal = nor;
@@ -106,20 +106,17 @@ public class ObjLoader {
             throw new RuntimeException("Error reading OBJ file: " + objFile.getAbsolutePath(), e);
         }
 
-        // 2) Build a VertexData list for each unique v/t/n combination
-        // We have an index for pos, tex, nor. We'll create a VertexData for each combination
-        // and store them in an array. Then we'll have a final "indexList" for the actual order.
-
-        // However, in your code, you're using a "fully expanded" approach (1 index for each face vertex).
-        // So we'll just build the final "expanded" array as well. For each face vertex, we create a VertexData.
-
+        // 2) Build an expanded VertexData array for each face vertex.
+        // For smooth shading we want to average normals across all vertices that share the same position,
+        // so we store the original position index and ignore (override) any normals read from file.
         int numVertices = indicesPos.size(); // 3 per face for a triangle
         VertexData[] vertexDataArray = new VertexData[numVertices];
 
         for (int i = 0; i < numVertices; i++) {
             int pIndex = indicesPos.get(i) - 1; // OBJ is 1-based
             int tIndex = indicesTex.get(i) - 1;
-            int nIndex = indicesNor.get(i) - 1;
+            // We ignore the file-supplied normals for smooth shading.
+            // int nIndex = indicesNor.get(i) - 1;
 
             Vector3f pos = positions.get(pIndex);
 
@@ -127,16 +124,14 @@ public class ObjLoader {
                     ? texCoords.get(tIndex)
                     : new Vector2f(0.0f, 0.0f);
 
-            Vector3f nor = (nIndex >= 0 && nIndex < normals.size())
-                    ? normals.get(nIndex)
-                    : new Vector3f(0, 1, 0);
+            // Initialize normal to zero vector; it will be computed below.
+            Vector3f nor = new Vector3f(0, 0, 0);
 
-            vertexDataArray[i] = new VertexData(pos, uv, nor);
+            vertexDataArray[i] = new VertexData(pIndex, pos, uv, nor);
         }
 
-        // 3) Compute tangents face-by-face
-        // Each face is 3 consecutive vertices in "vertexDataArray"
-        // i.e. (i, i+1, i+2) for i = 0, 3, 6, ...
+        // 3) Compute tangents face-by-face.
+        // Each face is 3 consecutive vertices in "vertexDataArray".
         for (int i = 0; i < numVertices; i += 3) {
             VertexData v0 = vertexDataArray[i];
             VertexData v1 = vertexDataArray[i + 1];
@@ -145,7 +140,37 @@ public class ObjLoader {
             computeTangentsForTriangle(v0, v1, v2);
         }
 
-        // 4) Build final float[] with 11 floats per vertex
+        // 4) Compute smooth normals by averaging the face normals for each unique vertex (by position)
+        Vector3f[] smoothNormals = new Vector3f[positions.size()];
+        for (int i = 0; i < smoothNormals.length; i++) {
+            smoothNormals[i] = new Vector3f(0, 0, 0);
+        }
+
+        // Loop over each face (group of 3 vertices)
+        for (int i = 0; i < numVertices; i += 3) {
+            VertexData v0 = vertexDataArray[i];
+            VertexData v1 = vertexDataArray[i + 1];
+            VertexData v2 = vertexDataArray[i + 2];
+
+            // Compute the face normal (using cross product of two edges)
+            Vector3f edge1 = new Vector3f(v1.position).sub(v0.position);
+            Vector3f edge2 = new Vector3f(v2.position).sub(v0.position);
+            Vector3f faceNormal = edge1.cross(edge2, new Vector3f()).normalize();
+
+            // Accumulate this face normal into each vertex's smooth normal (using the original position index)
+            smoothNormals[v0.posIndex].add(faceNormal);
+            smoothNormals[v1.posIndex].add(faceNormal);
+            smoothNormals[v2.posIndex].add(faceNormal);
+        }
+
+        // Now update each vertex with the normalized smooth normal.
+        for (VertexData vd : vertexDataArray) {
+            // Use the accumulated normal for the original vertex position and normalize it.
+            Vector3f smooth = smoothNormals[vd.posIndex].normalize(new Vector3f());
+            vd.normal.set(smooth);
+        }
+
+        // 5) Build final float[] with 11 floats per vertex:
         //    (pos.x, pos.y, pos.z, uv.x, uv.y, normal.x, normal.y, normal.z, tangent.x, tangent.y, tangent.z)
         float[] finalData = new float[numVertices * 11];
         int floatIndex = 0;
@@ -163,7 +188,7 @@ public class ObjLoader {
             finalData[floatIndex++] = vd.normal.y;
             finalData[floatIndex++] = vd.normal.z;
 
-            // Now normalize the tangent (in case a vertex is shared among faces)
+            // Normalize the tangent (since it was accumulated over faces)
             vd.tangent.normalize();
             finalData[floatIndex++] = vd.tangent.x;
             finalData[floatIndex++] = vd.tangent.y;
@@ -172,19 +197,12 @@ public class ObjLoader {
 
         float furthestDistance = (float) Math.sqrt(furthestDistanceSquared);
 
-        // 5) Create VAO, VBO
+        // 6) Create VAO, VBO
         int vao = glGenVertexArrays();
         glBindVertexArray(vao);
 
         int vbo = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-        /*
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer fb = stack.mallocFloat(finalData.length);
-            fb.put(finalData).flip();
-            glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
-        }*/
 
         FloatBuffer fb = ByteBuffer.allocateDirect(finalData.length * Float.BYTES)
                 .order(ByteOrder.nativeOrder())
@@ -234,7 +252,7 @@ public class ObjLoader {
 
         float r = (edgeUV1.x * edgeUV2.y - edgeUV1.y * edgeUV2.x);
         if (Math.abs(r) < 0.0001f) {
-            // Avoid division by zero, or handle degenerate UV
+            // Avoid division by zero (or handle degenerate UV)
             r = 0.0001f;
         }
         float inv = 1.0f / r;
@@ -245,7 +263,7 @@ public class ObjLoader {
                 inv * (edgePos1.z * edgeUV2.y - edgePos2.z * edgeUV1.y)
         );
 
-        // Accumulate into each vertex
+        // Accumulate the tangent into each vertex
         v0.tangent.add(tangent);
         v1.tangent.add(tangent);
         v2.tangent.add(tangent);

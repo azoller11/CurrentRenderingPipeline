@@ -12,6 +12,8 @@ public class Light {
     private Vector3f position;
     private Vector3f color;
     private Vector3f attenuation; // (constant, linear, quadratic)
+    
+    private boolean castShadow;
 
     // Fields for point light shadow mapping
     private int depthCubeMap;  // OpenGL texture ID for the depth cube map
@@ -160,4 +162,12 @@ public class Light {
     public int getDepthMapFBO() {
         return depthMapFBO;
     }
+
+	public boolean isCastShadow() {
+		return castShadow;
+	}
+
+	public void setCastShadow(boolean castShadow) {
+		this.castShadow = castShadow;
+	}
 }

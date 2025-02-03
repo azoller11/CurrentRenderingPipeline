@@ -16,16 +16,18 @@ public class Entity {
     private float scale;
     
     private int textureId;
-    private int normalMapId;
     
-    private int heighMapId;
+    
+  
  // Parallax
     private Vector3f parallaxScale ;
     
-    private int albedoMap;
+    private int albedoMap; //Diffues or base color
     private int metallicMap;
     private int roughnessMap;
-    private int aoMap;
+    private int aoMap; //Ambient Occlusion
+    private int heighMapId;
+    private int normalMapId;
     
     private float shineDamper = 0;
     private float reflectivity = 0;

@@ -11,7 +11,6 @@ import entities.Entity;
 import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
-import shadows.ShadowMapRenderer;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
@@ -30,7 +29,7 @@ public class MasterRenderer {
     private final ShaderProgram shader;
     private final Matrix4f projectionMatrix;
     
-    private final ShadowMapRenderer shadowMapRenderer;
+    //private final ShadowMapRenderer shadowMapRenderer;
     
     private int screenWidth, screenHeight;
     
@@ -107,7 +106,7 @@ public class MasterRenderer {
         projectionMatrix = new Matrix4f().perspective(fov, aspect, near, far);
         
      // Initialize the ShadowMapRenderer
-        shadowMapRenderer = new ShadowMapRenderer(1024, 1024, 0.001f, 1000f);
+        //shadowMapRenderer = new ShadowMapRenderer(1024, 1024, NEAR_PLANE, FAR_PLANE);
     }
 
     public Matrix4f getProjectionMatrix() {
@@ -123,7 +122,7 @@ public class MasterRenderer {
      */
     public void render(List<Entity> entities, List<Light> lights, Camera camera) {
     	// 1. Render shadow maps for each light
-    	shadowMapRenderer.render(entities, lights);
+    	//shadowMapRenderer.render(entities, lights);
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
      // 2. Reset viewport to window dimensions to prevent distortion
@@ -164,7 +163,7 @@ public class MasterRenderer {
         }
 
        // bindShadowMaps(lights, shader);
-        bindShadowMaps(lights, shader);
+        //bindShadowMaps(lights, shader);
         
         frustum.calculateFrustum(projectionMatrix, view);
         // 5) For each entity, build the model matrix and draw
@@ -259,7 +258,7 @@ public class MasterRenderer {
         shader.setUniform1i("hasNormal",  hasNormalMap ? 1 : 0);
         shader.setUniform1i("hasHeight", hasHeightMap ? 1 : 0);
         
-
+        
         // If you still use "shineDamper"/"reflectivity" for older code, you can set them
         shader.setUniform1f("shineDamper", entity.getShineDamper());
         shader.setUniform1f("reflectivity", entity.getReflectivity());
@@ -288,19 +287,7 @@ public class MasterRenderer {
     }
     
     
-    private void bindShadowMaps(List<Light> lights, ShaderProgram shader) {
-        // Let's assume you want to start at texture unit 6 for shadow maps.
-        int textureUnit = 6;
-        // If you have multiple lights, you'll bind each cube map to a consecutive unit.
-        for (int i = 0; i < lights.size(); i++) {
-            Light light = lights.get(i);
-            glActiveTexture(GL13.GL_TEXTURE0 + textureUnit);
-            glBindTexture(GL13.GL_TEXTURE_CUBE_MAP, light.getDepthCubeMap());
-            // Assuming your fragment shader has an array uniform "shadowMaps":
-            shader.setUniform1i("shadowMaps[" + i + "]", textureUnit);
-            textureUnit++;
-        }
-    }
+ 
 
 
 

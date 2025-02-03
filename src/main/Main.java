@@ -130,7 +130,7 @@ public class Main {
         // Create a single "cube" mesh
         //Mesh cubeMesh = Mesh.createCube();
         Mesh cubeMesh = ObjLoader.loadObj("crate");
-        Mesh boxMesh = ObjLoader.loadObj("sphere");
+        Mesh sphereMesh = ObjLoader.loadObj("sphere");
         Mesh planeMesh = ObjLoader.loadObj("plane");
         
         int TextureId = TextureLoader.loadTexture("peeling-painted-metal_albedo.png");
@@ -175,13 +175,13 @@ public class Main {
         cube2.setReflectivity(10);
         cube2.setShineDamper(100);
         
-        Entity cube3 = new Entity(boxMesh, TextureId, new Vector3f(30, 20, 0),  new Vector3f(0,0,0), 1f);
+        Entity cube3 = new Entity(sphereMesh, TextureId, new Vector3f(30, 20, 0),  new Vector3f(0,0,0), 1f);
         cube3.setNormalMapId(normalTexture);
         cube3.setHeighMapId(heightMapTexture);
         cube3.setParallaxScale(new Vector3f(0.12f, 120, 160));
         cube3.setMetallicMap(metallicMapTexture);
-        cube3.setAoMap(aoMapTexture);
-        cube3.setRoughnessMap(roughnessMapTexture);
+        //cube3.setAoMap(aoMapTexture);
+        //cube3.setRoughnessMap(roughnessMapTexture);
         
         
         Entity cube4 = new Entity(ObjLoader.loadObj("tallPine4"), TextureLoader.loadTexture("pineTexture3.png"), new Vector3f(5, 0, 0), new Vector3f(0,0,0), 1f);
@@ -204,6 +204,21 @@ public class Main {
         //cube4.setAoMap(aoMapTexture);
         //cube4.setRoughnessMap(roughnessMapTexture);
 
+        
+        
+        
+        Entity cube6 = new Entity(sphereMesh, TextureLoader.loadTexture("medieval_red_brick_diff_2k.png"), new Vector3f(15, 5, 15), new Vector3f(0,0,0), 1f);
+        cube6.setNormalMapId(TextureLoader.loadTexture("medieval_red_brick_nor_gl_2k.png"));
+        //cube6.setHeighMapId(TextureLoader.loadTexture("medieval_red_brick_disp_2k.png"));
+        //cube3.setParallaxScale(new Vector3f(0.01f, 120, 160));
+        //cube6.setMetallicMap(TextureLoader.loadTexture("medieval_red_brick_rough_2k.png"));
+        cube6.setAoMap(TextureLoader.loadTexture("medieval_red_brick_ao_2k.png"));
+        cube6.setRoughnessMap(TextureLoader.loadTexture("medieval_red_brick_rough_2k.png"));
+        
+        cube6.setReflectivity(0.1f);
+        cube6.setShineDamper(1);
+        entities.add(cube6);
+        
         entities.add(cube1);
         entities.add(cube2);
         entities.add(cube3);
@@ -213,7 +228,7 @@ public class Main {
         
         for (int i = 0; i < 0; i++) {
         	int scale = 1000;
-        	Entity cubec = new Entity(boxMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 100,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
+        	Entity cubec = new Entity(sphereMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 100,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
         	cubec.setNormalMapId(normalTexture);
         	//cubec.setHeighMapId(heightMapTexture);
         	//cubec.setParallaxScale(new Vector3f(0.12f, 120, 160));
@@ -230,7 +245,6 @@ public class Main {
         lights.add(new Light(new Vector3f(10000, 20000,0), new Vector3f(2,2,2))); 
         //Moon
         lights.add(new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0))); 
-        
 	     
         
       
@@ -242,27 +256,27 @@ public class Main {
         lights.add(new Light(
 	         new Vector3f(2,0,0),
 	         new Vector3f(1.0f, 0.8f, 0.7f),
-	         new Vector3f(1, 0.09f, 0.032f)
+	         new Vector3f(1, 0.62f, 0.0032f)
 	     ));
 	     
 	     lights.add(new Light(
 		         new Vector3f(-2,-10,0),
 		         new Vector3f(0.0f, 8f, 7f),
-		         new Vector3f(1, 0.09f, 0.032f)
+		         new Vector3f(1, 0.62f, 0.0032f)
 		     ));
 	     
 	     
 	     lights.add(new Light(
 		         new Vector3f(-20,0,20),
 		         new Vector3f(10.0f, 0.0f, 0.7f),
-		         new Vector3f(1, 0.09f, 0.032f)
+		         new Vector3f(1, 0.62f, 0.232f)
 		     ));
 	     
 	     
 	     lights.add(new Light(
 		         new Vector3f(0,10,0),
 		         new Vector3f(10.0f, 10.0f, 0.7f),
-		         new Vector3f(1, 0.09f, 0.032f)
+		         new Vector3f(1, 0.62f, 0.232f)
 		     ));
 	     
 	    

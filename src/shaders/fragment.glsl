@@ -53,8 +53,7 @@ uniform int debugMode;
 uniform int isOpaquePass;
 
 // Shadow uniforms
-uniform samplerCube shadowMaps[16];
-const float farPlane = 1000;
+
 
 
 // -----------------------------------------------------------------------------
@@ -69,31 +68,6 @@ in GS_OUT {
 
 out vec4 outColor;
 
-// Calculate point light shadow for a given light index and fragment position.
-// Returns a shadow factor (1.0 means fully shadowed, 0.0 means fully lit).
-float calculatePointShadow(int lightIndex, vec3 fragPos) {
-    // Compute vector from light to fragment.
-    vec3 fragToLight = fragPos - lights[lightIndex].position;
-    
-    // Current distance from light to fragment.
-    float currentDistance = length(fragToLight);
-    
-    // Sample the depth from the cube map for this light.
-    // The cube map stores depth as a normalized value in [0,1].
-    float closestDepth = texture(shadowMaps[lightIndex], fragToLight).r;
-    
-    // Convert the normalized depth back to real distance.
-    closestDepth *= farPlane;
-    
-    // Apply a bias to reduce shadow acne.
-    float bias = 0.05;
-    
-    // Simple comparison: if the current distance is greater than the stored depth,
-    // the fragment is in shadow.
-    float shadow = currentDistance - bias > closestDepth ? 1.0 : 0.0;
-    
-    return shadow;
-}
 
 
 
@@ -277,36 +251,30 @@ void main() {
         }
     }
 
-   // 8) Lighting Calculation
-	vec3 V = normalize(Vworld);
-	vec3 finalColor = vec3(0.0);
-	float shadow = 0.0;
-	vec3 lightContribution = vec3(0.0);
-	
-	if (!hasAnyPBR) {
-	    // Use fallback lighting model
-	    for (int i = 0; i < numLights; i++) {
-	        lightContribution = fallbackLight(Nworld, V, baseColor, reflectivity, shineDamper, lights[i]);
-	        shadow = calculatePointShadow(i, fs_in.wPosition);
-	        finalColor += (1.0 - shadow) * lightContribution;
-	    }
-	} else {
-	    // Use PBR lighting model
-	    for (int i = 0; i < numLights; i++) {
-	        // Calculate F0 based on metallic property
-	        vec3 F0 = mix(vec3(0.04), baseColor, metallic);
-	        lightContribution = pbrLight(Nworld, V, baseColor, metallic, roughness, F0, lights[i]);
-	        shadow = calculatePointShadow(i, fs_in.wPosition);
-	        finalColor += (1.0 - shadow) * lightContribution;
-	    }
-	    // Apply Ambient Occlusion if available
-	    if (hasAo == 1) {
-	        finalColor *= ao;
-	    }
-	}  // <-- This closing brace completes the 'else' block
-	
-	// 9) Assign the final color with alpha
-	outColor = vec4(finalColor, finalAlpha);
+    // 8) Lighting Calculation
+    vec3 V = normalize(Vworld);
+    vec3 finalColor = vec3(0.0);
+
+    if (!hasAnyPBR) {
+        // Use fallback lighting model
+        for (int i = 0; i < numLights; i++) {
+            finalColor += fallbackLight(Nworld, V, baseColor, reflectivity, shineDamper, lights[i]);
+        }
+    } else {
+        // Use PBR lighting model
+        for (int i = 0; i < numLights; i++) {
+            // Calculate F0 based on metallic property
+            vec3 F0 = mix(vec3(0.04), baseColor, metallic);
+            finalColor += pbrLight(Nworld, V, baseColor, metallic, roughness, F0, lights[i]);
+        }
+        // Apply Ambient Occlusion if available
+        if (hasAo == 1) {
+            finalColor *= ao;
+        }
+    }
+
+    // 9) Assign the final color with alpha
+    outColor = vec4(finalColor, finalAlpha);
 
     // -----------------------------------------------------------------------------
     // Debug Mode Handling
