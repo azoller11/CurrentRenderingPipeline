@@ -210,7 +210,7 @@ public class Main {
         Entity cube6 = new Entity(planeMesh, TextureLoader.loadTexture("medieval_red_brick_diff_2k.png"), new Vector3f(15, 5, 15), new Vector3f(0,0,0), 1f);
         cube6.setNormalMapId(TextureLoader.loadTexture("medieval_red_brick_nor_gl_2k.png"));
         cube6.setHeighMapId(TextureLoader.loadTexture("medieval_red_brick_disp_2k.png"));
-        cube6.setParallaxScale(new Vector3f(0.14f, 120, 160));
+        cube6.setParallaxScale(new Vector3f(0.04f, 120, 160));
         cube6.setMetallicMap(TextureLoader.loadTexture("medieval_red_brick_rough_2k.png"));
         cube6.setAoMap(TextureLoader.loadTexture("medieval_red_brick_ao_2k.png"));
         cube6.setRoughnessMap(TextureLoader.loadTexture("medieval_red_brick_rough_2k.png"));
