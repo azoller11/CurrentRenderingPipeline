@@ -157,10 +157,10 @@ public class Main {
         
 
         // Create multiple entities with different positions
-        Entity cube1 = new Entity(planeMesh, TextureLoader.loadTexture("box.png"), new Vector3f(-1, 0, 0), new Vector3f(0,0,0), 1f);
+        Entity cube1 = new Entity(planeMesh, TextureLoader.loadTexture("box.png"), new Vector3f(-1, 0, 0), new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
         cube1.setNormalMapId(TextureLoader.loadTexture("boxNormal.png"));
         cube1.setHeighMapId(TextureLoader.loadTexture("boxHeightMap.png"));
-        cube1.setParallaxScale(new Vector3f(0.12f, 120, 160));
+        cube1.setParallaxScale(new Vector3f(-0.12f, 120, 160));
           //cube1.setReflectivity(0.1f);
           //cube1.setShineDamper(1);
         cube1.setMetallicMap(metallicMapTexture);
@@ -172,8 +172,8 @@ public class Main {
         cube2.setNormalMapId(normalTexture);
         cube2.setHeighMapId(heightMapTexture);
         cube2.setParallaxScale(new Vector3f(0.12f, 120, 160));
-        cube2.setReflectivity(10);
-        cube2.setShineDamper(100);
+        cube2.setReflectivity(1);
+        cube2.setShineDamper(10);
         
         Entity cube3 = new Entity(sphereMesh, TextureId, new Vector3f(30, 20, 0),  new Vector3f(0,0,0), 1f);
         cube3.setNormalMapId(normalTexture);
@@ -207,16 +207,16 @@ public class Main {
         
         
         
-        Entity cube6 = new Entity(sphereMesh, TextureLoader.loadTexture("medieval_red_brick_diff_2k.png"), new Vector3f(15, 5, 15), new Vector3f(0,0,0), 1f);
+        Entity cube6 = new Entity(planeMesh, TextureLoader.loadTexture("medieval_red_brick_diff_2k.png"), new Vector3f(15, 5, 15), new Vector3f(0,0,0), 1f);
         cube6.setNormalMapId(TextureLoader.loadTexture("medieval_red_brick_nor_gl_2k.png"));
-        //cube6.setHeighMapId(TextureLoader.loadTexture("medieval_red_brick_disp_2k.png"));
-        //cube3.setParallaxScale(new Vector3f(0.01f, 120, 160));
-        //cube6.setMetallicMap(TextureLoader.loadTexture("medieval_red_brick_rough_2k.png"));
+        cube6.setHeighMapId(TextureLoader.loadTexture("medieval_red_brick_disp_2k.png"));
+        cube6.setParallaxScale(new Vector3f(0.14f, 120, 160));
+        cube6.setMetallicMap(TextureLoader.loadTexture("medieval_red_brick_rough_2k.png"));
         cube6.setAoMap(TextureLoader.loadTexture("medieval_red_brick_ao_2k.png"));
         cube6.setRoughnessMap(TextureLoader.loadTexture("medieval_red_brick_rough_2k.png"));
         
-        cube6.setReflectivity(0.1f);
-        cube6.setShineDamper(1);
+        //cube6.setReflectivity(0.1f);
+        //cube6.setShineDamper(1);
         entities.add(cube6);
         
         entities.add(cube1);
@@ -229,7 +229,7 @@ public class Main {
         for (int i = 0; i < 0; i++) {
         	int scale = 1000;
         	Entity cubec = new Entity(sphereMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 100,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
-        	cubec.setNormalMapId(normalTexture);
+        	//cubec.setNormalMapId(normalTexture);
         	//cubec.setHeighMapId(heightMapTexture);
         	//cubec.setParallaxScale(new Vector3f(0.12f, 120, 160));
         	cubec.setMetallicMap(metallicMapTexture);
@@ -242,7 +242,7 @@ public class Main {
         }
         
         //Sun
-        lights.add(new Light(new Vector3f(10000, 20000,0), new Vector3f(2,2,2))); 
+        lights.add(new Light(new Vector3f(10000, 20000,0), new Vector3f(12,12,12))); 
         //Moon
         lights.add(new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0))); 
 	     

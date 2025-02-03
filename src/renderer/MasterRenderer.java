@@ -63,7 +63,9 @@ public class MasterRenderer {
             
 	   String[] additionalFragmentShaders = new String[] {
 			   "src/shadersModular/fresnel.glsl",
-			   "src/shadersModular/parallaxOcclusionMapping.glsl",
+			   "src/shadersModular/parallaxMapping.glsl",
+			   "src/shadersModular/computeNormal.glsl",
+			   "src/shadersModular/computeLightContribution.glsl",
 	   };
 	   
 	   String[] additionalGeometryShaders = new String[] {
@@ -168,7 +170,7 @@ public class MasterRenderer {
         frustum.calculateFrustum(projectionMatrix, view);
         // 5) For each entity, build the model matrix and draw
         for (Entity entity : entities) {
-        	if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint()))
+        	if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint() * entity.getScale()))
         		drawEntity(entity);
         }
 
@@ -177,10 +179,10 @@ public class MasterRenderer {
 
     private void drawEntity(Entity entity) {
         // 1) Build model matrix from the entity's transform
-        Matrix4f model = new Matrix4f()
-            .translate(entity.getPosition())
-            .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)
-            .scale(entity.getScale());
+    	Matrix4f model = new Matrix4f()
+    		    .scale(entity.getScale())
+    		    .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)
+    		    .translate(entity.getPosition());
 
         // 2) Upload "model" uniform
         try (MemoryStack stack = MemoryStack.stackPush()) {

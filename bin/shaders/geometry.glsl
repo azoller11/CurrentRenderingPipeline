@@ -7,6 +7,7 @@ in TES_OUT {
     vec3 wPosition;
     vec3 wNormal;
     vec3 wTangent;
+    vec3 wBitangent;
 } gs_in[];
 
 out GS_OUT {
@@ -14,6 +15,7 @@ out GS_OUT {
     vec3 wPosition;
     vec3 wNormal;
     vec3 wTangent;
+    vec3 wBitangent;
 } gs_out;
 
 void main() {

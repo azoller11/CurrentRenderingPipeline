@@ -22,7 +22,6 @@ public class Entity {
  // Parallax
     private Vector3f parallaxScale ;
     
-    private int albedoMap; //Diffues or base color
     private int metallicMap;
     private int roughnessMap;
     private int aoMap; //Ambient Occlusion
@@ -111,14 +110,6 @@ public class Entity {
 
 	public void setHeighMapId(int heighMapId) {
 		this.heighMapId = heighMapId;
-	}
-
-	public int getAlbedoMap() {
-		return albedoMap;
-	}
-
-	public void setAlbedoMap(int albedoMap) {
-		this.albedoMap = albedoMap;
 	}
 
 	public int getMetallicMap() {

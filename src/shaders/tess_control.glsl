@@ -6,6 +6,7 @@ in VS_OUT {
     vec3 wPosition;
     vec3 wNormal;
     vec3 wTangent;
+    vec3 wBitangent;
 } tcs_in[];
 
 out TCS_OUT {
@@ -13,6 +14,7 @@ out TCS_OUT {
     vec3 wPosition;
     vec3 wNormal;
     vec3 wTangent;
+    vec3 wBitangent;
 } tcs_out[];
 
 void main() {

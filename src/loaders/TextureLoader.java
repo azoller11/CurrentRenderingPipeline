@@ -8,6 +8,7 @@ import settings.EngineSettings;
 
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -133,4 +134,60 @@ public class TextureLoader {
         return textureId;
     }
 
+    public static int loadHDRTexture(String filename) {
+        if (EngineSettings.textureCache.containsKey(filename)) {
+            return EngineSettings.textureCache.get(filename);
+        }
+        
+        String filePath = TEXTURE_DIR + filename;
+        int width, height;
+        FloatBuffer imageData;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer channels = stack.mallocInt(1);
+            
+            // Set vertical flip if needed (depending on your coordinate system)
+            STBImage.stbi_set_flip_vertically_on_load(false);
+            
+            // Load HDR image as floating-point data
+            imageData = STBImage.stbi_loadf(filePath, w, h, channels, 4);
+            if (imageData == null) {
+                throw new RuntimeException("Failed to load HDR texture file: " + filePath
+                    + "\n" + STBImage.stbi_failure_reason());
+            }
+            width = w.get();
+            height = h.get();
+        }
+        
+        int textureId = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, textureId);
+        
+        // Use a floating-point internal format; GL_RGBA16F is common for HDR images.
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0,
+            GL_RGBA, GL_FLOAT, imageData);
+        
+        // Generate mipmaps if desired (note: mipmapping HDR textures might require extra care)
+        glGenerateMipmap(GL_TEXTURE_2D);
+        
+        // Set texture filtering and wrapping options as needed.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        
+        // Anisotropic filtering remains the same.
+        GL.createCapabilities();
+        if (GL.getCapabilities().GL_EXT_texture_filter_anisotropic) {
+            float maxAnisotropy = glGetFloat(EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+            float desiredAnisotropy = Math.min(16.0f, maxAnisotropy);
+            glTexParameterf(GL_TEXTURE_2D, EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT, desiredAnisotropy);
+        }
+        
+        // Free the HDR image data
+        STBImage.stbi_image_free(imageData);
+        
+        EngineSettings.textureCache.put(filename, textureId);
+        return textureId;
+    }
 }
