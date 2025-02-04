@@ -66,6 +66,7 @@ public class MasterRenderer {
 			   "src/shadersModular/parallaxMapping.glsl",
 			   "src/shadersModular/computeNormal.glsl",
 			   "src/shadersModular/computeLightContribution.glsl",
+			   "src/shadersModular/calculatePOMShadow.glsl",
 	   };
 	   
 	   String[] additionalGeometryShaders = new String[] {
@@ -262,8 +263,8 @@ public class MasterRenderer {
         
         
         // If you still use "shineDamper"/"reflectivity" for older code, you can set them
-        shader.setUniform1f("shineDamper", entity.getShineDamper());
-        shader.setUniform1f("reflectivity", entity.getReflectivity());
+        //shader.setUniform1f("shineDamper", entity.getShineDamper());
+        //shader.setUniform1f("reflectivity", entity.getReflectivity());
         
     
         if (entity.isHasTransparency()) {

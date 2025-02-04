@@ -35,9 +35,9 @@ uniform int hasMetallic;    // 1 if metallicMap is bound, 0 if missing
 uniform int hasRoughness;   // 1 if roughnessMap is bound, 0 if missing
 uniform int hasAo;          // 1 if aoMap is bound, 0 if missing
 
-// Old fallback uniforms
-uniform float reflectivity; // "specular intensity"
-uniform float shineDamper;  // "specular exponent"
+
+
+
 
 const float PI = 3.14159265359;
 
@@ -67,6 +67,8 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0);
 vec3 computeNormal(vec3 worldNormal, vec3 worldTangent, vec2 uv, out mat3 TBN);
 vec3 computeLightContribution(Light light, vec3 fragPos, vec3 N, vec3 V, float metallic, float roughness, float ao, vec3 baseColor);
 vec2 parallaxMapping(vec2 texCoords, vec3 viewDirTangent);
+float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV);
+
 
 // Trowbridge-Reitz GGX normal distribution function.
 float DistributionGGX(vec3 N, vec3 H, float roughness)
@@ -105,49 +107,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 }
 
 
-float calculateShadow(vec3 lightDirTangent, vec2 initialUV) {
-    if (hasHeight == 0) return 1.0;
-    
-    // Flip Y-axis and normalize direction
-    lightDirTangent.y *= -1.0;
-    lightDirTangent = normalize(lightDirTangent);
-    
-    // Shadow parameters - more aggressive settings for visible results
-    float shadowParallaxScale = parallaxScale * 1.2; // Increased scale for visibility
-    float shadowMinLayers = minLayers * 0.7;
-    float shadowMaxLayers = maxLayers * 0.7;
 
-    // Calculate perspective-correct shadow stepping
-    float numLayers = mix(shadowMaxLayers, shadowMinLayers, 
-                        abs(dot(vec3(0.0, 0.0, 1.0), lightDirTangent)));
-    vec2 P = lightDirTangent.xy * (shadowParallaxScale / lightDirTangent.z);
-    vec2 delta = P / numLayers;
-
-    // Convert height to depth (inverted relationship)
-    float initialDepth = 1.0 - texture(heightMap, initialUV).r;
-    float currentDepth = initialDepth;
-    vec2 currentCoords = initialUV;
-    
-    // Depth-aware shadow marching
-    float shadowFactor = 1.0;
-    float layerDepth = 1.0 / numLayers;
-    
-    for(int i = 0; i < int(numLayers); i++) {
-        currentCoords += delta;
-        float sampledDepth = 1.0 - texture(heightMap, currentCoords).r;
-        
-        // Depth comparison with bias
-        if(sampledDepth < currentDepth - 0.005) { 
-            // Calculate soft shadows based on depth difference
-            float depthDifference = (currentDepth - sampledDepth);
-            shadowFactor *= 1.0 - smoothstep(0.0, 0.1, depthDifference);
-        }
-        
-        currentDepth -= layerDepth;
-    }
-
-    return clamp(shadowFactor, 0.3, 1.0);
-}
 
 
 // -----------------------------------------------------------------------------
@@ -204,7 +164,7 @@ void main()
         vec3 lightDirTangent = normalize(transpose(TBN) * lightDir);
 
         // Calculate shadow factor
-        float shadow = calculateShadow(lightDirTangent, parallaxedUV);
+        float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV);
 
         // Apply shadow to light contribution
         lighting += shadow * brightnessFactor * 

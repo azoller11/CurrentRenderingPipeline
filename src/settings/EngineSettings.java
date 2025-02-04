@@ -25,18 +25,18 @@ public class EngineSettings {
 	public static boolean WireFrameMode = false;
 	public static boolean PointMode = false; 
 	public static boolean VisualiseObjects = false;
-	public static boolean VisualiseLights = true;
+	public static boolean VisualiseLights = false;
 	
 	//Graphics
 	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;
 	
 	//Computation
-	public static boolean MemoryUsage = false;
+	public static boolean MemoryUsage = true;
 	
 	//Editor
 	public static boolean MouseItemPicker = true;
-	public static boolean ObjectPicker = true;
-	public static boolean LightPicker = true;
+	public static boolean ObjectPicker = false;
+	public static boolean LightPicker = false;
 	
 	
 	 // Cache to store loaded meshes
