@@ -12,6 +12,8 @@ import entities.Light;
 import gui.TextureRenderer;
 import loaders.ObjLoader;
 import loaders.TextureLoader;
+import postProcessing.BloomRenderer;
+import postProcessing.PostProcessingRenderer;
 import renderer.MasterRenderer;
 import settings.EngineSettings;
 import skybox.SkyboxRenderer;
@@ -54,11 +56,10 @@ public class Main {
     private TextureRenderer textureRenderer;
     //Skybox renderer
     private SkyboxRenderer skyboxRenderer;
-    
-    //Post Processing
-    private int fbo;
-    private int colorTexture;
-    private int depthBuffer;
+    //Main post processing renderer
+    private PostProcessingRenderer postRenderer;
+    //Bloom
+    private BloomRenderer bloomRenderer;
     
     
     // A simple camera
@@ -113,6 +114,11 @@ public class Main {
         textureRenderer = new TextureRenderer();
         
         skyboxRenderer = new SkyboxRenderer(window);
+        
+        postRenderer = new PostProcessingRenderer(width, height, 1);
+        
+        bloomRenderer = new BloomRenderer(width, height);
+
         
         //gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
         
@@ -392,7 +398,8 @@ public class Main {
             
             
             
-            
+            postRenderer.bindFBO();
+            bloomRenderer.bindSceneFBO();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // Render everything
@@ -402,9 +409,17 @@ public class Main {
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
             
             skyboxRenderer.render(camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000);            
+           
+
             
+            postRenderer.unbindFBO(width, height);
+            bloomRenderer.unbindSceneFBO(width, height);
+            
+            postRenderer.renderPostProcess();
+            bloomRenderer.renderBloom(width, height, 1.0f, 0.3f);
             
             //Render Texture
+            glClear(GL_DEPTH_BUFFER_BIT);
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
@@ -416,6 +431,7 @@ public class Main {
 
     private void cleanup() {
         // Cleanup
+    	postRenderer.cleanup();
         masterRenderer.cleanup();
         skyboxRenderer.cleanUp();
         debugRenderer.cleanup();

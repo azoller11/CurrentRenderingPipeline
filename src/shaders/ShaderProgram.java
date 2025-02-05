@@ -425,22 +425,15 @@ public class ShaderProgram {
         fb.limit(originalLimit);
     }
 
-    /*
-    public void setUniformMat4(String name, Matrix4f matrix) {
-        int location = getUniformLocation(name); // Get the location of the uniform in the shader program
-        if (location < 0) {
-            System.err.println("Warning: Uniform '" + name + "' not found in shader program!");
-            return;
-        }
+	public void setUniform2f(String name, float f, float g) {
+		 int loc = getUniformLocation(name);
+	        if (loc >= 0) {
+	            glUniform2f(loc, f, g);
+	        }
+		
+	}
+	
+	
 
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            // Allocate a FloatBuffer and populate it with the matrix data
-            FloatBuffer buffer = stack.mallocFloat(16);
-            matrix.get(buffer); // Store the matrix into the buffer
 
-            // Upload the matrix data to the uniform location
-            glUniformMatrix4fv(location, false, buffer);
-        }
-    }
-    */
 }
