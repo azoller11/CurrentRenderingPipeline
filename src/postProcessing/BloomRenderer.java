@@ -47,7 +47,7 @@ public class BloomRenderer {
     private ShaderProgram bloomCombineShader;    // Combine original scene and bloom.
     
     // Number of blur passes.
-    private int blurIterations = 10;
+    private int blurIterations = 20;
     
     public BloomRenderer(int width, int height) {
         this.width = width;

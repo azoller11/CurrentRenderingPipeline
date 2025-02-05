@@ -152,7 +152,7 @@ void main()
     float ao = (hasAo == 1) ? texture(aoMap, parallaxedUV).r : 1.0;
 
     // Increase ambient brightness.
-    vec3 ambient = 0.2 * baseColor * ao;  // Increased ambient multiplier.
+    vec3 ambient = 0.1 * baseColor * ao;  // Increased ambient multiplier.
     vec3 lighting = ambient;
 
      float brightnessFactor = 2.0;

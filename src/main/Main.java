@@ -416,7 +416,7 @@ public class Main {
             bloomRenderer.unbindSceneFBO(width, height);
             
             postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 1.0f, 0.3f);
+            bloomRenderer.renderBloom(width, height, 0.85f, 0.3f);
             
             //Render Texture
             glClear(GL_DEPTH_BUFFER_BIT);

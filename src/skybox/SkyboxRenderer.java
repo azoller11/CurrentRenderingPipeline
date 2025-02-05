@@ -21,11 +21,11 @@ public class SkyboxRenderer {
 
     // New variables for sun & moon brightness & size
     private float maxSunBrightness = 2.0f;
-    private float maxMoonBrightness = 0.2f;
+    private float maxMoonBrightness = 0.35f;
     private float sunSize = 0.025f;
     private float moonSize = 0.02f;
     
-    private float sunBloomAmount = 0.05f;
+    private float sunBloomAmount = 0.00f;
     private float moonBloomAmount = 0.01f;
     
     private boolean loadedSecView = false;
