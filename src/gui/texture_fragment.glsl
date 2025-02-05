@@ -10,7 +10,8 @@ uniform float brightness;
 
 void main() {
     if (useTexture == 1) {
-        vec4 texColor = texture(textureSampler, TexCoords);
+    	vec2 flippedTexCoords = vec2(TexCoords.x, 1.0 - TexCoords.y);
+        vec4 texColor = texture(textureSampler, flippedTexCoords);
         if (texColor.a < 0.1) // Discard fully transparent pixels
             discard;
         FragColor = texColor * vec4(brightness, brightness, brightness, 1.0);

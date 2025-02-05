@@ -31,7 +31,7 @@ public class EngineSettings {
 	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;
 	
 	//Computation
-	public static boolean MemoryUsage = true;
+	public static boolean MemoryUsage = false;
 	
 	//Editor
 	public static boolean MouseItemPicker = true;

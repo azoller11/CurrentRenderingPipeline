@@ -127,7 +127,7 @@ public class MasterRenderer {
     	// 1. Render shadow maps for each light
     	//shadowMapRenderer.render(entities, lights);
         
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
      // 2. Reset viewport to window dimensions to prevent distortion
         glViewport(0, 0, this.screenWidth, this.screenHeight);
 
@@ -138,7 +138,7 @@ public class MasterRenderer {
         // 2) Use our pipeline
         shader.bind();
         
-        shader.setUniform1i("debugMode", EngineSettings.ShaderDebug.getValue());
+        //shader.setUniform1i("debugMode", EngineSettings.ShaderDebug.getValue());
         
         shader.setUniformLights("lights", lights);
         

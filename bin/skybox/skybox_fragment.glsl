@@ -25,7 +25,8 @@ uniform vec3 light2Position;
 uniform vec3 light2Color;
 
 // Bloom parameter: controls how far (in radians) the glow extends beyond the disk edge.
-uniform float bloomAmount; // e.g., 0.03 - 0.05
+uniform float sunBloomAmount;
+uniform float moonBloomAmount; // e.g., 0.03 - 0.05
 
 // New uniform: inverse of the camera's rotation matrix (3x3)
 // This transforms a vector from camera space into a fixed world-space orientation.
@@ -92,10 +93,10 @@ void main() {
     vec3 light2Dir = normalize(light2Position);
     
     // --- 4. Compute Light Intensities with Bloom ---
-    float intensitySun    = computeLightIntensity(rayDir, sunDir, sunSize, bloomAmount);
-    float intensityMoon   = computeLightIntensity(rayDir, moonDir, moonSize, bloomAmount);
-    float intensityLight1 = computeLightIntensity(rayDir, light1Dir, sunSize, bloomAmount);
-    float intensityLight2 = computeLightIntensity(rayDir, light2Dir, moonSize, bloomAmount);
+    float intensitySun    = computeLightIntensity(rayDir, sunDir, sunSize, sunBloomAmount);
+    float intensityMoon   = computeLightIntensity(rayDir, moonDir, moonSize, moonBloomAmount);
+    float intensityLight1 = computeLightIntensity(rayDir, light1Dir, sunSize, sunBloomAmount);
+    float intensityLight2 = computeLightIntensity(rayDir, light2Dir, moonSize, moonBloomAmount);
     
     // --- 5. Compute Star Visibility ---
     // Instead of a hard cutoff, we use a smooth transition based on the sun's world Y value.

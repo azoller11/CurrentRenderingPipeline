@@ -20,10 +20,13 @@ public class SkyboxRenderer {
     private float scrollSpeed = 0.02f; // Adjusts sun movement per scroll
 
     // New variables for sun & moon brightness & size
-    private float maxSunBrightness = 3.0f;
-    private float maxMoonBrightness = 0.6f;
-    private float sunSize = 0.05f;
+    private float maxSunBrightness = 2.0f;
+    private float maxMoonBrightness = 0.2f;
+    private float sunSize = 0.025f;
     private float moonSize = 0.02f;
+    
+    private float sunBloomAmount = 0.05f;
+    private float moonBloomAmount = 0.01f;
     
     private boolean loadedSecView = false;
 
@@ -44,7 +47,7 @@ public class SkyboxRenderer {
             } else if (sunAngle < -1.0f) {
                 sunAngle += 2.0f;
             }
-            System.out.print(sunAngle);
+            //System.out.print(sunAngle);
         });
     }
 
@@ -52,7 +55,7 @@ public class SkyboxRenderer {
 	    shader.bind();
 	
 	    // Increase the vertical multiplier for higher sun/moon movement
-	    float sunHeightFactor = 1000.0f; // Increased from 180.0f
+	    float sunHeightFactor = 2000.0f; // Increased from 180.0f
 	
 	    // ☀️ Compute Sun Position with increased horizontal and vertical distances
 	    float angle = sunAngle * (float) Math.PI * 2.0f;
@@ -98,7 +101,8 @@ public class SkyboxRenderer {
 	    shader.setUniform1f("sunSize", sunSize);
 	    shader.setUniform1f("moonSize", moonSize);
 	    
-	    shader.setUniform1f("bloomAmount", 0.02f);
+	    shader.setUniform1f("sunBloomAmount", sunBloomAmount);
+	    shader.setUniform1f("moonBloomAmount", moonBloomAmount);
 	
 	    if (loadedSecView) {
 	         Matrix3f invRotation = new Matrix3f();

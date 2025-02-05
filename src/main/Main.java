@@ -30,6 +30,7 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11.glViewport;
 import static org.lwjgl.opengl.GL40.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
@@ -53,6 +54,12 @@ public class Main {
     private TextureRenderer textureRenderer;
     //Skybox renderer
     private SkyboxRenderer skyboxRenderer;
+    
+    //Post Processing
+    private int fbo;
+    private int colorTexture;
+    private int depthBuffer;
+    
     
     // A simple camera
     private Camera camera;
@@ -107,22 +114,43 @@ public class Main {
         
         skyboxRenderer = new SkyboxRenderer(window);
         
-        gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
+        //gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
         
-        gui.GuiButton button1 = new gui.GuiButton("colorWheel.png", 100, 100, 100, 100, new Runnable() {
+        gui.GuiButton button1 = new gui.GuiButton("cube.png", 0, 0, 50, 50, new Runnable() {
             @Override
             public void run() {
-                System.out.println("Button clicked!");
+                EngineSettings.VisualiseObjects = !EngineSettings.VisualiseObjects;
+                EngineSettings.ObjectPicker = !EngineSettings.ObjectPicker;
+            }
+        });
+        textureRenderer.addTexture(button1);
+        
+        gui.GuiButton button2 = new gui.GuiButton("idea.png", 50, 0, 50, 50, new Runnable() {
+            @Override
+            public void run() {
+                EngineSettings.VisualiseLights = !EngineSettings.VisualiseLights;
+                EngineSettings.LightPicker = !EngineSettings.LightPicker;
             }
         });
         
+        textureRenderer.addTexture(button2);
+        
+        gui.GuiButton button3 = new gui.GuiButton("colorWheel.png", 100, 0, 50, 50, new Runnable() {
+            @Override
+            public void run() {
+                EngineSettings.MemoryUsage = !EngineSettings.MemoryUsage;
+            }
+        });
+        
+        textureRenderer.addTexture(button3);
+        
       
-
+        
 
         // Add Textures to Renderer
      
         
-        textureRenderer.addTexture(button1);
+       
         
         // Create the camera, starting at (0,0,5) 
         camera = new Camera(new Vector3f(0,0,0), 0f, 0f);
@@ -290,7 +318,7 @@ public class Main {
 		     ));
 	     
 	    
-	     
+	     /*
 	     gui.GuiTexture texture1 = new gui.GuiTexture(34070, 0.0f,0.0f, 100.0f, 100.0f);
 	        textureRenderer.addTexture(texture1);
 	        
@@ -302,7 +330,7 @@ public class Main {
 	        
 	        gui.GuiTexture texture5 = new gui.GuiTexture(34073, 0.0f,0.0f, 400.0f, 100.0f);
 	        textureRenderer.addTexture(texture5);
-	     
+	     */
 	     //Mouse picker
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
 	        
@@ -348,7 +376,7 @@ public class Main {
             // Example: rotate the second cube around Y
             if (EngineSettings.VisualiseObjects) {
             	for (Entity e : entities) {
-                	debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint(), new Vector3f(0,0,1));
+                	debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint(), new Vector3f(0,1,0));
                 }
             }
             
