@@ -176,7 +176,7 @@ public class PostProcessingRenderer {
         glBindTexture(GL_TEXTURE_2D, colorTextureIds[0]);
         postProcessShader.setUniformSampler("screenTexture", 0);
         
-        postProcessShader.setUniform1f("gamma", 0);
+        postProcessShader.setUniform1f("gamma", -1);
         postProcessShader.setUniform1f("exposure", 0);
         postProcessShader.setUniform1f("vignetteStrength", 0.0f);
         

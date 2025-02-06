@@ -51,6 +51,12 @@ public class ObjLoader {
             this.uv = uv;
             this.normal = nor;
         }
+        
+        public VertexData(Vector3f pos, Vector2f uv, Vector3f nor) {
+            this.position = pos;
+            this.uv = uv;
+            this.normal = nor;
+        }
     }
 
     /**
@@ -237,6 +243,168 @@ public class ObjLoader {
 
         return mesh;
     }
+    
+    public static Mesh loadObjOld(String objFileName) {
+        // Check if the mesh is already loaded and cached
+        if (EngineSettings.meshCache.containsKey(objFileName)) {
+            //System.out.println("Model \"" + objFileName + "\" retrieved from cache.");
+            return EngineSettings.meshCache.get(objFileName);
+        }
+
+        File objFile = new File(RES_LOC + objFileName + ".obj");
+
+        List<Vector3f> positions = new ArrayList<>();
+        List<Vector2f> texCoords = new ArrayList<>();
+        List<Vector3f> normals = new ArrayList<>();
+
+        // Index lists from faces
+        List<Integer> indicesPos = new ArrayList<>();
+        List<Integer> indicesTex = new ArrayList<>();
+        List<Integer> indicesNor = new ArrayList<>();
+
+        float furthestDistanceSquared = 0.0f; // Store squared distance to avoid sqrt computations
+
+        // 1) Parse the OBJ
+        try (FileReader fr = new FileReader(objFile);
+             BufferedReader reader = new BufferedReader(fr)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.startsWith("v ")) {
+                    Vector3f position = parseVector3f(line);
+
+                    // Update furthest distance
+                    float distanceSquared = position.lengthSquared(); // Faster than computing sqrt
+                    if (distanceSquared > furthestDistanceSquared) {
+                        furthestDistanceSquared = distanceSquared;
+                    }
+                    positions.add(position);
+                } else if (line.startsWith("vt ")) {
+                    texCoords.add(parseVector2f(line));
+                } else if (line.startsWith("vn ")) {
+                    normals.add(parseVector3f(line));
+                } else if (line.startsWith("f ")) {
+                    parseFace(line, indicesPos, indicesTex, indicesNor);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading OBJ file: " + objFile.getAbsolutePath(), e);
+        }
+
+        // 2) Build a VertexData list for each unique v/t/n combination
+        // We have an index for pos, tex, nor. We'll create a VertexData for each combination
+        // and store them in an array. Then we'll have a final "indexList" for the actual order.
+
+        // However, in your code, you're using a "fully expanded" approach (1 index for each face vertex).
+        // So we'll just build the final "expanded" array as well. For each face vertex, we create a VertexData.
+
+        int numVertices = indicesPos.size(); // 3 per face for a triangle
+        VertexData[] vertexDataArray = new VertexData[numVertices];
+
+        for (int i = 0; i < numVertices; i++) {
+            int pIndex = indicesPos.get(i) - 1; // OBJ is 1-based
+            int tIndex = indicesTex.get(i) - 1;
+            int nIndex = indicesNor.get(i) - 1;
+
+            Vector3f pos = positions.get(pIndex);
+
+            Vector2f uv = (tIndex >= 0 && tIndex < texCoords.size())
+                    ? texCoords.get(tIndex)
+                    : new Vector2f(0.0f, 0.0f);
+
+            Vector3f nor = (nIndex >= 0 && nIndex < normals.size())
+                    ? normals.get(nIndex)
+                    : new Vector3f(0, 1, 0);
+
+            vertexDataArray[i] = new VertexData(pos, uv, nor);
+        }
+
+        // 3) Compute tangents face-by-face
+        // Each face is 3 consecutive vertices in "vertexDataArray"
+        // i.e. (i, i+1, i+2) for i = 0, 3, 6, ...
+        for (int i = 0; i < numVertices; i += 3) {
+            VertexData v0 = vertexDataArray[i];
+            VertexData v1 = vertexDataArray[i + 1];
+            VertexData v2 = vertexDataArray[i + 2];
+
+            computeTangentsForTriangle(v0, v1, v2);
+        }
+
+        // 4) Build final float[] with 11 floats per vertex
+        //    (pos.x, pos.y, pos.z, uv.x, uv.y, normal.x, normal.y, normal.z, tangent.x, tangent.y, tangent.z)
+        float[] finalData = new float[numVertices * 11];
+        int floatIndex = 0;
+        for (int i = 0; i < numVertices; i++) {
+            VertexData vd = vertexDataArray[i];
+
+            finalData[floatIndex++] = vd.position.x;
+            finalData[floatIndex++] = vd.position.y;
+            finalData[floatIndex++] = vd.position.z;
+
+            finalData[floatIndex++] = vd.uv.x;
+            finalData[floatIndex++] = vd.uv.y;
+
+            finalData[floatIndex++] = vd.normal.x;
+            finalData[floatIndex++] = vd.normal.y;
+            finalData[floatIndex++] = vd.normal.z;
+
+            // Now normalize the tangent (in case a vertex is shared among faces)
+            vd.tangent.normalize();
+            finalData[floatIndex++] = vd.tangent.x;
+            finalData[floatIndex++] = vd.tangent.y;
+            finalData[floatIndex++] = vd.tangent.z;
+        }
+
+        float furthestDistance = (float) Math.sqrt(furthestDistanceSquared);
+
+        // 5) Create VAO, VBO
+        int vao = glGenVertexArrays();
+        glBindVertexArray(vao);
+
+        int vbo = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        /*
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer fb = stack.mallocFloat(finalData.length);
+            fb.put(finalData).flip();
+            glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+        }*/
+
+        FloatBuffer fb = ByteBuffer.allocateDirect(finalData.length * Float.BYTES)
+                .order(ByteOrder.nativeOrder())
+                .asFloatBuffer();
+        fb.put(finalData).flip();
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+
+        // pos => loc=0 (3 floats)
+        int stride = 11 * Float.BYTES;
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0L);
+        glEnableVertexAttribArray(0);
+
+        // uv => loc=1 (2 floats)
+        glVertexAttribPointer(1, 2, GL_FLOAT, false, stride, 3L * Float.BYTES);
+        glEnableVertexAttribArray(1);
+
+        // normal => loc=2 (3 floats)
+        glVertexAttribPointer(2, 3, GL_FLOAT, false, stride, 5L * Float.BYTES);
+        glEnableVertexAttribArray(2);
+
+        // tangent => loc=3 (3 floats)
+        glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 8L * Float.BYTES);
+        glEnableVertexAttribArray(3);
+
+        glBindVertexArray(0);
+
+        Mesh mesh = new Mesh(vao, numVertices, furthestDistance);
+
+        // Store the loaded mesh in the cache
+        EngineSettings.meshCache.put(objFileName, mesh);
+        //System.out.println("Model \"" + objFileName + "\" loaded and cached.");
+
+        return mesh;
+    }
+
 
     // ---------------------------------------------------
     //  Tangent Calculation for a Single Triangle
@@ -329,4 +497,6 @@ public class ObjLoader {
             indicesNor.add(norIndex);
         }
     }
+    
+    
 }

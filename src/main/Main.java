@@ -17,9 +17,13 @@ import postProcessing.PostProcessingRenderer;
 import renderer.MasterRenderer;
 import settings.EngineSettings;
 import skybox.SkyboxRenderer;
+import terrain.TerrainRenderer;
+import terrain.TerrainGenerator;
+import terrain.AdaptiveTerrainGenerator;
 import toolbox.Mesh;
 import toolbox.MousePicker;
 
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -60,7 +64,11 @@ public class Main {
     private PostProcessingRenderer postRenderer;
     //Bloom
     private BloomRenderer bloomRenderer;
-    
+    //Terrain
+    private TerrainRenderer terrainRenderer;
+    private Mesh terrainMesh;
+    private Matrix4f terrainModelMatrix;
+    private AdaptiveTerrainGenerator adaptiveGen;
     
     // A simple camera
     private Camera camera;
@@ -118,7 +126,8 @@ public class Main {
         postRenderer = new PostProcessingRenderer(width, height, 1);
         
         bloomRenderer = new BloomRenderer(width, height);
-
+        
+      
         
         //gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
         
@@ -160,6 +169,30 @@ public class Main {
         
         // Create the camera, starting at (0,0,5) 
         camera = new Camera(new Vector3f(0,0,0), 0f, 0f);
+        
+        
+        
+     // In your init() method (or similar):
+       /*
+        adaptiveGen = new AdaptiveTerrainGenerator(10000f, 256, 64);
+        // Initially generate the patches based on the current camera position.
+        List<AdaptiveTerrainGenerator.PatchMesh> terrainPatches = adaptiveGen.getPatches(camera.getPosition());
+        terrainRenderer = new TerrainRenderer(); // Make sure your shader and texture setup is ready.
+        int rockTexture = TextureLoader.loadTexture("ganges_river_pebbles_diff_2k.png");
+        terrainRenderer.addTexture("rockTexture", rockTexture);
+        int grassTexture = TextureLoader.loadTexture("peeling-painted-metal_albedo.png");
+        //terrainRenderer.addTexture("grassTexture", grassTexture);
+        terrainModelMatrix = new Matrix4f().identity();
+*/
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
         // Create a single "cube" mesh
         //Mesh cubeMesh = Mesh.createCube();
@@ -259,6 +292,35 @@ public class Main {
         cube8.setAoMap(TextureLoader.loadTexture("blue_metal_plate_ao_2k.png"));
         cube8.setRoughnessMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
         entities.add(cube8);
+        
+        Entity cube9 = new Entity(planeMesh, TextureLoader.loadTexture("roots_diff_2k.png"), new Vector3f(15, 15, 85), new Vector3f(0,0,0), 1f);
+        cube9.setNormalMapId(TextureLoader.loadTexture("roots_nor_gl_2k.png"));
+        cube9.setHeighMapId(TextureLoader.loadTexture("roots_disp_2k.png"));
+        cube9.setParallaxScale(new Vector3f(0.05f, 120, 160));
+        cube9.setMetallicMap(TextureLoader.loadTexture("roots_rough_2k.png"));
+        cube9.setAoMap(TextureLoader.loadTexture("roots_ao_2k.png"));
+        cube9.setRoughnessMap(TextureLoader.loadTexture("roots_rough_2k.png"));
+        entities.add(cube9);
+        
+        
+        for (int i = 0; i < 20; i++) {
+        	Entity bush = new Entity(ObjLoader.loadObjOld("bush1"), TextureLoader.loadTexture("searsia_lucida_diff_2k.png"),
+        			new Vector3f(-30 + random.nextInt(60), 15, 60 + random.nextInt(60)), 
+        			new Vector3f(0,0,0), 10f);
+            bush.setNormalMapId(TextureLoader.loadTexture("searsia_lucida_nor_gl_2k.png"));
+            bush.setMetallicMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
+            bush.setAoMap(TextureLoader.loadTexture("searsia_lucida_ao_2k.png"));
+            bush.setRoughnessMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
+            bush.setHasTransparency(true);
+            entities.add(bush);
+            
+        }
+        
+        
+        
+        
+        
+        
         //cube6.setReflectivity(0.1f);
         //cube6.setShineDamper(1);
         entities.add(cube6);
@@ -382,7 +444,7 @@ public class Main {
             // Example: rotate the second cube around Y
             if (EngineSettings.VisualiseObjects) {
             	for (Entity e : entities) {
-                	debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint(), new Vector3f(0,1,0));
+                	debugRenderer.addSphere(e.getPosition(), e.getMesh().getFurthestPoint() + e.getScale(), new Vector3f(0,1,0));
                 }
             }
             
@@ -404,7 +466,12 @@ public class Main {
 
             // Render everything
             masterRenderer.render(entities, lights, camera);
+         // Assuming you have projection, view, and model matrices available.
+          
+            //terrainRenderer.renderAdaptiveTerrain(adaptiveGen, masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), terrainModelMatrix, camera.getPosition(), lights);
 
+
+            
             // Could add more interesting transforms as well
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
             
@@ -416,7 +483,7 @@ public class Main {
             bloomRenderer.unbindSceneFBO(width, height);
             
             postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 0.85f, 0.3f);
+            bloomRenderer.renderBloom(width, height, 0.90f, 4.8f);
             
             //Render Texture
             glClear(GL_DEPTH_BUFFER_BIT);
@@ -431,6 +498,7 @@ public class Main {
 
     private void cleanup() {
         // Cleanup
+    	//terrainRenderer.cleanup();
     	postRenderer.cleanup();
         masterRenderer.cleanup();
         skyboxRenderer.cleanUp();

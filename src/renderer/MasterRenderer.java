@@ -140,6 +140,8 @@ public class MasterRenderer {
         
         //shader.setUniform1i("debugMode", EngineSettings.ShaderDebug.getValue());
         
+        //Calculate if the lights 
+        
         shader.setUniformLights("lights", lights);
         
         shader.setUniform3f("cameraPos",
@@ -181,9 +183,9 @@ public class MasterRenderer {
     private void drawEntity(Entity entity) {
         // 1) Build model matrix from the entity's transform
     	Matrix4f model = new Matrix4f()
-    		    .scale(entity.getScale())
+    		    .translate(entity.getPosition())
     		    .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)
-    		    .translate(entity.getPosition());
+    		    .scale(entity.getScale());
 
         // 2) Upload "model" uniform
         try (MemoryStack stack = MemoryStack.stackPush()) {

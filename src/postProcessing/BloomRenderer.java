@@ -47,7 +47,7 @@ public class BloomRenderer {
     private ShaderProgram bloomCombineShader;    // Combine original scene and bloom.
     
     // Number of blur passes.
-    private int blurIterations = 20;
+    private int blurIterations = 12;
     
     public BloomRenderer(int width, int height) {
         this.width = width;
@@ -67,9 +67,12 @@ public class BloomRenderer {
         // Create the color texture attachment.
         sceneTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, sceneTexture);
+        //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneTexture, 0);
         
         // Create a renderbuffer object for depth.
@@ -95,6 +98,8 @@ public class BloomRenderer {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brightTexture, 0);
         
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -113,6 +118,8 @@ public class BloomRenderer {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongTexture[i], 0);
             
@@ -191,55 +198,57 @@ public class BloomRenderer {
      * @param bloomIntensity The intensity for combining bloom.
      */
     public void renderBloom(int windowWidth, int windowHeight, float threshold, float bloomIntensity) {
-        // 1. Extract bright areas.
-        glBindFramebuffer(GL_FRAMEBUFFER, brightFBO);
-        glClear(GL_COLOR_BUFFER_BIT);
-        bloomExtractShader.bind();
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, sceneTexture);
-        bloomExtractShader.setUniformSampler("sceneTexture", 0);
-        bloomExtractShader.setUniform1f("threshold", threshold);
-        renderQuad();
-        bloomExtractShader.unbind();
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        
-        // 2. Blur the bright texture using ping-pong FBOs.
-        boolean horizontal = true;
-        boolean firstIteration = true;
-        blurShader.bind();
-        for (int i = 0; i < blurIterations; i++) {
-            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal ? 1 : 0]);
-            blurShader.setUniform2f("blurDirection", horizontal ? 1.0f : 0.0f, horizontal ? 0.0f : 1.0f);
-            glActiveTexture(GL_TEXTURE0);
-            if (firstIteration) {
-                glBindTexture(GL_TEXTURE_2D, brightTexture);
-                firstIteration = false;
-            } else {
-                glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
-            }
-            blurShader.setUniformSampler("image", 0);
-            renderQuad();
-            horizontal = !horizontal;
-        }
-        blurShader.unbind();
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        
-        // 3. Combine the original scene with the blurred bloom texture.
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        bloomCombineShader.bind();
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, sceneTexture);
-        bloomCombineShader.setUniformSampler("sceneTexture", 0);
-        glActiveTexture(GL_TEXTURE1);
-        // Use the last ping-pong texture from the blur pass.
-        glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
-        bloomCombineShader.setUniformSampler("bloomTexture", 1);
-        bloomCombineShader.setUniform1f("bloomIntensity", bloomIntensity);
-        renderQuad();
-        bloomCombineShader.unbind();
-    }
+    // 1. Extract bright areas.
+    glBindFramebuffer(GL_FRAMEBUFFER, brightFBO);
+    glViewport(0, 0, width, height); // Set viewport for bright FBO
+    glClear(GL_COLOR_BUFFER_BIT);
+    bloomExtractShader.bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, sceneTexture);
+    bloomExtractShader.setUniformSampler("sceneTexture", 0);
+    bloomExtractShader.setUniform1f("threshold", threshold);
     
+    renderQuad();
+    bloomExtractShader.unbind();
+    
+    // 2. Blur the bright texture using ping-pong FBOs.
+    boolean horizontal = true;
+    boolean firstIteration = true;
+    blurShader.bind();
+    for (int i = 0; i < blurIterations; i++) {
+        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal ? 1 : 0]);
+        glViewport(0, 0, width, height); // Set viewport for ping-pong FBO
+        glClear(GL_COLOR_BUFFER_BIT);
+        blurShader.setUniform2f("blurDirection", horizontal ? 1.0f : 0.0f, horizontal ? 0.0f : 1.0f);
+        glActiveTexture(GL_TEXTURE0);
+        if (firstIteration) {
+            glBindTexture(GL_TEXTURE_2D, brightTexture);
+            firstIteration = false;
+        } else {
+            glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
+        }
+        blurShader.setUniformSampler("image", 0);
+        renderQuad();
+        horizontal = !horizontal;
+    }
+    blurShader.unbind();
+    
+    // 3. Combine the original scene with the blurred bloom texture.
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, windowWidth, windowHeight); // Reset to window viewport
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    bloomCombineShader.bind();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, sceneTexture);
+    bloomCombineShader.setUniformSampler("sceneTexture", 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
+    bloomCombineShader.setUniformSampler("bloomTexture", 1);
+    bloomCombineShader.setUniform1f("bloomIntensity", bloomIntensity);
+    //bloomCombineShader.setUniform1f("exposure", 4.2f);
+    renderQuad();
+    bloomCombineShader.unbind();
+}
     // Utility method to render the full-screen quad.
     private void renderQuad() {
         glBindVertexArray(quadVAO);

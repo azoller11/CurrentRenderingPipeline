@@ -2,12 +2,14 @@
 in vec2 passTexCoords;
 out vec4 fragColor;
 uniform sampler2D sceneTexture;
-uniform float threshold;  // e.g., 1.0
+uniform float threshold;
+
 void main() {
-   vec3 color = texture(sceneTexture, passTexCoords).rgb;
+    vec3 color = texture(sceneTexture, passTexCoords).rgb;
     float brightness = dot(color, vec3(0.2126, 0.7152, 0.0722));
-    if (brightness > threshold)
-        fragColor = vec4(color, 1.0);
-   else
-          fragColor = vec4(0.0);
- }
+    
+    // Soft threshold with smoothstep
+    float softEdge = 0.05; // Adjust for smoother transition
+    float factor = smoothstep(threshold - softEdge, threshold + softEdge, brightness);
+    fragColor = vec4(color * factor, 1.0);
+}
