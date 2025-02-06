@@ -296,7 +296,7 @@ public class Main {
         Entity cube9 = new Entity(planeMesh, TextureLoader.loadTexture("roots_diff_2k.png"), new Vector3f(15, 15, 85), new Vector3f(0,0,0), 1f);
         cube9.setNormalMapId(TextureLoader.loadTexture("roots_nor_gl_2k.png"));
         cube9.setHeighMapId(TextureLoader.loadTexture("roots_disp_2k.png"));
-        cube9.setParallaxScale(new Vector3f(0.05f, 120, 160));
+        cube9.setParallaxScale(new Vector3f(0.09f, 120, 160));
         cube9.setMetallicMap(TextureLoader.loadTexture("roots_rough_2k.png"));
         cube9.setAoMap(TextureLoader.loadTexture("roots_ao_2k.png"));
         cube9.setRoughnessMap(TextureLoader.loadTexture("roots_rough_2k.png"));
@@ -304,14 +304,15 @@ public class Main {
         
         
         for (int i = 0; i < 20; i++) {
-        	Entity bush = new Entity(ObjLoader.loadObjOld("bush1"), TextureLoader.loadTexture("searsia_lucida_diff_2k.png"),
+        	Entity bush = new Entity(ObjLoader.loadObj("bush1"), TextureLoader.loadTexture("searsia_lucida_diff_2k.png"),
         			new Vector3f(-30 + random.nextInt(60), 15, 60 + random.nextInt(60)), 
         			new Vector3f(0,0,0), 10f);
-            bush.setNormalMapId(TextureLoader.loadTexture("searsia_lucida_nor_gl_2k.png"));
-            bush.setMetallicMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
+            //bush.setNormalMapId(TextureLoader.loadTexture("searsia_lucida_nor_gl_2k.png"));
+            //bush.setMetallicMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
             bush.setAoMap(TextureLoader.loadTexture("searsia_lucida_ao_2k.png"));
             bush.setRoughnessMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
             bush.setHasTransparency(true);
+            bush.setHasOpaque(false);
             entities.add(bush);
             
         }
@@ -483,7 +484,7 @@ public class Main {
             bloomRenderer.unbindSceneFBO(width, height);
             
             postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 0.90f, 4.8f);
+            bloomRenderer.renderBloom(width, height, 1.75f, 0.8f);
             
             //Render Texture
             glClear(GL_DEPTH_BUFFER_BIT);

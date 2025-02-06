@@ -199,6 +199,7 @@ public class BloomRenderer {
      */
     public void renderBloom(int windowWidth, int windowHeight, float threshold, float bloomIntensity) {
     // 1. Extract bright areas.
+    glDisable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, brightFBO);
     glViewport(0, 0, width, height); // Set viewport for bright FBO
     glClear(GL_COLOR_BUFFER_BIT);
@@ -210,6 +211,7 @@ public class BloomRenderer {
     
     renderQuad();
     bloomExtractShader.unbind();
+    glEnable(GL_DEPTH_TEST);
     
     // 2. Blur the bright texture using ping-pong FBOs.
     boolean horizontal = true;

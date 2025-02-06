@@ -20,7 +20,7 @@ public class SkyboxRenderer {
     private float scrollSpeed = 0.02f; // Adjusts sun movement per scroll
 
     // New variables for sun & moon brightness & size
-    private float maxSunBrightness = 2.0f;
+    private float maxSunBrightness = 1.8f;
     private float maxMoonBrightness = 0.25f;
     private float sunSize = 0.025f;
     private float moonSize = 0.02f;

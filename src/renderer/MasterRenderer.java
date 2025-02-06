@@ -200,12 +200,7 @@ public class MasterRenderer {
         shader.setUniform1i("diffuseTexture", 0);
         
         
-        
-       if (entity.isHasOpaque()) {
-    	   shader.setUniform1f("isOpaquePass", 1);
-       } else {
-    	   shader.setUniform1f("isOpaquePass", 0);
-       }
+      
         
         
         // --------------------------------------------------
@@ -262,7 +257,7 @@ public class MasterRenderer {
         
         shader.setUniform1i("hasNormal",  hasNormalMap ? 1 : 0);
         shader.setUniform1i("hasHeight", hasHeightMap ? 1 : 0);
-        
+        shader.setUniform1f("isOpaquePass", (entity.getNormalMapId() != 0) ? 1 : 0);
         
         // If you still use "shineDamper"/"reflectivity" for older code, you can set them
         //shader.setUniform1f("shineDamper", entity.getShineDamper());
@@ -271,6 +266,8 @@ public class MasterRenderer {
     
         if (entity.isHasTransparency()) {
         	GL11.glDisable(GL11.GL_CULL_FACE);
+        	glEnable(GL_BLEND);
+        	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     		//GL11.glCullFace(GL11.GL_BACK);
         } else {
         	GL11.glEnable(GL11.GL_CULL_FACE);

@@ -121,8 +121,8 @@ void main()
 	vec3 B = normalize(cross(N, T)); // Right-handed tangent space
 	mat3 TBN = mat3(T, B, N);
     
-        if (isOpaquePass < 0)
-    	return;
+   
+    	
         
     
     
@@ -136,12 +136,16 @@ void main()
 	// --- Compute the normal using the parallaxed UV.
 	vec3 normal = computeNormal(fs_in.wNormal, fs_in.wTangent, parallaxedUV, TBN);
 
- 
- 
+	 if (isOpaquePass < 0)
+	    return;
+	 
     // Sample textures.
     vec4 texColor = texture(diffuseTexture, parallaxedUV);
     if (texColor.a < 0.1)
         discard;
+        
+        
+       
         
         
     vec3 baseColor = texColor.rgb;
@@ -171,9 +175,24 @@ void main()
                    computeLightContribution(lights[i], fs_in.wPosition, normal, 
                                           viewDir, metallic, roughness, ao, baseColor);
     }
+    
+    //This is not working :<
+    
+	//  if (isOpaquePass == 1) {
+	    // Opaque pass: Ignore the texture alpha.
+	//    vec3 finalColor = lighting;
+	//    outColor = vec4(finalColor, 1.0);
+	//} else {
+	//    // Transparent pass: Use premultiplied alpha.
+	//    vec3 finalColor = lighting * texColor.a;
+	//    outColor = vec4(finalColor, texColor.a);
+	//}
+		
+	vec3 finalColor = lighting;
+	    outColor = vec4(finalColor, 1.0);
+		
 
-    // Apply gamma correction for final output.
-    vec3 finalColor = lighting;
-    outColor = vec4(finalColor, 1.0);
+
+   
 }
 
