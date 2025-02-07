@@ -35,6 +35,8 @@ public class SkyboxRenderer {
     private Vector3f sunHaloColor;  // The halo (bloom) color
     private float sunWarmFactor = 0.0f;  // 1 when sun is near horizon, 0 when high in the sky
 
+    private float sunDistance = 100f;
+    
     private boolean loadedSecView = false;
 
     public SkyboxRenderer(long window) {
@@ -65,9 +67,9 @@ public class SkyboxRenderer {
     
         // ☀️ Compute Sun Position with increased horizontal and vertical distances.
         float angle = sunAngle * (float) Math.PI * 2.0f;
-        float sunX = (float) Math.cos(angle) * 1000.0f;  // Horizontal distance.
+        float sunX = (float) Math.cos(angle) * sunDistance;  // Horizontal distance.
         float sunY = (float) Math.sin(angle) * sunHeightFactor; // Vertical distance.
-        float sunZ = (float) Math.sin(angle) * 1000.0f;   // Horizontal distance.
+        float sunZ = (float) Math.sin(angle) * sunDistance;   // Horizontal distance.
         sun.setPosition(new Vector3f(sunX, sunY, sunZ));
         
         // 🌙 Compute Moon Position (Opposite of Sun).

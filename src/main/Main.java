@@ -16,6 +16,7 @@ import postProcessing.BloomRenderer;
 import postProcessing.PostProcessingRenderer;
 import renderer.MasterRenderer;
 import settings.EngineSettings;
+import shadows.ShadowRenderer;
 import skybox.SkyboxRenderer;
 import terrain.TerrainRenderer;
 import terrain.TerrainGenerator;
@@ -69,6 +70,8 @@ public class Main {
     private Mesh terrainMesh;
     private Matrix4f terrainModelMatrix;
     private AdaptiveTerrainGenerator adaptiveGen;
+    //Shadows
+    private ShadowRenderer shadowRenderer;
     
     // A simple camera
     private Camera camera;
@@ -127,9 +130,11 @@ public class Main {
         
         bloomRenderer = new BloomRenderer(width, height);
         
-      
+     // Initialize the ShadowMapRenderer
+        shadowRenderer = new ShadowRenderer(2048, 2048);
         
-        //gui.GuiTexture texture2 = new gui.GuiTexture("peeling-painted-metal_albedo.png");
+        gui.GuiTexture texture2 = new gui.GuiTexture(7, 0, 100, 50,50);
+        textureRenderer.addTexture(texture2);
         
         gui.GuiButton button1 = new gui.GuiButton("cube.png", 0, 0, 50, 50, new Runnable() {
             @Override
@@ -460,13 +465,17 @@ public class Main {
             	picker.update(window);
             
             
+         	int shadowTextureID = shadowRenderer.renderShadowMap(entities, lights.get(0));
+        	//System.out.println(shadowTextureID);
             
             postRenderer.bindFBO();
             bloomRenderer.bindSceneFBO();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            
+       
 
             // Render everything
-            masterRenderer.render(entities, lights, camera);
+            masterRenderer.render(entities, lights, shadowTextureID, camera);
          // Assuming you have projection, view, and model matrices available.
           
             //terrainRenderer.renderAdaptiveTerrain(adaptiveGen, masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), terrainModelMatrix, camera.getPosition(), lights);
@@ -500,6 +509,7 @@ public class Main {
     private void cleanup() {
         // Cleanup
     	//terrainRenderer.cleanup();
+    	shadowRenderer.cleanup();
     	postRenderer.cleanup();
         masterRenderer.cleanup();
         skyboxRenderer.cleanUp();

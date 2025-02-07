@@ -11,6 +11,7 @@ import entities.Entity;
 import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
+import shadows.ShadowRenderer;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
@@ -29,7 +30,7 @@ public class MasterRenderer {
     private final ShaderProgram shader;
     private final Matrix4f projectionMatrix;
     
-    //private final ShadowMapRenderer shadowMapRenderer;
+    private final ShadowRenderer shadowRenderer;
     
     private int screenWidth, screenHeight;
     
@@ -109,7 +110,7 @@ public class MasterRenderer {
         projectionMatrix = new Matrix4f().perspective(fov, aspect, near, far);
         
      // Initialize the ShadowMapRenderer
-        //shadowMapRenderer = new ShadowMapRenderer(1024, 1024, NEAR_PLANE, FAR_PLANE);
+        shadowRenderer = new ShadowRenderer(2048, 2048);
     }
 
     public Matrix4f getProjectionMatrix() {
@@ -123,20 +124,24 @@ public class MasterRenderer {
 	/**
      * Render all entities from the perspective of the camera.
      */
-    public void render(List<Entity> entities, List<Light> lights, Camera camera) {
-    	// 1. Render shadow maps for each light
-    	//shadowMapRenderer.render(entities, lights);
+    public void render(List<Entity> entities, List<Light> lights, int shadowMap, Camera camera) {
+    	
+    
+    	
         
-        //glBindFramebuffer(GL_FRAMEBUFFER, 0);
      // 2. Reset viewport to window dimensions to prevent distortion
         glViewport(0, 0, this.screenWidth, this.screenHeight);
 
         // 3. Clear the screen (color and depth buffers)
         glClearColor(0.2f, 0.3f, 0.4f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+    
 
         // 2) Use our pipeline
         shader.bind();
+        
+    	
         
         //shader.setUniform1i("debugMode", EngineSettings.ShaderDebug.getValue());
         
@@ -165,10 +170,30 @@ public class MasterRenderer {
             fb.clear();
             view.get(fb);
             shader.setUniformMat4("view", false, fb);
+            
+            Matrix4f lightProjection = new Matrix4f().ortho(-20, 20, -20, 20,0.1f, 100000.0f);
+            Matrix4f lightView = new Matrix4f().lookAt(
+                lights.get(0).getPosition(),          // light position
+                new Vector3f(0.0f, 0.0f, 0.0f),         // target – consider using the scene center here!
+                new Vector3f(0.0f, 1.0f, 0.0f)          // up vector
+            );
+            Matrix4f lightSpaceMatrix = new Matrix4f();
+            lightProjection.mul(lightView, lightSpaceMatrix);
+            
+            // Upload the light space matrix
+            fb.clear();
+            lightSpaceMatrix.get(fb);
+            shader.setUniformMat4("lightSpaceMatrix", false, fb);
+            
         }
 
        // bindShadowMaps(lights, shader);
         //bindShadowMaps(lights, shader);
+        GL13.glActiveTexture(GL13.GL_TEXTURE6);
+        glBindTexture(GL_TEXTURE_2D, shadowMap);
+        shader.setUniformSampler("shadowMap", 6);
+    
+   
         
         frustum.calculateFrustum(projectionMatrix, view);
         // 5) For each entity, build the model matrix and draw
@@ -178,6 +203,8 @@ public class MasterRenderer {
         }
 
         shader.unbind();
+        
+      
     }
 
     private void drawEntity(Entity entity) {
