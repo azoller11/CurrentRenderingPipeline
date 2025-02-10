@@ -171,6 +171,11 @@ public class Entity {
 	public void setHasOpaque(boolean hasOpaque) {
 		this.hasOpaque = hasOpaque;
 	}
+
+	public void setPosition(float x, float y, float z) {
+		this.position = new Vector3f(x,y,z);
+		
+	}
 	
 	/*
 	public Vector3f getTruePosition() {

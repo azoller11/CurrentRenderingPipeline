@@ -12,13 +12,16 @@ import entities.Entity;
 import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
+import shadows.ShadowRenderer;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
 import java.nio.FloatBuffer;
 import java.util.List;
 
+import static org.lwjgl.opengl.GL11.GL_NO_ERROR;
 import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.opengl.GL11.glGetError;
 import static org.lwjgl.opengl.GL40.*;
 
 public class MasterRenderer {
@@ -121,9 +124,8 @@ public class MasterRenderer {
 	/**
      * Render all entities from the perspective of the camera.
      */
-    public void render(List<Entity> entities, List<Light> lights, Camera camera) {
+    public void render(List<Entity> entities, List<Light> lights, Camera camera, int shadowMap) {
     	
-    
     	
         
      // 2. Reset viewport to window dimensions to prevent distortion
@@ -171,7 +173,8 @@ public class MasterRenderer {
          
             
         }
-
+        
+        shader.setUniformMat4("lightSpaceMatrix", ShadowRenderer.createLightSpaceMatrix(lights.get(0), camera));
     
    
         
@@ -179,15 +182,15 @@ public class MasterRenderer {
         // 5) For each entity, build the model matrix and draw
         for (Entity entity : entities) {
         	if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint() * entity.getScale()))
-        		drawEntity(entity);
+        		drawEntity(entity, shadowMap);
         }
 
         shader.unbind();
-        
+       
       
     }
 
-    private void drawEntity(Entity entity) {
+    private void drawEntity(Entity entity, int shadowMap) {
         // 1) Build model matrix from the entity's transform
     	/* 
     	Matrix4f model = new Matrix4f()
@@ -212,12 +215,15 @@ public class MasterRenderer {
     	model.scale(entity.getScale(),entity.getScale(),entity.getScale());
     	
     	
+    	
         // 2) Upload "model" uniform
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer fb = stack.mallocFloat(16);
             model.get(fb);
             shader.setUniformMat4("model", false, fb);
         }
+        
+        
         
         //upload the texture
         glActiveTexture(GL_TEXTURE0);
@@ -236,7 +242,7 @@ public class MasterRenderer {
         boolean hasRoughness = (entity.getRoughnessMap() != 0);
         boolean hasAo = (entity.getAoMap() != 0);
         boolean hasNormalMap = (entity.getNormalMapId() != 0);
-        boolean hasHeightMap = (entity.getNormalMapId() != 0);
+        boolean hasHeightMap = (entity.getHeighMapId() != 0);
         
         
         if (hasNormalMap) {
@@ -274,6 +280,10 @@ public class MasterRenderer {
             glBindTexture(GL_TEXTURE_2D, entity.getAoMap());
             shader.setUniform1i("aoMap", 5);
         }
+        
+        glActiveTexture(GL_TEXTURE6);
+        glBindTexture(GL_TEXTURE_2D, shadowMap);
+        shader.setUniform1i("shadowMap", 6);
 
         // Now pass these booleans to the shader
         shader.setUniform1i("hasMetallic",  hasMetallic ? 1 : 0);

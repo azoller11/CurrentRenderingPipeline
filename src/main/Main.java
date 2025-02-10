@@ -16,6 +16,7 @@ import postProcessing.BloomRenderer;
 import postProcessing.PostProcessingRenderer;
 import renderer.MasterRenderer;
 import settings.EngineSettings;
+import shadows.ShadowRenderer;
 import skybox.SkyboxRenderer;
 import terrain.TerrainRenderer;
 import terrain.TerrainGenerator;
@@ -72,8 +73,8 @@ public class Main {
     private Mesh terrainMesh;
     private Matrix4f terrainModelMatrix;
     private AdaptiveTerrainGenerator adaptiveGen;
-    //Shadows
-    private Map<Mesh, List<Entity>> shadowEntities;
+    //
+    private ShadowRenderer shadowRenderer;
     
     // A simple camera
     private Camera camera;
@@ -133,6 +134,7 @@ public class Main {
         bloomRenderer = new BloomRenderer(width, height);
         
      // Initialize the ShadowMapRenderer
+        shadowRenderer = new ShadowRenderer(1024 * 10,1024 * 10);
        
         
         gui.GuiTexture texture2 = new gui.GuiTexture(6, 0, 100, 50,50);
@@ -141,7 +143,7 @@ public class Main {
         gui.GuiButton button1 = new gui.GuiButton("cube.png", 0, 0, 50, 50, new Runnable() {
             @Override
             public void run() {
-                EngineSettings.VisualiseObjects = !EngineSettings.VisualiseObjects;
+                //EngineSettings.VisualiseObjects = !EngineSettings.VisualiseObjects;
                 EngineSettings.ObjectPicker = !EngineSettings.ObjectPicker;
             }
         });
@@ -314,7 +316,7 @@ public class Main {
         	Entity bush = new Entity(ObjLoader.loadObj("bush1"), TextureLoader.loadTexture("searsia_lucida_diff_2k.png"),
         			new Vector3f(-30 + random.nextInt(60), 15, 60 + random.nextInt(60)), 
         			new Vector3f(0,0,0), 10f);
-            //bush.setNormalMapId(TextureLoader.loadTexture("searsia_lucida_nor_gl_2k.png"));
+            bush.setNormalMapId(TextureLoader.loadTexture("searsia_lucida_nor_gl_2k.png"));
             //bush.setMetallicMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
             bush.setAoMap(TextureLoader.loadTexture("searsia_lucida_ao_2k.png"));
             bush.setRoughnessMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
@@ -339,10 +341,10 @@ public class Main {
         entities.add(cube5);
         
         
-        for (int i = 0; i < 2000; i++) {
-        	int scale = 1000;
-        	Entity cubec = new Entity(sphereMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 300,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), random.nextFloat(10));
-        	//cubec.setNormalMapId(normalTexture);
+        for (int i = 0; i < 300; i++) {
+        	int scale = 6000;
+        	Entity cubec = new Entity(sphereMesh, TextureId, new Vector3f(random.nextInt(scale) - scale/2, 300,random.nextInt(scale) - scale/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), random.nextFloat(10));
+        	cubec.setNormalMapId(normalTexture);
         	//cubec.setHeighMapId(heightMapTexture);
         	//cubec.setParallaxScale(new Vector3f(0.12f, 120, 160));
         	cubec.setMetallicMap(metallicMapTexture);
@@ -352,10 +354,13 @@ public class Main {
         	 cube2.setReflectivity(10);
              cube2.setShineDamper(100);
         	entities.add(cubec);
+        	
+        	cubec.setPosition(cubec.getPosition().x, cubec.getPosition().y+100, cubec.getPosition().z);
+        	entities.add(cubec);
+        	
         }
         
         
-        shadowEntities = groupEntities(entities);
         
         //Sun
         Light sun = new Light(new Vector3f(10000, 20000,0), new Vector3f(12,12,12));
@@ -485,6 +490,13 @@ public class Main {
             
         	//System.out.println(shadowTextureID);
             
+            shadowRenderer.renderShadowMap(entities,
+            		shadowRenderer.createLightSpaceMatrix(lights.get(0), camera), 
+            		camera.getViewMatrix(),  masterRenderer.getProjectionMatrix());
+            int shadowTextureID = shadowRenderer.getDepthMapTexture();
+
+            int err = glGetError();
+            
             postRenderer.bindFBO();
             bloomRenderer.bindSceneFBO();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -493,14 +505,16 @@ public class Main {
 
          // (Optional) Output the texture ID to the console.
          //System.out.println("Shadow Texture ID: " + shadowTextureID);
-
+       
+            
+        
             // Render everything
-            masterRenderer.render(entities, lights, camera);
+            masterRenderer.render(entities, lights, camera, shadowTextureID);
          // Assuming you have projection, view, and model matrices available.
           
             //terrainRenderer.renderAdaptiveTerrain(adaptiveGen, masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), terrainModelMatrix, camera.getPosition(), lights);
 
-
+            
             
             // Could add more interesting transforms as well
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
