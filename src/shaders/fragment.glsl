@@ -36,9 +36,7 @@ uniform int hasRoughness;   // 1 if roughnessMap is bound, 0 if missing
 uniform int hasAo;          // 1 if aoMap is bound, 0 if missing
 
 
-//Shadows
-uniform sampler2D shadowMap;
-uniform mat4 lightSpaceMatrix;
+
 
 
 const float PI = 3.14159265359;
@@ -109,28 +107,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 }
 
 
-// -----------------------------------------------------------------------------
-// Shadow Mapping Function
-// -----------------------------------------------------------------------------
-float calculateShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
-{
-    // Perform perspective divide to get normalized device coordinates
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // Transform to [0,1] range for texture lookup
-    projCoords = projCoords * 0.5 + 0.5;
-    
-    // Sample the depth from the shadow map
-    float closestDepth = texture(shadowMap, projCoords.xy).r;
-    // Current fragment depth from light’s point-of-view
-    float currentDepth = projCoords.z;
-    
-    // Calculate a bias to prevent shadow acne (you may want to adjust this)
-    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
-    
-    // If the current depth is greater than the closest depth in the shadow map, then we are in shadow.
-    float shadow = currentDepth - bias > closestDepth ? 0.0 : 1.0;
-    return shadow;
-}
+
 
 
 // -----------------------------------------------------------------------------
@@ -183,24 +160,20 @@ void main()
     vec3 lighting = ambient;
 
      float brightnessFactor = 2.0;
-     vec4 fragPosLightSpace = lightSpaceMatrix * vec4(fs_in.wPosition, 1.0);
-      // Loop over lights.
     for (int i = 0; i < numLights; i++) {
-        if (length(lights[i].color) < 0.001)
-            continue;
-        
-        // Calculate light direction.
+        if (length(lights[i].color) < 0.001) continue;
+
+        // Calculate light direction in tangent space
         vec3 lightDir = normalize(lights[i].position - fs_in.wPosition);
-        
-        // For the sun (assumed to be light 0), compute shadow factor.
-        float shadow = 1.0;
-        if (i == 0) {
-            shadow = calculateShadow(fragPosLightSpace, normal, lightDir);
-        }
-        
-        lighting += shadow * brightnessFactor *
-                    computeLightContribution(lights[i], fs_in.wPosition, normal,
-                                             viewDir, metallic, roughness, ao, baseColor);
+        vec3 lightDirTangent = normalize(transpose(TBN) * lightDir);
+
+        // Calculate shadow factor
+        float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV);
+
+        // Apply shadow to light contribution
+        lighting += shadow * brightnessFactor * 
+                   computeLightContribution(lights[i], fs_in.wPosition, normal, 
+                                          viewDir, metallic, roughness, ao, baseColor);
     }
     
     //This is not working :<

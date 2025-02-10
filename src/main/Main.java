@@ -16,7 +16,6 @@ import postProcessing.BloomRenderer;
 import postProcessing.PostProcessingRenderer;
 import renderer.MasterRenderer;
 import settings.EngineSettings;
-import shadows.ShadowRenderer;
 import skybox.SkyboxRenderer;
 import terrain.TerrainRenderer;
 import terrain.TerrainGenerator;
@@ -31,6 +30,9 @@ import org.joml.Vector4f;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.HashMap;
+import java.util.Map;
+
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -71,7 +73,7 @@ public class Main {
     private Matrix4f terrainModelMatrix;
     private AdaptiveTerrainGenerator adaptiveGen;
     //Shadows
-    private ShadowRenderer shadowRenderer;
+    private Map<Mesh, List<Entity>> shadowEntities;
     
     // A simple camera
     private Camera camera;
@@ -115,7 +117,7 @@ public class Main {
         glfwSwapInterval(1); // vsync
         GL.createCapabilities();
 
-       
+        camera = new Camera(new Vector3f(0,0,0), 0f, 0f);
         
         // Create the central renderer
         masterRenderer = new MasterRenderer(width, height);
@@ -131,9 +133,9 @@ public class Main {
         bloomRenderer = new BloomRenderer(width, height);
         
      // Initialize the ShadowMapRenderer
-        shadowRenderer = new ShadowRenderer(2048, 2048);
+       
         
-        gui.GuiTexture texture2 = new gui.GuiTexture(7, 0, 100, 50,50);
+        gui.GuiTexture texture2 = new gui.GuiTexture(6, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
         
         gui.GuiButton button1 = new gui.GuiButton("cube.png", 0, 0, 50, 50, new Runnable() {
@@ -173,7 +175,7 @@ public class Main {
        
         
         // Create the camera, starting at (0,0,5) 
-        camera = new Camera(new Vector3f(0,0,0), 0f, 0f);
+       
         
         
         
@@ -337,9 +339,9 @@ public class Main {
         entities.add(cube5);
         
         
-        for (int i = 0; i < 0; i++) {
+        for (int i = 0; i < 2000; i++) {
         	int scale = 1000;
-        	Entity cubec = new Entity(sphereMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 100,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), 1f);
+        	Entity cubec = new Entity(sphereMesh, TextureId, new Vector3f(random.nextInt(1000) - 1000/2, 300,random.nextInt(1000) - 1000/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), random.nextFloat(10));
         	//cubec.setNormalMapId(normalTexture);
         	//cubec.setHeighMapId(heightMapTexture);
         	//cubec.setParallaxScale(new Vector3f(0.12f, 120, 160));
@@ -351,6 +353,9 @@ public class Main {
              cube2.setShineDamper(100);
         	entities.add(cubec);
         }
+        
+        
+        shadowEntities = groupEntities(entities);
         
         //Sun
         Light sun = new Light(new Vector3f(10000, 20000,0), new Vector3f(12,12,12));
@@ -415,6 +420,19 @@ public class Main {
         //GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_LINE);
         lastTime = glfwGetTime();
     }
+    
+    private Map<Mesh, List<Entity>> groupEntities(List<Entity> entities) {
+        Map<Mesh, List<Entity>> map = new HashMap<>();
+        for (Entity e : entities) {
+            // Assuming your Entity has a method getTexturedModel() that returns its model.
+        	Mesh model = e.getMesh();
+            if (!map.containsKey(model)) {
+                map.put(model, new ArrayList<>());
+            }
+            map.get(model).add(e);
+        }
+        return map;
+    }
 
     private void loop() {
         while (!glfwWindowShouldClose(window)) {
@@ -465,17 +483,19 @@ public class Main {
             	picker.update(window);
             
             
-         	int shadowTextureID = shadowRenderer.renderShadowMap(entities, lights.get(0));
         	//System.out.println(shadowTextureID);
             
             postRenderer.bindFBO();
             bloomRenderer.bindSceneFBO();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             
-       
+          
+
+         // (Optional) Output the texture ID to the console.
+         //System.out.println("Shadow Texture ID: " + shadowTextureID);
 
             // Render everything
-            masterRenderer.render(entities, lights, shadowTextureID, camera);
+            masterRenderer.render(entities, lights, camera);
          // Assuming you have projection, view, and model matrices available.
           
             //terrainRenderer.renderAdaptiveTerrain(adaptiveGen, masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), terrainModelMatrix, camera.getPosition(), lights);
@@ -509,7 +529,6 @@ public class Main {
     private void cleanup() {
         // Cleanup
     	//terrainRenderer.cleanup();
-    	shadowRenderer.cleanup();
     	postRenderer.cleanup();
         masterRenderer.cleanup();
         skyboxRenderer.cleanUp();

@@ -133,4 +133,22 @@ public class Camera {
     }
 
     public Vector3f getPosition() { return position; }
+
+	public float getYaw() {
+		return yaw;
+	}
+
+	public void setYaw(float yaw) {
+		this.yaw = yaw;
+	}
+
+	public float getPitch() {
+		return pitch;
+	}
+
+	public void setPitch(float pitch) {
+		this.pitch = pitch;
+	}
+    
+    
 }

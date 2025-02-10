@@ -172,7 +172,13 @@ public class Entity {
 		this.hasOpaque = hasOpaque;
 	}
 	
-	
-
+	/*
+	public Vector3f getTruePosition() {
+		Matrix4f model = new Matrix4f()
+    		    .translate(getPosition())
+    		    .rotateXYZ(getRotation().x, getRotation().y, getRotation().z)
+    		    .scale(getScale());
+	}
+*/
 	
 }

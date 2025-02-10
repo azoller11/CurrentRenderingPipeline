@@ -5,13 +5,13 @@ import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.util.vector.Vector2f;
 
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
-import shadows.ShadowRenderer;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
@@ -29,8 +29,6 @@ public class MasterRenderer {
 
     private final ShaderProgram shader;
     private final Matrix4f projectionMatrix;
-    
-    private final ShadowRenderer shadowRenderer;
     
     private int screenWidth, screenHeight;
     
@@ -110,7 +108,6 @@ public class MasterRenderer {
         projectionMatrix = new Matrix4f().perspective(fov, aspect, near, far);
         
      // Initialize the ShadowMapRenderer
-        shadowRenderer = new ShadowRenderer(2048, 2048);
     }
 
     public Matrix4f getProjectionMatrix() {
@@ -124,7 +121,7 @@ public class MasterRenderer {
 	/**
      * Render all entities from the perspective of the camera.
      */
-    public void render(List<Entity> entities, List<Light> lights, int shadowMap, Camera camera) {
+    public void render(List<Entity> entities, List<Light> lights, Camera camera) {
     	
     
     	
@@ -171,27 +168,10 @@ public class MasterRenderer {
             view.get(fb);
             shader.setUniformMat4("view", false, fb);
             
-            Matrix4f lightProjection = new Matrix4f().ortho(-20, 20, -20, 20,0.1f, 100000.0f);
-            Matrix4f lightView = new Matrix4f().lookAt(
-                lights.get(0).getPosition(),          // light position
-                new Vector3f(0.0f, 0.0f, 0.0f),         // target – consider using the scene center here!
-                new Vector3f(0.0f, 1.0f, 0.0f)          // up vector
-            );
-            Matrix4f lightSpaceMatrix = new Matrix4f();
-            lightProjection.mul(lightView, lightSpaceMatrix);
-            
-            // Upload the light space matrix
-            fb.clear();
-            lightSpaceMatrix.get(fb);
-            shader.setUniformMat4("lightSpaceMatrix", false, fb);
+         
             
         }
 
-       // bindShadowMaps(lights, shader);
-        //bindShadowMaps(lights, shader);
-        GL13.glActiveTexture(GL13.GL_TEXTURE6);
-        glBindTexture(GL_TEXTURE_2D, shadowMap);
-        shader.setUniformSampler("shadowMap", 6);
     
    
         
@@ -209,11 +189,29 @@ public class MasterRenderer {
 
     private void drawEntity(Entity entity) {
         // 1) Build model matrix from the entity's transform
+    	/* 
     	Matrix4f model = new Matrix4f()
-    		    .translate(entity.getPosition())
-    		    .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)
-    		    .scale(entity.getScale());
+    	            .translate(entity.getPosition())
+    	            .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)
+    	            .scale(1);
+    	 
+    	 model.scale(entity.getScale());
 
+    	 */
+    	
+    	Matrix4f model = createTransformationMatrix(
+    			new Vector3f(entity.getPosition().x, 
+    					entity.getPosition().y, 
+    					entity.getPosition().z ), 
+    			entity.getRotation().x,
+    			entity.getRotation().y,
+    			entity.getRotation().z,
+    			1, 
+    			new Vector3f(0,0,0));
+    	
+    	model.scale(entity.getScale(),entity.getScale(),entity.getScale());
+    	
+    	
         // 2) Upload "model" uniform
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer fb = stack.mallocFloat(16);
@@ -317,7 +315,26 @@ public class MasterRenderer {
     
     
  
-
+    public static Matrix4f createTransformationMatrix(Vector3f translation, float rx, float ry, float rz, float scale, Vector3f pivot) {
+        Matrix4f matrix = new Matrix4f().identity();
+        
+        // 1. Translate to the desired world position.
+        matrix.translate(translation);
+        
+        // 2. Shift so that the pivot becomes the origin.
+        matrix.translate(new Vector3f(-pivot.x, -pivot.y, -pivot.z));
+        
+        // 3. Apply rotation and scaling.
+        matrix.rotateX((float)Math.toRadians(rx))
+              .rotateY((float)Math.toRadians(ry))
+              .rotateZ((float)Math.toRadians(rz))
+              .scale(scale);
+        
+        // 4. Translate back from the pivot.
+        matrix.translate(pivot);
+        
+        return matrix;
+    }
 
 
     /**
