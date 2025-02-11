@@ -34,8 +34,6 @@ public class MousePicker {
     private List<Light> lights;
 
     // Currently picked object.
-    private Entity pickedEntity = null;
-    private Light pickedLight = null;
 
     // Dragging state.
     private boolean isDragging = false;
@@ -128,19 +126,19 @@ public class MousePicker {
     public void drawDebug(DebugRenderer debugRenderer) {
         // Use the current object's position so that the lines follow it.
         Vector3f pos = null;
-        if (pickedEntity != null) {
-            pos = pickedEntity.getPosition();
-        } else if (pickedLight != null) {
-            pos = pickedLight.getPosition();
+        if (EngineSettings.SelectedEntity != null) {
+            pos = EngineSettings.SelectedEntity.getPosition();
+        } else if (EngineSettings.SelectedLight != null) {
+            pos = EngineSettings.SelectedLight .getPosition();
         } else {
             return;
         }
         
         // Compute debug line length based on the picked object's bounding sphere.
         float debugLength = 10.0f; // Default length.
-        if (pickedEntity != null) {
-            float objectRadius = pickedEntity.getMesh().getFurthestPoint() * pickedEntity.getScale();
-            debugLength = 2.0f * objectRadius;
+        if (EngineSettings.SelectedEntity != null) {
+            float objectRadius = EngineSettings.SelectedEntity.getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
+            debugLength = 200.0f * objectRadius;
         }
         
         // Draw axes according to the current drag constraint.
@@ -204,17 +202,17 @@ public class MousePicker {
      */
     public void drawRotationDebug(DebugRenderer debugRenderer) {
         Vector3f pos = null;
-        if (pickedEntity != null) {
-            pos = pickedEntity.getPosition();
-        } else if (pickedLight != null) {
-            pos = pickedLight.getPosition();
+        if (EngineSettings.SelectedEntity != null) {
+            pos = EngineSettings.SelectedEntity.getPosition();
+        } else if (EngineSettings.SelectedLight  != null) {
+            pos = EngineSettings.SelectedLight .getPosition();
         } else {
             return;
         }
         
         float debugRadius = 10.0f; // Default radius.
-        if (pickedEntity != null) {
-            float objectRadius = pickedEntity.getMesh().getFurthestPoint() * pickedEntity.getScale();
+        if (EngineSettings.SelectedEntity != null) {
+            float objectRadius = EngineSettings.SelectedEntity.getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
             debugRadius = 1.0f * objectRadius;
         }
         
@@ -243,6 +241,7 @@ public class MousePicker {
         double[] mouseX = new double[1];
         double[] mouseY = new double[1];
         GLFW.glfwGetCursorPos(window, mouseX, mouseY);
+        
 
         // Determine which mouse button is pressed.
         MouseButton currentButton = MouseButton.NONE;
@@ -261,15 +260,15 @@ public class MousePicker {
                 previousMouseY = mouseY[0];
                 // Record the initial position for translation locking.
                 dragStartPos = new Vector3f(
-                    (pickedEntity != null) ? pickedEntity.getPosition() : pickedLight.getPosition()
+                    (EngineSettings.SelectedEntity != null) ? EngineSettings.SelectedEntity.getPosition() : EngineSettings.SelectedLight .getPosition()
                 );
             }
         } else if (!leftPressed && !rightPressed && isDragging) {
             // Stop dragging/rotating when both buttons are released.
             isDragging = false;
             draggingButton = MouseButton.NONE;
-            pickedEntity = null;
-            pickedLight = null;
+            EngineSettings.SelectedEntity = null;
+            EngineSettings.SelectedLight  = null;
             dragStartPos = null;
             currentDragConstraint = DragConstraint.FREE;
             currentRotationConstraint = RotationConstraint.FREE;
@@ -321,13 +320,13 @@ public class MousePicker {
         }
         
         if (bestEntity != null) {
-            pickedEntity = bestEntity;
-            pickedLight = null;
+        	EngineSettings.SelectedEntity  = bestEntity;
+            EngineSettings.SelectedLight  = null;
             isDragging = true;
             System.out.println("Picked ENTITY at " + bestEntity.getPosition());
         } else if (bestLight != null) {
-            pickedLight = bestLight;
-            pickedEntity = null;
+        	EngineSettings.SelectedLight  = bestLight;
+        	EngineSettings.SelectedEntity = null;
             isDragging = true;
             System.out.println("Picked LIGHT at " + bestLight.getPosition());
         }
@@ -340,10 +339,10 @@ public class MousePicker {
      * - Otherwise, free dragging is performed.
      */
     private void dragObject(long window, double mouseX, double mouseY) {
-        if (pickedEntity == null && pickedLight == null) return;
+        if (EngineSettings.SelectedEntity == null && EngineSettings.SelectedLight  == null) return;
         if (dragStartPos == null) {
             dragStartPos = new Vector3f(
-                (pickedEntity != null) ? pickedEntity.getPosition() : pickedLight.getPosition()
+                (EngineSettings.SelectedEntity != null) ? EngineSettings.SelectedEntity.getPosition() : EngineSettings.SelectedLight .getPosition()
             );
         }
         
@@ -402,11 +401,11 @@ public class MousePicker {
             newPos.set(finalPos);
         }
         
-        if (pickedEntity != null) {
-            pickedEntity.getPosition().set(newPos);
+        if (EngineSettings.SelectedEntity != null) {
+        	EngineSettings.SelectedEntity.getPosition().set(newPos);
         }
-        if (pickedLight != null) {
-            pickedLight.getPosition().set(newPos);
+        if (EngineSettings.SelectedLight  != null) {
+        	EngineSettings.SelectedLight .getPosition().set(newPos);
         }
     }
     
@@ -417,7 +416,7 @@ public class MousePicker {
      * Also, currentRotationConstraint is updated accordingly.
      */
     private void rotateObject(long window, double mouseX, double mouseY) {
-        if (pickedEntity == null && pickedLight == null) return;
+        if (EngineSettings.SelectedEntity == null && EngineSettings.SelectedLight  == null) return;
         float deltaX = (float) (mouseX - previousMouseX);
         float deltaY = (float) (mouseY - previousMouseY);
         
@@ -426,8 +425,8 @@ public class MousePicker {
         boolean lockRotZ = (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Z) == GLFW.GLFW_PRESS);
         int rotLockCount = (lockRotX ? 1 : 0) + (lockRotY ? 1 : 0) + (lockRotZ ? 1 : 0);
         
-        if (pickedEntity != null) {
-            Vector3f currentRotation = new Vector3f(pickedEntity.getRotation());
+        if (EngineSettings.SelectedEntity != null) {
+            Vector3f currentRotation = new Vector3f(EngineSettings.SelectedEntity.getRotation());
             if (rotLockCount == 1) {
                 if (lockRotX) {
                     currentRotationConstraint = RotationConstraint.LOCK_X;
@@ -445,7 +444,7 @@ public class MousePicker {
                 currentRotation.y += deltaX * rotationSpeed;
             }
             currentRotation.x = Math.clamp(currentRotation.x, -89.9f, 89.9f);
-            pickedEntity.setRotation(currentRotation);
+            EngineSettings.SelectedEntity.setRotation(currentRotation);
         }
         // Similar handling can be added for pickedLight if desired.
     }
@@ -490,7 +489,7 @@ public class MousePicker {
         if (useCameraPlane) {
             Matrix4f viewMatrix = camera.getViewMatrix();
             planeNormal = new Vector3f(-viewMatrix.m20(), -viewMatrix.m21(), -viewMatrix.m22()).normalize();
-            Vector3f position = (pickedEntity != null) ? pickedEntity.getPosition() : pickedLight.getPosition();
+            Vector3f position = (EngineSettings.SelectedEntity != null) ? EngineSettings.SelectedEntity.getPosition() : EngineSettings.SelectedLight.getPosition();
             planeD = planeNormal.dot(position);
         } else {
             planeNormal = new Vector3f(0, 1, 0);

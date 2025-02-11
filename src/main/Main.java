@@ -503,6 +503,9 @@ public class Main {
             	picker.update(window);
             	picker.drawDebug(debugRenderer);
             	picker.drawRotationDebug(debugRenderer);
+            	
+         
+            	
             }
             	
             
@@ -558,7 +561,25 @@ public class Main {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
           
-            textRenderer.renderText(""+Main.currentFPS, 0, height - 100, 1.0f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+            textRenderer.renderText(""+Main.currentFPS, 0, height - 20, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+            
+            
+            if (!EngineSettings.grabMouse) {
+            	
+            	
+            	if (EngineSettings.OpenEntity != null) {
+                    textRenderer.renderText("Pos: "+EngineSettings.OpenEntity.getPosition(), 0, height - 120, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+
+            	}
+            	
+            	if (EngineSettings.OpenLight != null) {
+                    textRenderer.renderText(""+EngineSettings.OpenLight.getPosition(), 0, height - 120, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+
+            	}
+            }
+            
+           	
+            
             
             EngineSettings.updateSettings(window);
             glfwSwapBuffers(window);

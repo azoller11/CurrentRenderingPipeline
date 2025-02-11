@@ -10,6 +10,8 @@ import org.joml.Vector2f;
 
 import org.lwjgl.opengl.GL11;
 
+import entities.Entity;
+import entities.Light;
 import main.Main;
 import toolbox.Mesh;
 
@@ -37,6 +39,12 @@ public class EngineSettings {
 	public static boolean MouseItemPicker = true;
 	public static boolean ObjectPicker = false;
 	public static boolean LightPicker = false;
+	public static Entity SelectedEntity;
+	public static Light SelectedLight;
+	
+	public static Entity OpenEntity;
+	public static Light OpenLight;
+	
 	
 	
 	 // Cache to store loaded meshes
@@ -97,7 +105,18 @@ public class EngineSettings {
 		        System.out.println("FPS: " + Main.currentFPS + " | Used Memory: " + usedMB + " MB / " + totalMB + " MB");
 		}
 		
+		//Selected Entity and Light
+		if (SelectedEntity != null)
+			OpenEntity = SelectedEntity;
 		
+		if (SelectedLight != null)
+			OpenLight = SelectedLight; 
+		
+		if (SelectedEntity != null)
+			OpenLight = null;
+		
+		if (SelectedLight != null)
+			OpenEntity = null;
 		
 		
 		

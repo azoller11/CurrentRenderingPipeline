@@ -120,6 +120,7 @@ public class MasterRenderer {
     
     public Matrix4f getFlatProjection() {
         return new Matrix4f().ortho2D(0.0f, screenWidth, 0.0f, screenHeight);
+    	//return new Matrix4f().ortho(0, 1, 1, 0, -1, 1);
     }
 
 	/**
