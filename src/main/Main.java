@@ -93,35 +93,22 @@ public class Main {
 
     // Timing
     private double lastTime;
+    
+    private gui.GuiTexture loadingScreen;
 
     public static void main(String[] args) {
         new Main().run();
     }
 
     private void run() {
+    	firstLoop();
         init();
         loop();
         cleanup();
     }
 
     private void init() {
-        // Initialize GLFW
-        if (!glfwInit()) {
-            throw new IllegalStateException("Unable to initialize GLFW");
-        }
-
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-
-        window = glfwCreateWindow(width, height, "Elk Engine 2", NULL, NULL);
-        if (window == NULL) {
-            throw new RuntimeException("Failed to create the GLFW window");
-        }
-        glfwMakeContextCurrent(window);
-        glfwSwapInterval(1); // vsync
-        GL.createCapabilities();
+       
 
         camera = new Camera(new Vector3f(0,0,0), 0f, 0f);
         
@@ -130,7 +117,7 @@ public class Main {
 
         debugRenderer = new DebugRenderer();
         
-        textureRenderer = new TextureRenderer();
+        
         
         Font font = new Font("res/verdana.fnt", "verdana.png");
   
@@ -154,6 +141,8 @@ public class Main {
         
         gui.GuiTexture texture2 = new gui.GuiTexture(6, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
+        
+       
         
         gui.GuiButton button1 = new gui.GuiButton("cube.png", 0, 0, 50, 50, new Runnable() {
             @Override
@@ -183,43 +172,10 @@ public class Main {
         
         textureRenderer.addTexture(button3);
         
-      
-        
-
-        // Add Textures to Renderer
-     
-        
-       
-        
-        // Create the camera, starting at (0,0,5) 
-       
         
         
         
-     // In your init() method (or similar):
-       /*
-        adaptiveGen = new AdaptiveTerrainGenerator(10000f, 256, 64);
-        // Initially generate the patches based on the current camera position.
-        List<AdaptiveTerrainGenerator.PatchMesh> terrainPatches = adaptiveGen.getPatches(camera.getPosition());
-        terrainRenderer = new TerrainRenderer(); // Make sure your shader and texture setup is ready.
-        int rockTexture = TextureLoader.loadTexture("ganges_river_pebbles_diff_2k.png");
-        terrainRenderer.addTexture("rockTexture", rockTexture);
-        int grassTexture = TextureLoader.loadTexture("peeling-painted-metal_albedo.png");
-        //terrainRenderer.addTexture("grassTexture", grassTexture);
-        terrainModelMatrix = new Matrix4f().identity();
-*/
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
-        // Create a single "cube" mesh
-        //Mesh cubeMesh = Mesh.createCube();
+      //Mesh cubeMesh = Mesh.createCube();
         Mesh cubeMesh = ObjLoader.loadObj("crate");
         Mesh sphereMesh = ObjLoader.loadObj("sphere");
         Mesh planeMesh = ObjLoader.loadObj("plane");
@@ -374,6 +330,12 @@ public class Main {
         	entities.add(cubec);
         	
         }
+
+      
+        
+        
+        
+    
         
         
         
@@ -385,52 +347,7 @@ public class Main {
 	     
         
       
-        
-        
-        // A point light at (2,1,0) with color = (1,0.8,0.7), attenuation(1,0.09,0.032)
-	    
-       
-        lights.add(new Light(
-	         new Vector3f(2,0,0),
-	         new Vector3f(1.0f, 0.8f, 0.7f),
-	         new Vector3f(1, 0.62f, 0.0032f)
-	     ));
-	     
-	     lights.add(new Light(
-		         new Vector3f(-2,-10,0),
-		         new Vector3f(0.0f, 8f, 7f),
-		         new Vector3f(1, 0.62f, 0.0032f)
-		     ));
-	     
-	     
-	     lights.add(new Light(
-		         new Vector3f(-20,0,20),
-		         new Vector3f(10.0f, 0.0f, 0.7f),
-		         new Vector3f(1, 0.62f, 0.232f)
-		     ));
-	     
-	     
-	     lights.add(new Light(
-		         new Vector3f(0,10,0),
-		         new Vector3f(10.0f, 10.0f, 0.7f),
-		         new Vector3f(1, 0.62f, 0.232f)
-		     ));
-	     
-	    
-	     /*
-	     gui.GuiTexture texture1 = new gui.GuiTexture(34070, 0.0f,0.0f, 100.0f, 100.0f);
-	        textureRenderer.addTexture(texture1);
-	        
-	        gui.GuiTexture texture3 = new gui.GuiTexture(34071, 0.0f,0.0f, 200.0f, 100.0f);
-	        textureRenderer.addTexture(texture3);
-	        
-	        gui.GuiTexture texture4 = new gui.GuiTexture(34072, 0.0f,0.0f, 300.0f, 100.0f);
-	        textureRenderer.addTexture(texture4);
-	        
-	        gui.GuiTexture texture5 = new gui.GuiTexture(34073, 0.0f,0.0f, 400.0f, 100.0f);
-	        textureRenderer.addTexture(texture5);
-	     */
-	     //Mouse picker
+    
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
 	        
 
@@ -438,20 +355,47 @@ public class Main {
         glEnable(GL_DEPTH_TEST);
         glClearColor(0.2f, 0.3f, 0.4f, 1.0f);
         //GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_LINE);
+        textureRenderer.removeTexture(loadingScreen);
         lastTime = glfwGetTime();
     }
     
-    private Map<Mesh, List<Entity>> groupEntities(List<Entity> entities) {
-        Map<Mesh, List<Entity>> map = new HashMap<>();
-        for (Entity e : entities) {
-            // Assuming your Entity has a method getTexturedModel() that returns its model.
-        	Mesh model = e.getMesh();
-            if (!map.containsKey(model)) {
-                map.put(model, new ArrayList<>());
-            }
-            map.get(model).add(e);
+    private void firstLoop() {
+    	 // Initialize GLFW
+        if (!glfwInit()) {
+            throw new IllegalStateException("Unable to initialize GLFW");
         }
-        return map;
+
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+
+        window = glfwCreateWindow(width, height, "Elk Engine 2", NULL, NULL);
+        if (window == NULL) {
+            throw new RuntimeException("Failed to create the GLFW window");
+        }
+        glfwMakeContextCurrent(window);
+        glfwSwapInterval(1); // vsync
+        GL.createCapabilities();
+        
+        textureRenderer = new TextureRenderer();
+        loadingScreen = new gui.GuiTexture(TextureLoader.loadExplicitTexture("ElkEngine.png"), 0, 0, width,height);
+        
+        textureRenderer.addTexture(loadingScreen);
+
+        // Clear both color and depth buffers
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, width, height); // Ensure viewport is correct
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        
+        // Render loading screen
+        textureRenderer.render(new Matrix4f().ortho2D(0.0f, width, 0.0f, height), new Matrix4f().identity(), 0, 0);
+        
+        // Swap buffers to display the loading screen immediately
+        glfwSwapBuffers(window);
+        
+        
     }
 
     private void loop() {
