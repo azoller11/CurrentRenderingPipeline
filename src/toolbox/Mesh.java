@@ -1,10 +1,6 @@
 package toolbox;
 
-import org.lwjgl.system.MemoryStack;
 
-import java.nio.FloatBuffer;
-
-import static org.lwjgl.opengl.GL40.*;
 
 public class Mesh {
 
@@ -38,6 +34,7 @@ public class Mesh {
 	public void setFurthestPoint(float furthestPoint) {
 		this.furthestPoint = furthestPoint;
 	}
+	
 
   
 }

@@ -13,6 +13,7 @@ import entities.Light;
 import settings.EngineSettings;
 import shaders.ShaderProgram;
 import shadows.ShadowRenderer;
+import toolbox.Equations;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
@@ -192,27 +193,18 @@ public class MasterRenderer {
 
     private void drawEntity(Entity entity, int shadowMap) {
         // 1) Build model matrix from the entity's transform
-    	/* 
+    	
     	Matrix4f model = new Matrix4f()
-    	            .translate(entity.getPosition())
-    	            .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)
-    	            .scale(1);
-    	 
-    	 model.scale(entity.getScale());
+    		    .identity()
+    		    .scale(entity.getScale())            // Scale first
+    		    .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)         // Rotate next
+    		    .translate(entity.getPosition());    // Finally translate
 
-    	 */
+    		model.setTranslation(entity.getPosition());
+    	 
     	
-    	Matrix4f model = createTransformationMatrix(
-    			new Vector3f(entity.getPosition().x, 
-    					entity.getPosition().y, 
-    					entity.getPosition().z ), 
-    			entity.getRotation().x,
-    			entity.getRotation().y,
-    			entity.getRotation().z,
-    			1, 
-    			new Vector3f(0,0,0));
     	
-    	model.scale(entity.getScale(),entity.getScale(),entity.getScale());
+    	//model.scale(entity.getScale(),entity.getScale(),entity.getScale());
     	
     	
     	
@@ -331,17 +323,19 @@ public class MasterRenderer {
         // 1. Translate to the desired world position.
         matrix.translate(translation);
         
-        // 2. Shift so that the pivot becomes the origin.
-        matrix.translate(new Vector3f(-pivot.x, -pivot.y, -pivot.z));
+        // 2. Move to the pivot point (so scaling/rotation happens around it)
+        matrix.translate(pivot);
         
-        // 3. Apply rotation and scaling.
+        // 3. Apply rotation
         matrix.rotateX((float)Math.toRadians(rx))
               .rotateY((float)Math.toRadians(ry))
-              .rotateZ((float)Math.toRadians(rz))
-              .scale(scale);
+              .rotateZ((float)Math.toRadians(rz));
         
-        // 4. Translate back from the pivot.
-        matrix.translate(pivot);
+        // 4. Apply scaling
+        matrix.scale(scale);
+        
+        // 5. Move back from the pivot point
+        matrix.translate(new Vector3f(-pivot.x, -pivot.y, -pivot.z));
         
         return matrix;
     }

@@ -19,6 +19,9 @@ import settings.EngineSettings;
 import shadows.ShadowRenderer;
 import skybox.SkyboxRenderer;
 import terrain.TerrainRenderer;
+import text.TextRenderer;
+import text.TextRenderer.TextAlignment;
+import text.Font;
 import terrain.TerrainGenerator;
 import terrain.AdaptiveTerrainGenerator;
 import toolbox.Mesh;
@@ -62,6 +65,8 @@ public class Main {
     private DebugRenderer debugRenderer;
     //Texture renderer
     private TextureRenderer textureRenderer;
+    
+    private TextRenderer textRenderer;
     //Skybox renderer
     private SkyboxRenderer skyboxRenderer;
     //Main post processing renderer
@@ -127,6 +132,16 @@ public class Main {
         
         textureRenderer = new TextureRenderer();
         
+        Font font = new Font("res/verdana.fnt", "verdana.png");
+  
+        textRenderer = new TextRenderer(font, 100);
+        
+        textRenderer.setTextColor(1.9f,1.9f, 1.9f, 1.0f);
+        textRenderer.setOutlineColor(0.0f, 0.0f, 0.0f, 0.0f);
+        textRenderer.setEdgeSmoothness(0.5f);
+        textRenderer.setOutlineWidth(0.0f);
+        
+        
         skyboxRenderer = new SkyboxRenderer(window);
         
         postRenderer = new PostProcessingRenderer(width, height, 1);
@@ -134,7 +149,7 @@ public class Main {
         bloomRenderer = new BloomRenderer(width, height);
         
      // Initialize the ShadowMapRenderer
-        shadowRenderer = new ShadowRenderer(1024 * 10,1024 * 10);
+        shadowRenderer = new ShadowRenderer(2048 * 10,2048 * 10);
        
         
         gui.GuiTexture texture2 = new gui.GuiTexture(6, 0, 100, 50,50);
@@ -315,7 +330,7 @@ public class Main {
         for (int i = 0; i < 20; i++) {
         	Entity bush = new Entity(ObjLoader.loadObj("bush1"), TextureLoader.loadTexture("searsia_lucida_diff_2k.png"),
         			new Vector3f(-30 + random.nextInt(60), 15, 60 + random.nextInt(60)), 
-        			new Vector3f(0,0,0), 10f);
+        			new Vector3f(0,0,0), random.nextFloat(5) + 10);
             bush.setNormalMapId(TextureLoader.loadTexture("searsia_lucida_nor_gl_2k.png"));
             //bush.setMetallicMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
             bush.setAoMap(TextureLoader.loadTexture("searsia_lucida_ao_2k.png"));
@@ -484,8 +499,16 @@ public class Main {
                 }
             }
             
-            if (!EngineSettings.grabMouse && EngineSettings.MouseItemPicker && !EngineSettings.overTexture)
+            if (!EngineSettings.grabMouse && EngineSettings.MouseItemPicker && !EngineSettings.overTexture) {
             	picker.update(window);
+            	picker.drawDebug(debugRenderer);
+            	picker.drawRotationDebug(debugRenderer);
+            }
+            	
+            
+            
+            
+            
             
             
         	//System.out.println(shadowTextureID);
@@ -527,7 +550,7 @@ public class Main {
             bloomRenderer.unbindSceneFBO(width, height);
             
             postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 1.75f, 0.8f);
+            bloomRenderer.renderBloom(width, height, 1.75f, 1.8f);
             
             //Render Texture
             glClear(GL_DEPTH_BUFFER_BIT);
@@ -535,6 +558,8 @@ public class Main {
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
           
+            textRenderer.renderText(""+Main.currentFPS, 0, height - 100, 1.0f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+            
             EngineSettings.updateSettings(window);
             glfwSwapBuffers(window);
         }
@@ -543,6 +568,7 @@ public class Main {
     private void cleanup() {
         // Cleanup
     	//terrainRenderer.cleanup();
+    	textRenderer.cleanUp();
     	postRenderer.cleanup();
         masterRenderer.cleanup();
         skyboxRenderer.cleanUp();

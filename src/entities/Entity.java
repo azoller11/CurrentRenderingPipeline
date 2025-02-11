@@ -177,6 +177,17 @@ public class Entity {
 		
 	}
 	
+	public org.lwjgl.util.vector.Matrix4f createTransformationMatrix() {
+		org.lwjgl.util.vector.Matrix4f matrix = new org.lwjgl.util.vector.Matrix4f();
+		matrix.setIdentity();
+		org.lwjgl.util.vector.Matrix4f.translate(new org.lwjgl.util.vector.Vector3f(this.getPosition().x,this.getPosition().y,this.getPosition().z), matrix, matrix);
+		org.lwjgl.util.vector.Matrix4f.rotate((float) Math.toRadians(this.getRotation().x), new org.lwjgl.util.vector.Vector3f(1,0,0), matrix, matrix);
+		org.lwjgl.util.vector.Matrix4f.rotate((float) Math.toRadians(this.getRotation().y), new org.lwjgl.util.vector.Vector3f(0,1,0), matrix, matrix);
+		org.lwjgl.util.vector.Matrix4f.rotate((float) Math.toRadians(this.getRotation().z), new org.lwjgl.util.vector.Vector3f(0,0,1), matrix, matrix);
+		org.lwjgl.util.vector.Matrix4f.scale(new org.lwjgl.util.vector.Vector3f(this.scale,this.scale,this.scale), matrix, matrix);
+		return matrix;
+	}
+	
 	/*
 	public Vector3f getTruePosition() {
 		Matrix4f model = new Matrix4f()

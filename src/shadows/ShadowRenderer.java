@@ -15,6 +15,7 @@ import entities.Entity;
 import entities.Light;
 import renderer.MasterRenderer;
 import shaders.ShaderProgram;
+import toolbox.Frustum;
 
 public class ShadowRenderer {
     private static int shadowWidth = 0;
@@ -26,10 +27,13 @@ public class ShadowRenderer {
     
     // Our simple shader to render depth only
     private ShaderProgram shadowShader;
+    
+    private Frustum frustum;
 
     public ShadowRenderer(int shadowWidth, int shadowHeight) {
         this.shadowWidth = shadowWidth;
         this.shadowHeight = shadowHeight;
+        this.frustum = new Frustum();
         initShadowFBO();
         initShadowShader();
     }
@@ -92,16 +96,27 @@ public class ShadowRenderer {
         shadowShader.bind();
         // Send the light space matrix uniform to the shader
         shadowShader.setUniformMat4("lightSpaceMatrix", lightSpaceMatrix);
+        
+        shadowShader.setUniform1f("alphaThreshold", 0.1f); 
 
         // Render each entity using its model transform
+        frustum.calculateFrustum(projectionMatrix, viewMatrix);
         for (Entity entity : entities) {
-            Matrix4f modelMatrix = createModelMatrix(entity);
-            shadowShader.setUniformMat4("model", modelMatrix);
+        	if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint() * entity.getScale())) {
+        		 Matrix4f modelMatrix = createModelMatrix(entity);
+                 shadowShader.setUniformMat4("model", modelMatrix);
+                 
+                 
+                 shadowShader.setUniform1i("diffuseMap", entity.getTextureId()); 
+                 glActiveTexture(GL_TEXTURE0);
+                 glBindTexture(GL_TEXTURE_2D, entity.getTextureId());
 
-            int vaoID = entity.getMesh().getVaoId();
-            glBindVertexArray(vaoID);
-            glDrawArrays(GL_TRIANGLES, 0, entity.getMesh().getVertexCount());
-            glBindVertexArray(0);
+                 int vaoID = entity.getMesh().getVaoId();
+                 glBindVertexArray(vaoID);
+                 glDrawArrays(GL_TRIANGLES, 0, entity.getMesh().getVertexCount());
+                 glBindVertexArray(0);
+        	}
+           
         }
        
         shadowShader.unbind();
@@ -112,24 +127,20 @@ public class ShadowRenderer {
 
     // Utility function to build the model matrix from an entity's transform.
     private Matrix4f createModelMatrix(Entity entity) {
-    	Matrix4f model = MasterRenderer.createTransformationMatrix(
-    			new Vector3f(entity.getPosition().x, 
-    					entity.getPosition().y, 
-    					entity.getPosition().z ), 
-    			entity.getRotation().x,
-    			entity.getRotation().y,
-    			entity.getRotation().z,
-    			1, 
-    			new Vector3f(0,0,0));
-    	
-    	model.scale(entity.getScale(),entity.getScale(),entity.getScale());
+    	Matrix4f model = new Matrix4f()
+    		    .identity()
+    		    .scale(entity.getScale())            // Scale first
+    		    .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)         // Rotate next
+    		    .translate(entity.getPosition());    // Finally translate
+
+    		model.setTranslation(entity.getPosition());
         return model;
     }
     
     public static Matrix4f createLightSpaceMatrix(Light light, Camera camera) {
-        float orthoSize = 500.0f; 
+        float orthoSize = 400.0f; 
         float near = 1.0f;
-        float far = 1000.0f;
+        float far = 1800.0f;
 
         // Light direction (keep your existing inversion logic)
         Vector3f lightDir = new Vector3f(light.getPosition()).normalize();
