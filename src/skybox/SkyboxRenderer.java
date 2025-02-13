@@ -21,7 +21,7 @@ public class SkyboxRenderer {
     private float scrollSpeed = 0.02f; // Adjusts sun movement per scroll
 
     // New variables for sun & moon brightness & size
-    private float maxSunBrightness = 1.8f;
+    private float maxSunBrightness = 2.2f;
     private float maxMoonBrightness = 0.25f;
     private float sunSize = 0.005f;
     private float moonSize = 0.02f;
@@ -37,6 +37,8 @@ public class SkyboxRenderer {
     private float sunWarmFactor = 0.0f;  // 1 when sun is near horizon, 0 when high in the sky
 
     private boolean loadedSecView = false;
+    
+    private boolean isSunOut = false;
 
     public SkyboxRenderer(long window) {
         this.shader = new ShaderProgram(
@@ -76,6 +78,9 @@ public class SkyboxRenderer {
         float moonY = -sunY;
         float moonZ = -sunZ;
         moon.setPosition(new Vector3f(moonX, moonY, moonZ));
+        
+     // <-- Update our boolean based on the sun's y-position.
+        isSunOut = sun.getPosition().y >= 0;
     
         // Update sky colors and light intensities based on the sun's height.
         updateSkyColors(sunY);
@@ -202,4 +207,12 @@ public class SkyboxRenderer {
         shader.destroy();
         glDeleteVertexArrays(vao);
     }
+
+	public boolean isSunOut() {
+		return isSunOut;
+	}
+
+	public void setSunOut(boolean isSunOut) {
+		this.isSunOut = isSunOut;
+	}
 }

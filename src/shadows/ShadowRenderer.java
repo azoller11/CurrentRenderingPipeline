@@ -107,7 +107,7 @@ public class ShadowRenderer {
                  shadowShader.setUniformMat4("model", modelMatrix);
                  
                  
-                 shadowShader.setUniform1i("diffuseMap", entity.getTextureId()); 
+                 shadowShader.setUniform1i("diffuseMap", 0);
                  glActiveTexture(GL_TEXTURE0);
                  glBindTexture(GL_TEXTURE_2D, entity.getTextureId());
 

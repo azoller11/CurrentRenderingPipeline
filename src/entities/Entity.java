@@ -8,6 +8,8 @@ import toolbox.Mesh;
 
 public class Entity {
 
+	private int Id;
+	
     private Mesh mesh;
 
     // Basic transform
@@ -42,6 +44,7 @@ public class Entity {
         this.position = new Vector3f(position);
         this.rotation = new Vector3f(rotation);
         this.scale = scale;
+        this.Id = position.hashCode();
     }
 
     public Entity(Mesh mesh, Vector3f position, Vector3f rotation, float scale) {
@@ -49,6 +52,7 @@ public class Entity {
         this.position = new Vector3f(position);
         this.rotation = new Vector3f(rotation);
         this.scale = scale;
+        this.Id = position.hashCode();
     }
 
     public Mesh getMesh() {
@@ -186,6 +190,25 @@ public class Entity {
 		org.lwjgl.util.vector.Matrix4f.rotate((float) Math.toRadians(this.getRotation().z), new org.lwjgl.util.vector.Vector3f(0,0,1), matrix, matrix);
 		org.lwjgl.util.vector.Matrix4f.scale(new org.lwjgl.util.vector.Vector3f(this.scale,this.scale,this.scale), matrix, matrix);
 		return matrix;
+	}
+
+	public Matrix4f getModelMatrix() {
+		Matrix4f model = new Matrix4f()
+    		    .identity()
+    		    .scale(this.getScale())            // Scale first
+    		    .rotateXYZ(this.getRotation().x, this.getRotation().y, this.getRotation().z)         // Rotate next
+    		    .translate(this.getPosition());    // Finally translate
+
+    		model.setTranslation(this.getPosition());
+    		return model;
+	}
+
+	public int getId() {
+		return Id;
+	}
+
+	public void setId(int id) {
+		Id = id;
 	}
 	
 	/*

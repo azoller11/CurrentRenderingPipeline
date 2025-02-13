@@ -21,7 +21,7 @@ float calculatedDirectionalShadows()
     
     // If the current depth is greater than the stored depth (plus bias),
     // then this fragment is in shadow.
-    float shadow = currentDepth - bias > closestDepth ? 0.15 : 1.0;
+    float shadow = currentDepth - bias > closestDepth ? 0.00 : 1.0;
     
     return shadow;
 }

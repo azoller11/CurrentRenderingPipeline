@@ -80,6 +80,7 @@ public class Main {
     private AdaptiveTerrainGenerator adaptiveGen;
     //
     private ShadowRenderer shadowRenderer;
+    //
     
     // A simple camera
     private Camera camera;
@@ -322,6 +323,15 @@ public class Main {
         cube9.setRoughnessMap(TextureLoader.loadTexture("roots_rough_2k.png"));
         entities.add(cube9);
         
+        Entity cube10 = new Entity(cubeMesh, TextureLoader.loadTexture("blue_metal_plate_diff_2k.png"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 1f);
+        cube10.setNormalMapId(TextureLoader.loadTexture("blue_metal_plate_nor_gl_2k.png"));
+        cube10.setHeighMapId(TextureLoader.loadTexture("blue_metal_plate_disp_2k.png"));
+        cube10.setParallaxScale(new Vector3f(0.15f, 120, 160));
+        cube10.setMetallicMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
+        cube10.setAoMap(TextureLoader.loadTexture("blue_metal_plate_ao_2k.png"));
+        cube10.setRoughnessMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
+        entities.add(cube10);
+        
         
         for (int i = 0; i < 20; i++) {
         	Entity bush = new Entity(ObjLoader.loadObj("bush1"), TextureLoader.loadTexture("searsia_lucida_diff_2k.png"),
@@ -383,8 +393,9 @@ public class Main {
         Light sun = new Light(new Vector3f(10000, 20000,0), new Vector3f(12,12,12));
         lights.add(sun); 
         //Moon
-        lights.add(new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0))); 
-	     
+        Light moon = new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0)); 
+        lights.add(moon); 
+        
         lights.add(new Light(
    	         new Vector3f(2,0,0),
    	         new Vector3f(1.0f, 0.8f, 0.7f),
@@ -466,7 +477,7 @@ public class Main {
             
             if (EngineSettings.VisualiseLights) {
             	for (Light e : lights) {
-                	debugRenderer.addSphere(e.getPosition(), 1,e.getColor());
+                	debugRenderer.addSphere(e.getPosition(), 1 ,e.getColor());
                 }
             }
             
@@ -487,9 +498,17 @@ public class Main {
             
         	//System.out.println(shadowTextureID);
             
-            shadowRenderer.renderShadowMap(entities,
-            		shadowRenderer.createLightSpaceMatrix(lights.get(0), camera), 
-            		camera.getViewMatrix(),  masterRenderer.getProjectionMatrix());
+            if (skyboxRenderer.isSunOut()) {
+            	 shadowRenderer.renderShadowMap(entities,
+                 		shadowRenderer.createLightSpaceMatrix(lights.get(0), camera), 
+                 		camera.getViewMatrix(),  masterRenderer.getProjectionMatrix());
+            } else {
+            	 shadowRenderer.renderShadowMap(entities,
+                 		shadowRenderer.createLightSpaceMatrix(lights.get(1), camera), 
+                 		camera.getViewMatrix(),  masterRenderer.getProjectionMatrix());
+            }
+            
+           
             int shadowTextureID = shadowRenderer.getDepthMapTexture();
 
             int err = glGetError();
@@ -524,7 +543,7 @@ public class Main {
             bloomRenderer.unbindSceneFBO(width, height);
             
             postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 1.75f, 1.8f);
+            bloomRenderer.renderBloom(width, height, 1.05f, 1.8f);
             
             //Render Texture
             glClear(GL_DEPTH_BUFFER_BIT);
@@ -539,12 +558,15 @@ public class Main {
             	
             	
             	if (EngineSettings.OpenEntity != null) {
-                    textRenderer.renderText("Pos: "+EngineSettings.OpenEntity.getPosition(), 0, height - 120, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+                    textRenderer.renderText(""+EngineSettings.OpenEntity.getId(), 0, height - 120, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+                    textRenderer.renderText("Pos: "+EngineSettings.OpenEntity.getPosition(), 0, height - 140, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
 
             	}
             	
             	if (EngineSettings.OpenLight != null) {
-                    textRenderer.renderText(""+EngineSettings.OpenLight.getPosition(), 0, height - 120, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+                    textRenderer.renderText(""+EngineSettings.OpenLight.getId(), 0, height - 120, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
+
+                    textRenderer.renderText(""+EngineSettings.OpenLight.getPosition(), 0, height - 140, 0.25f, masterRenderer.getFlatProjection(), width, TextAlignment.LEFT);
 
             	}
             }

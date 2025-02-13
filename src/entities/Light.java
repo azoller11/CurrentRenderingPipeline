@@ -3,6 +3,9 @@ package entities;
 import org.joml.Vector3f;
 
 public class Light {
+	
+	private int Id;
+	
     private Vector3f position;      // Used for point lights
     private Vector3f color;
     private Vector3f attenuation;   // (constant, linear, quadratic) - used for point lights
@@ -18,6 +21,8 @@ public class Light {
         this.attenuation = new Vector3f(attenuation);
         // For point lights the direction isn’t used.
         this.direction = new Vector3f(0, 0, 0);
+        
+        this.Id = position.hashCode();
     }
 
     /**
@@ -32,6 +37,8 @@ public class Light {
         this.position = new Vector3f(0, 0, 0);
         // Attenuation is not used for directional lights.
         this.attenuation = new Vector3f(1, 0, 0);
+        
+        this.Id = position.hashCode();
     }
 
     // Getters and setters
@@ -114,4 +121,12 @@ public class Light {
 
         return 1.0f / (a + b * distance + c * distance * distance);
     }
+
+	public int getId() {
+		return Id;
+	}
+
+	public void setId(int id) {
+		Id = id;
+	}
 }

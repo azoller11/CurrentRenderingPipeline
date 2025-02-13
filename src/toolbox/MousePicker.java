@@ -220,6 +220,11 @@ public class MousePicker {
             debugRadius = 1.0f * objectRadius;
         }
         
+        if (EngineSettings.SelectedLight != null) {
+        	 float objectRadius = EngineSettings.SelectedLight.getEffectiveDistance();
+        	 debugRadius = 1.0f * objectRadius;
+        }
+        
         Vector3f sphereColor;
         switch(currentRotationConstraint) {
             case LOCK_X: sphereColor = new Vector3f(1, 0, 0); break;
