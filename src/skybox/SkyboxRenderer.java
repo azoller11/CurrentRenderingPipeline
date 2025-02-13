@@ -5,6 +5,7 @@ import org.joml.Matrix3f;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 import shaders.ShaderProgram;
+import entities.Camera;
 import entities.Light;
 
 import static org.lwjgl.opengl.GL40.*;
@@ -57,18 +58,18 @@ public class SkyboxRenderer {
         });
     }
 
-    public void render(Matrix4f viewMatrix, Matrix4f projectionMatrix, Light sun, Light moon, int scale) {
+    public void render(Camera camera, Matrix4f viewMatrix, Matrix4f projectionMatrix, Light sun, Light moon, int scale) {
         shader.bind();
     
         // Increase the vertical multiplier for sun/moon movement.
-        float sunHeightFactor = 2000.0f; // Determines maximum vertical distance.
+        float sunHeightFactor = 4000.0f; // Determines maximum vertical distance.
     
         // ☀️ Compute Sun Position with increased horizontal and vertical distances.
         float angle = sunAngle * (float) Math.PI * 2.0f;
-        float sunX = (float) Math.cos(angle) * 1000.0f;  // Horizontal distance.
+        float sunX = (float) Math.cos(angle) * sunHeightFactor / 2;  // Horizontal distance.
         float sunY = (float) Math.sin(angle) * sunHeightFactor; // Vertical distance.
-        float sunZ = (float) Math.sin(angle) * 1000.0f;   // Horizontal distance.
-        sun.setPosition(new Vector3f(sunX, sunY, sunZ));
+        float sunZ = (float) Math.sin(angle) * sunHeightFactor / 2;   // Horizontal distance.
+        sun.setPosition(new Vector3f(sunX + camera.getPosition().x, sunY + camera.getPosition().y, sunZ + camera.getPosition().z));
         
         // 🌙 Compute Moon Position (Opposite of Sun).
         float moonX = -sunX;

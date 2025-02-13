@@ -63,7 +63,7 @@ public class EngineSettings {
 		    if (!keyPressing) { // Only trigger when the key was not previously pressed
 		        pause = !pause;
 		        grabMouse = !grabMouse;
-		        System.out.println("Pause: " + pause);
+		       // System.out.println("Pause: " + pause);
 		        keyPressing = true; // Mark the key as pressed
 		    }
 		} else if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_RELEASE) {

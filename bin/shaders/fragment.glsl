@@ -70,37 +70,9 @@ vec3 computeNormal(vec3 worldNormal, vec3 worldTangent, vec2 uv, out mat3 TBN);
 vec3 computeLightContribution(Light light, vec3 fragPos, vec3 N, vec3 V, float metallic, float roughness, float ao, vec3 baseColor);
 vec2 parallaxMapping(vec2 texCoords, vec3 viewDirTangent);
 float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV);
+float calculatedDirectionalShadows();
 
-// -----------------------------------------------------------------------------
-// NEW: Shadow Calculation Function
-// -----------------------------------------------------------------------------
-float calculateShadowFactor()
-{
-    // Transform the fragment position to light space.
-    vec4 fragPosLightSpace = lightSpaceMatrix * vec4(fs_in.wPosition, 1.0);
-    // Perform perspective divide.
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // Transform from NDC [-1,1] to texture space [0,1].
-    projCoords = projCoords * 0.5 + 0.5;
-    
-    // If the fragment is outside the light's frustum, assume full light.
-    if (projCoords.z > 1.0)
-        return 1.0;
-    
-    // Apply a bias to help reduce shadow acne.
-    float bias = 0.005;
-    
-    // Retrieve the closest depth stored in the shadow map.
-    float closestDepth = texture(shadowMap, projCoords.xy).r;
-    // Current fragment depth from light's perspective.
-    float currentDepth = projCoords.z;
-    
-    // If the current depth is greater than the stored depth (plus bias),
-    // then this fragment is in shadow.
-    float shadow = currentDepth - bias > closestDepth ? 0.0 : 1.0;
-    
-    return shadow;
-}
+
 
 
 // Trowbridge-Reitz GGX normal distribution function.
@@ -194,7 +166,7 @@ void main()
 
      float brightnessFactor = 2.0;
      
-      float shadowFactor = calculateShadowFactor();
+      float shadowFactor = calculatedDirectionalShadows();
       
       
     for (int i = 0; i < numLights; i++) {
@@ -206,7 +178,14 @@ void main()
 
         // Calculate shadow factor
         float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV);
-        shadow += shadowFactor;
+        //shadow += shadowFactor;
+        
+        if (i==0) {
+        	shadow *= shadowFactor;
+        } else {
+        	shadow += shadowFactor;
+        }
+        
 
         // Apply shadow to light contribution
         lighting += shadow * brightnessFactor * 

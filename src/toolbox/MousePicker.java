@@ -7,6 +7,7 @@ import org.lwjgl.glfw.GLFW;
 import debugRenderer.DebugRenderer;
 
 import java.util.List;
+import java.util.Stack;
 
 import entities.Camera;
 import entities.Entity;
@@ -21,7 +22,8 @@ import settings.EngineSettings;
  * - Rotation with optional axis-locking.
  * - Snapping to a grid for precise positioning.
  * - Debug drawing of the active drag constraint (axis/plane) using lines,
- *   and rotation constraints using debug spheres (via DebugSphere).
+ *   and rotation constraints using debug spheres.
+ * - Undo/Redo functionality (Ctrl+Z/Ctrl+Y) for reverting object movements.
  */
 public class MousePicker {
 
@@ -33,7 +35,13 @@ public class MousePicker {
     private List<Entity> entities;
     private List<Light> lights;
 
-    // Currently picked object.
+    // Undo/Redo stacks.
+    private Stack<TransformState> undoStack = new Stack<>();
+    private Stack<TransformState> redoStack = new Stack<>();
+
+    // For key debouncing.
+    private boolean undoKeyWasDown = false;
+    private boolean redoKeyWasDown = false;
 
     // Dragging state.
     private boolean isDragging = false;
@@ -82,6 +90,24 @@ public class MousePicker {
         RIGHT,
         NONE
     }
+    
+    /**
+     * Inner class to store an object's transform state (position and rotation)
+     * for undo/redo operations.
+     * Note: The target will be either an Entity or a Light.
+     */
+    private class TransformState {
+        public Object target;
+        public Vector3f position;
+        public Vector3f rotation;
+        
+        public TransformState(Object target, Vector3f pos, Vector3f rot) {
+            this.target = target;
+            // Create copies so further changes don’t affect our stored state.
+            this.position = new Vector3f(pos);
+            this.rotation = new Vector3f(rot);
+        }
+    }
 
     public MousePicker(int width, int height,
                        Camera camera, Matrix4f projectionMatrix,
@@ -118,30 +144,23 @@ public class MousePicker {
     
     /**
      * Draws debug helper lines for translation based on the current drag constraint.
-     * The lines are drawn at the current object's position (so they follow it)
-     * and their length is computed as double the object's effective bounding radius.
-     *
-     * @param debugRenderer a renderer with an addLine(Vector3f start, Vector3f end, Vector3f color) method.
      */
     public void drawDebug(DebugRenderer debugRenderer) {
-        // Use the current object's position so that the lines follow it.
         Vector3f pos = null;
         if (EngineSettings.SelectedEntity != null) {
             pos = EngineSettings.SelectedEntity.getPosition();
         } else if (EngineSettings.SelectedLight != null) {
-            pos = EngineSettings.SelectedLight .getPosition();
+            pos = EngineSettings.SelectedLight.getPosition();
         } else {
             return;
         }
         
-        // Compute debug line length based on the picked object's bounding sphere.
-        float debugLength = 10.0f; // Default length.
+        float debugLength = 10.0f;
         if (EngineSettings.SelectedEntity != null) {
             float objectRadius = EngineSettings.SelectedEntity.getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
             debugLength = 200.0f * objectRadius;
         }
         
-        // Draw axes according to the current drag constraint.
         switch(currentDragConstraint) {
             case LOCK_X:
                 drawAxis(debugRenderer, pos, new Vector3f(1, 0, 0), debugLength, new Vector3f(1, 0, 0));
@@ -166,7 +185,6 @@ public class MousePicker {
                 break;
             case FREE:
             default:
-                // For free dragging, draw a small cross.
                 drawAxis(debugRenderer, pos, new Vector3f(1, 0, 0), debugLength / 2, new Vector3f(1, 1, 1));
                 drawAxis(debugRenderer, pos, new Vector3f(0, 1, 0), debugLength / 2, new Vector3f(1, 1, 1));
                 drawAxis(debugRenderer, pos, new Vector3f(0, 0, 1), debugLength / 2, new Vector3f(1, 1, 1));
@@ -176,14 +194,6 @@ public class MousePicker {
     
     /**
      * Helper method that draws a line along the given axis.
-     * It calculates the start and end points based on the given position and length,
-     * then calls renderer.addLine(...).
-     *
-     * @param renderer the debug renderer.
-     * @param pos the center position.
-     * @param axis the direction (should be normalized).
-     * @param length the half-length of the line to draw.
-     * @param color the color of the line.
      */
     private void drawAxis(DebugRenderer renderer, Vector3f pos, Vector3f axis, float length, Vector3f color) {
         Vector3f start = new Vector3f(pos).fma(-length, axis);
@@ -193,24 +203,18 @@ public class MousePicker {
     
     /**
      * Draws a debug sphere to indicate the rotation constraint.
-     * Uses the DebugSphere constructor:
-     *     public DebugSphere(Vector3f center, float radius, Vector3f color)
-     * The sphere is drawn at the current object's position and has a radius equal
-     * to double the object's effective bounding radius.
-     *
-     * @param debugRenderer a renderer with a drawSphere(DebugSphere sphere) method.
      */
     public void drawRotationDebug(DebugRenderer debugRenderer) {
         Vector3f pos = null;
         if (EngineSettings.SelectedEntity != null) {
             pos = EngineSettings.SelectedEntity.getPosition();
         } else if (EngineSettings.SelectedLight  != null) {
-            pos = EngineSettings.SelectedLight .getPosition();
+            pos = EngineSettings.SelectedLight.getPosition();
         } else {
             return;
         }
         
-        float debugRadius = 10.0f; // Default radius.
+        float debugRadius = 10.0f;
         if (EngineSettings.SelectedEntity != null) {
             float objectRadius = EngineSettings.SelectedEntity.getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
             debugRadius = 1.0f * objectRadius;
@@ -223,18 +227,19 @@ public class MousePicker {
             case LOCK_Z: sphereColor = new Vector3f(0, 0, 1); break;
             default:     sphereColor = new Vector3f(1, 1, 1); break;
         }
-        //DebugSphere sphere = new DebugSphere(new Vector3f(pos), debugRadius, sphereColor);
         if (draggingButton == MouseButton.RIGHT) {
-        	debugRenderer.addSphere(new Vector3f(pos), debugRadius, sphereColor);
+            debugRenderer.addSphere(new Vector3f(pos), debugRadius, sphereColor);
         }
-        
     }
     
     /**
      * Call this each frame.
-     * Handles picking, dragging (translation), and rotation based on mouse input.
+     * Handles picking, dragging (translation), rotation, and undo/redo based on mouse and keyboard input.
      */
     public void update(long window) {
+        // First, check for undo/redo key commands.
+        handleUndoRedo(window);
+        
         boolean leftPressed = (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS);
         boolean rightPressed = (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS);
 
@@ -242,7 +247,6 @@ public class MousePicker {
         double[] mouseY = new double[1];
         GLFW.glfwGetCursorPos(window, mouseX, mouseY);
         
-
         // Determine which mouse button is pressed.
         MouseButton currentButton = MouseButton.NONE;
         if (leftPressed && !rightPressed) {
@@ -255,20 +259,33 @@ public class MousePicker {
             // Start dragging/rotating.
             pickObject(mouseX[0], mouseY[0], currentButton);
             if (isDragging) {
+                // Capture initial state for undo using the target reference.
+                if (EngineSettings.SelectedEntity != null) {
+                    undoStack.push(new TransformState(EngineSettings.SelectedEntity,
+                        EngineSettings.SelectedEntity.getPosition(),
+                        EngineSettings.SelectedEntity.getRotation()));
+                } else if (EngineSettings.SelectedLight != null) {
+                    // For lights, we only use position (rotation is not used).
+                    undoStack.push(new TransformState(EngineSettings.SelectedLight,
+                        EngineSettings.SelectedLight.getPosition(),
+                        new Vector3f(0, 0, 0)));
+                }
+                // Clear the redo stack because a new action has begun.
+                redoStack.clear();
+                
                 draggingButton = currentButton;
                 previousMouseX = mouseX[0];
                 previousMouseY = mouseY[0];
-                // Record the initial position for translation locking.
                 dragStartPos = new Vector3f(
-                    (EngineSettings.SelectedEntity != null) ? EngineSettings.SelectedEntity.getPosition() : EngineSettings.SelectedLight .getPosition()
+                    (EngineSettings.SelectedEntity != null) ? EngineSettings.SelectedEntity.getPosition() : EngineSettings.SelectedLight.getPosition()
                 );
             }
         } else if (!leftPressed && !rightPressed && isDragging) {
-            // Stop dragging/rotating when both buttons are released.
+            // Stop dragging/rotating.
             isDragging = false;
             draggingButton = MouseButton.NONE;
-            EngineSettings.SelectedEntity = null;
-            EngineSettings.SelectedLight  = null;
+            // Optionally, you can keep the object selected for undo/redo.
+            // For this example, we re-select the object in handleUndoRedo if needed.
             dragStartPos = null;
             currentDragConstraint = DragConstraint.FREE;
             currentRotationConstraint = RotationConstraint.FREE;
@@ -285,6 +302,76 @@ public class MousePicker {
     }
     
     /**
+     * Checks for Ctrl+Z (undo) and Ctrl+Y (redo) key combinations.
+     * Uses a simple debounce mechanism so that a single press triggers one action.
+     */
+    private void handleUndoRedo(long window) {
+        boolean ctrlPressed = (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS ||
+                               GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS);
+        boolean zPressed = (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Z) == GLFW.GLFW_PRESS);
+        boolean yPressed = (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Y) == GLFW.GLFW_PRESS);
+
+        // Handle Undo (Ctrl+Z)
+        if (ctrlPressed && zPressed && !undoKeyWasDown) {
+            if (!undoStack.isEmpty()) {
+                TransformState prevState = undoStack.pop();
+                // Before reverting, capture current state for redo.
+                if (prevState.target instanceof Entity) {
+                    Entity targetEntity = (Entity) prevState.target;
+                    redoStack.push(new TransformState(targetEntity,
+                        targetEntity.getPosition(),
+                        targetEntity.getRotation()));
+                    // Apply the previous state.
+                    targetEntity.getPosition().set(prevState.position);
+                    targetEntity.setRotation(prevState.rotation);
+                    // Optionally, re-select the object.
+                    EngineSettings.SelectedEntity = targetEntity;
+                    EngineSettings.SelectedLight = null;
+                } else if (prevState.target instanceof Light) {
+                    Light targetLight = (Light) prevState.target;
+                    redoStack.push(new TransformState(targetLight,
+                        targetLight.getPosition(),
+                        new Vector3f(0, 0, 0)));
+                    targetLight.getPosition().set(prevState.position);
+                    EngineSettings.SelectedLight = targetLight;
+                    EngineSettings.SelectedEntity = null;
+                }
+            }
+            undoKeyWasDown = true;
+        } else if (!(ctrlPressed && zPressed)) {
+            undoKeyWasDown = false;
+        }
+
+        // Handle Redo (Ctrl+Y)
+        if (ctrlPressed && yPressed && !redoKeyWasDown) {
+            if (!redoStack.isEmpty()) {
+                TransformState redoState = redoStack.pop();
+                if (redoState.target instanceof Entity) {
+                    Entity targetEntity = (Entity) redoState.target;
+                    undoStack.push(new TransformState(targetEntity,
+                        targetEntity.getPosition(),
+                        targetEntity.getRotation()));
+                    targetEntity.getPosition().set(redoState.position);
+                    targetEntity.setRotation(redoState.rotation);
+                    EngineSettings.SelectedEntity = targetEntity;
+                    EngineSettings.SelectedLight = null;
+                } else if (redoState.target instanceof Light) {
+                    Light targetLight = (Light) redoState.target;
+                    undoStack.push(new TransformState(targetLight,
+                        targetLight.getPosition(),
+                        new Vector3f(0, 0, 0)));
+                    targetLight.getPosition().set(redoState.position);
+                    EngineSettings.SelectedLight = targetLight;
+                    EngineSettings.SelectedEntity = null;
+                }
+            }
+            redoKeyWasDown = true;
+        } else if (!(ctrlPressed && yPressed)) {
+            redoKeyWasDown = false;
+        }
+    }
+    
+    /**
      * Casts a ray into the scene to pick the closest Entity or Light based on the mouse position.
      */
     private void pickObject(double mouseX, double mouseY, MouseButton button) {
@@ -293,8 +380,8 @@ public class MousePicker {
         Entity bestEntity = null;
         
         if (EngineSettings.ObjectPicker) {
-        	for (Entity e : entities) {
-                Vector3f center = e.getPosition(); // Assume object's center.
+            for (Entity e : entities) {
+                Vector3f center = e.getPosition();
                 float effectiveScale = e.getScale();
                 float radius = e.getMesh().getFurthestPoint() * effectiveScale;
                 float dist = distanceRayToPoint(ray, center);
@@ -305,7 +392,6 @@ public class MousePicker {
             }
         }
         
-        
         Light bestLight = null;
         if (EngineSettings.LightPicker) {
             for (Light L : lights) {
@@ -314,19 +400,19 @@ public class MousePicker {
                 if (dist < pickRadius && dist < closestDist) {
                     closestDist = dist;
                     bestLight = L;
-                    bestEntity = null; // Lights take priority.
+                    bestEntity = null;
                 }
             }
         }
         
         if (bestEntity != null) {
-        	EngineSettings.SelectedEntity  = bestEntity;
+            EngineSettings.SelectedEntity  = bestEntity;
             EngineSettings.SelectedLight  = null;
             isDragging = true;
             System.out.println("Picked ENTITY at " + bestEntity.getPosition());
         } else if (bestLight != null) {
-        	EngineSettings.SelectedLight  = bestLight;
-        	EngineSettings.SelectedEntity = null;
+            EngineSettings.SelectedLight  = bestLight;
+            EngineSettings.SelectedEntity = null;
             isDragging = true;
             System.out.println("Picked LIGHT at " + bestLight.getPosition());
         }
@@ -334,23 +420,21 @@ public class MousePicker {
     
     /**
      * Moves the picked object (translation) based on mouse position.
-     * - If one axis key is held, movement is constrained to that axis using line projection.
-     * - If two axes are held, movement is confined to a plane.
-     * - Otherwise, free dragging is performed.
      */
     private void dragObject(long window, double mouseX, double mouseY) {
-        if (EngineSettings.SelectedEntity == null && EngineSettings.SelectedLight  == null) return;
-        if (dragStartPos == null) {
-            dragStartPos = new Vector3f(
-                (EngineSettings.SelectedEntity != null) ? EngineSettings.SelectedEntity.getPosition() : EngineSettings.SelectedLight .getPosition()
-            );
-        }
+        if (EngineSettings.SelectedEntity == null && EngineSettings.SelectedLight == null) return;
         
+        Vector3f currentPos = new Vector3f(
+            (EngineSettings.SelectedEntity != null) ? 
+                EngineSettings.SelectedEntity.getPosition() : 
+                EngineSettings.SelectedLight.getPosition()
+        );
+    
         boolean lockX = (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_X) == GLFW.GLFW_PRESS);
         boolean lockY = (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Y) == GLFW.GLFW_PRESS);
         boolean lockZ = (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Z) == GLFW.GLFW_PRESS);
         int lockedCount = (lockX ? 1 : 0) + (lockY ? 1 : 0) + (lockZ ? 1 : 0);
-        
+    
         if (lockedCount == 1) {
             if (lockX) currentDragConstraint = DragConstraint.LOCK_X;
             else if (lockY) currentDragConstraint = DragConstraint.LOCK_Y;
@@ -362,58 +446,56 @@ public class MousePicker {
         } else {
             currentDragConstraint = DragConstraint.FREE;
         }
-        
+    
         Vector3f newPos = new Vector3f();
         Ray ray = calculateMouseRay(mouseX, mouseY);
+    
         if (lockedCount == 1) {
             Vector3f axis = new Vector3f();
             if (lockX) axis.set(1, 0, 0);
-            if (lockY) axis.set(0, 1, 0);
-            if (lockZ) axis.set(0, 0, 1);
+            else if (lockY) axis.set(0, 1, 0);
+            else if (lockZ) axis.set(0, 0, 1);
             axis.normalize();
-            newPos = computeClosestPointOnAxis(dragStartPos, axis, ray);
+            newPos = computeClosestPointOnAxis(currentPos, axis, ray);
         } else if (lockedCount == 2) {
             Vector3f planeNormal = new Vector3f();
             if (!lockX) planeNormal.set(1, 0, 0);
             else if (!lockY) planeNormal.set(0, 1, 0);
             else if (!lockZ) planeNormal.set(0, 0, 1);
-            float planeD = planeNormal.dot(dragStartPos);
+            float planeD = planeNormal.dot(currentPos);
             newPos = intersectRayPlane(ray, planeNormal, planeD);
             if (newPos == null) {
-                newPos = new Vector3f(dragStartPos);
+                newPos = new Vector3f(currentPos);
             }
         } else {
             newPos = getFreeIntersection(mouseX, mouseY);
             if (newPos == null) return;
         }
-        
+    
         if (snappingEnabled) {
             newPos.x = Math.round(newPos.x / snapGridSize) * snapGridSize;
             newPos.y = Math.round(newPos.y / snapGridSize) * snapGridSize;
             newPos.z = Math.round(newPos.z / snapGridSize) * snapGridSize;
         }
-        
+    
         if (lockedCount >= 1) {
-            Vector3f finalPos = new Vector3f(dragStartPos);
+            Vector3f finalPos = new Vector3f(currentPos);
             if (lockX) finalPos.x = newPos.x;
             if (lockY) finalPos.y = newPos.y;
             if (lockZ) finalPos.z = newPos.z;
             newPos.set(finalPos);
         }
-        
+    
         if (EngineSettings.SelectedEntity != null) {
-        	EngineSettings.SelectedEntity.getPosition().set(newPos);
+            EngineSettings.SelectedEntity.getPosition().set(newPos);
         }
-        if (EngineSettings.SelectedLight  != null) {
-        	EngineSettings.SelectedLight .getPosition().set(newPos);
+        if (EngineSettings.SelectedLight != null) {
+            EngineSettings.SelectedLight.getPosition().set(newPos);
         }
     }
     
     /**
      * Rotates the picked object based on mouse movement.
-     * - If exactly one rotation lock key (X, Y, or Z) is held, only that rotation component is updated.
-     * - Otherwise, free rotation (pitch and yaw) is performed.
-     * Also, currentRotationConstraint is updated accordingly.
      */
     private void rotateObject(long window, double mouseX, double mouseY) {
         if (EngineSettings.SelectedEntity == null && EngineSettings.SelectedLight  == null) return;
@@ -430,13 +512,13 @@ public class MousePicker {
             if (rotLockCount == 1) {
                 if (lockRotX) {
                     currentRotationConstraint = RotationConstraint.LOCK_X;
-                    currentRotation.x += deltaY * rotationSpeed;  // Update pitch.
+                    currentRotation.x += deltaY * rotationSpeed;
                 } else if (lockRotY) {
                     currentRotationConstraint = RotationConstraint.LOCK_Y;
-                    currentRotation.y += deltaX * rotationSpeed;  // Update yaw.
+                    currentRotation.y += deltaX * rotationSpeed;
                 } else if (lockRotZ) {
                     currentRotationConstraint = RotationConstraint.LOCK_Z;
-                    currentRotation.z += deltaX * rotationSpeed;  // Update roll.
+                    currentRotation.z += deltaX * rotationSpeed;
                 }
             } else {
                 currentRotationConstraint = RotationConstraint.FREE;
@@ -446,7 +528,6 @@ public class MousePicker {
             currentRotation.x = Math.clamp(currentRotation.x, -89.9f, 89.9f);
             EngineSettings.SelectedEntity.setRotation(currentRotation);
         }
-        // Similar handling can be added for pickedLight if desired.
     }
     
     // -----------------------------------------------------------------------

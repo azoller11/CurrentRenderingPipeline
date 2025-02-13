@@ -70,6 +70,8 @@ public class MasterRenderer {
 			   "src/shadersModular/computeNormal.glsl",
 			   "src/shadersModular/computeLightContribution.glsl",
 			   "src/shadersModular/calculatePOMShadow.glsl",
+			   "src/shadersModular/calculatedDirectionalShadows.glsl",
+			   
 	   };
 	   
 	   String[] additionalGeometryShaders = new String[] {

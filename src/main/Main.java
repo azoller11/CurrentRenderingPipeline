@@ -107,6 +107,46 @@ public class Main {
         cleanup();
     }
 
+    private void firstLoop() {
+   	 // Initialize GLFW
+       if (!glfwInit()) {
+           throw new IllegalStateException("Unable to initialize GLFW");
+       }
+
+       glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+       glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+       glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+       glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+
+       window = glfwCreateWindow(width, height, "Elk Engine 2", NULL, NULL);
+       if (window == NULL) {
+           throw new RuntimeException("Failed to create the GLFW window");
+       }
+       glfwMakeContextCurrent(window);
+       glfwSwapInterval(1); // vsync
+       GL.createCapabilities();
+       
+       textureRenderer = new TextureRenderer();
+       loadingScreen = new gui.GuiTexture(TextureLoader.loadExplicitTexture("ElkEngine.png"), 0, 0, width,height);
+       
+       textureRenderer.addTexture(loadingScreen);
+
+       // Clear both color and depth buffers
+       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+       glViewport(0, 0, width, height); // Ensure viewport is correct
+       glEnable(GL_BLEND);
+       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+       
+       // Render loading screen
+       textureRenderer.render(new Matrix4f().ortho2D(0.0f, width, 0.0f, height), new Matrix4f().identity(), 0, 0);
+       
+       // Swap buffers to display the loading screen immediately
+       glfwSwapBuffers(window);
+       
+       
+   }
+    
+    
     private void init() {
        
 
@@ -345,7 +385,31 @@ public class Main {
         //Moon
         lights.add(new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0))); 
 	     
-        
+        lights.add(new Light(
+   	         new Vector3f(2,0,0),
+   	         new Vector3f(1.0f, 0.8f, 0.7f),
+   	         new Vector3f(1, 0.62f, 0.0032f)
+   	     ));
+   	     
+   	     lights.add(new Light(
+   		         new Vector3f(-2,-10,0),
+   		         new Vector3f(0.0f, 8f, 7f),
+   		         new Vector3f(1, 0.62f, 0.0032f)
+   		     ));
+   	     
+   	     
+   	     lights.add(new Light(
+   		         new Vector3f(-20,0,20),
+   		         new Vector3f(10.0f, 0.0f, 0.7f),
+   		         new Vector3f(1, 0.62f, 0.232f)
+   		     ));
+   	     
+   	     
+   	     lights.add(new Light(
+   		         new Vector3f(0,10,0),
+   		         new Vector3f(10.0f, 10.0f, 0.7f),
+   		         new Vector3f(1, 0.62f, 0.232f)
+   		     ));
       
     
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
@@ -359,44 +423,7 @@ public class Main {
         lastTime = glfwGetTime();
     }
     
-    private void firstLoop() {
-    	 // Initialize GLFW
-        if (!glfwInit()) {
-            throw new IllegalStateException("Unable to initialize GLFW");
-        }
-
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-
-        window = glfwCreateWindow(width, height, "Elk Engine 2", NULL, NULL);
-        if (window == NULL) {
-            throw new RuntimeException("Failed to create the GLFW window");
-        }
-        glfwMakeContextCurrent(window);
-        glfwSwapInterval(1); // vsync
-        GL.createCapabilities();
-        
-        textureRenderer = new TextureRenderer();
-        loadingScreen = new gui.GuiTexture(TextureLoader.loadExplicitTexture("ElkEngine.png"), 0, 0, width,height);
-        
-        textureRenderer.addTexture(loadingScreen);
-
-        // Clear both color and depth buffers
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glViewport(0, 0, width, height); // Ensure viewport is correct
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        
-        // Render loading screen
-        textureRenderer.render(new Matrix4f().ortho2D(0.0f, width, 0.0f, height), new Matrix4f().identity(), 0, 0);
-        
-        // Swap buffers to display the loading screen immediately
-        glfwSwapBuffers(window);
-        
-        
-    }
+    
 
     private void loop() {
         while (!glfwWindowShouldClose(window)) {
@@ -489,7 +516,7 @@ public class Main {
             // Could add more interesting transforms as well
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
             
-            skyboxRenderer.render(camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000);            
+            skyboxRenderer.render(camera, camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000);            
            
 
             
