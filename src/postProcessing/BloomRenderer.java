@@ -5,19 +5,10 @@ import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
+import java.nio.FloatBuffer;
 import org.lwjgl.system.MemoryUtil;
 import shaders.ShaderProgram;
 
-/**
- * This bloom renderer creates several FBOs for a multi‐pass bloom post‑processing effect.
- * The steps are:
- *   1. Render the scene into a scene FBO.
- *   2. Extract bright areas (bright pass) into a separate texture.
- *   3. Blur the bright areas using two ping–pong FBOs.
- *   4. Combine the blurred (bloom) texture with the original scene.
- *
- * The necessary shader sources for each pass are provided below as comments.
- */
 public class BloomRenderer {
     
     // Dimensions
@@ -49,6 +40,14 @@ public class BloomRenderer {
     // Number of blur passes.
     private int blurIterations = 12;
     
+    // ------------------- Dynamic Exposure Fields -------------------
+    private float currentExposure = 1.0f;
+    private final float adaptationSpeed = 1.1f; // Adjust to taste
+    private final float key = 1.0f;             // Desired scene brightness
+    // For simplicity, we use a fixed delta time (e.g., 1/60 seconds).
+    private final float dt = 1.0f / 60.0f;
+    // ----------------------------------------------------------------
+    
     public BloomRenderer(int width, int height) {
         this.width = width;
         this.height = height;
@@ -67,7 +66,6 @@ public class BloomRenderer {
         // Create the color texture attachment.
         sceneTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, sceneTexture);
-        //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -89,6 +87,7 @@ public class BloomRenderer {
     }
     
     // 2. Create the FBO for the bright pass.
+ // 2. Create the FBO for the bright pass.
     private void initBrightFBO() {
         brightFBO = glGenFramebuffers();
         glBindFramebuffer(GL_FRAMEBUFFER, brightFBO);
@@ -96,7 +95,8 @@ public class BloomRenderer {
         brightTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, brightTexture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        // Use mipmap filtering for minification so glGenerateMipmap works as expected.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -108,6 +108,7 @@ public class BloomRenderer {
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
     
     // 3. Create two ping-pong FBOs for blurring.
     private void initPingPongFBOs() {
@@ -192,65 +193,134 @@ public class BloomRenderer {
      * Then, apply several blur passes using ping-pong FBOs.
      * Finally, combine the blurred bloom with the original scene.
      *
-     * @param windowWidth  The final viewport width.
-     * @param windowHeight The final viewport height.
-     * @param threshold    The brightness threshold for bloom extraction.
-     * @param bloomIntensity The intensity for combining bloom.
+     * @param windowWidth      The final viewport width.
+     * @param windowHeight     The final viewport height.
+     * @param threshold        The brightness threshold for bloom extraction.
+     * @param bloomIntensity   The intensity for combining bloom.
      */
     public void renderBloom(int windowWidth, int windowHeight, float threshold, float bloomIntensity) {
-    // 1. Extract bright areas.
-    glDisable(GL_DEPTH_TEST);
-    glBindFramebuffer(GL_FRAMEBUFFER, brightFBO);
-    glViewport(0, 0, width, height); // Set viewport for bright FBO
-    glClear(GL_COLOR_BUFFER_BIT);
-    bloomExtractShader.bind();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sceneTexture);
-    bloomExtractShader.setUniformSampler("sceneTexture", 0);
-    bloomExtractShader.setUniform1f("threshold", threshold);
-    
-    renderQuad();
-    bloomExtractShader.unbind();
-    glEnable(GL_DEPTH_TEST);
-    
-    // 2. Blur the bright texture using ping-pong FBOs.
-    boolean horizontal = true;
-    boolean firstIteration = true;
-    blurShader.bind();
-    for (int i = 0; i < blurIterations; i++) {
-        glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal ? 1 : 0]);
-        glViewport(0, 0, width, height); // Set viewport for ping-pong FBO
+        // 1. Extract bright areas.
+        glDisable(GL_DEPTH_TEST);
+        glBindFramebuffer(GL_FRAMEBUFFER, brightFBO);
+        glViewport(0, 0, width, height); // Set viewport for bright FBO
         glClear(GL_COLOR_BUFFER_BIT);
-        blurShader.setUniform2f("blurDirection", horizontal ? 1.0f : 0.0f, horizontal ? 0.0f : 1.0f);
+        bloomExtractShader.bind();
         glActiveTexture(GL_TEXTURE0);
-        if (firstIteration) {
-            glBindTexture(GL_TEXTURE_2D, brightTexture);
-            firstIteration = false;
-        } else {
-            glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
-        }
-        blurShader.setUniformSampler("image", 0);
+        glBindTexture(GL_TEXTURE_2D, sceneTexture);
+        bloomExtractShader.setUniformSampler("sceneTexture", 0);
+        bloomExtractShader.setUniform1f("threshold", threshold);
         renderQuad();
-        horizontal = !horizontal;
+        bloomExtractShader.unbind();
+        glEnable(GL_DEPTH_TEST);
+        
+        // 2. Blur the bright texture using ping-pong FBOs.
+        boolean horizontal = true;
+        boolean firstIteration = true;
+        blurShader.bind();
+        for (int i = 0; i < blurIterations; i++) {
+            glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal ? 1 : 0]);
+            glViewport(0, 0, width, height); // Set viewport for ping-pong FBO
+            glClear(GL_COLOR_BUFFER_BIT);
+            blurShader.setUniform2f("blurDirection", horizontal ? 1.0f : 0.0f, horizontal ? 0.0f : 1.0f);
+            glActiveTexture(GL_TEXTURE0);
+            if (firstIteration) {
+                glBindTexture(GL_TEXTURE_2D, brightTexture);
+                firstIteration = false;
+            } else {
+                glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
+            }
+            blurShader.setUniformSampler("image", 0);
+            renderQuad();
+            horizontal = !horizontal;
+        }
+        blurShader.unbind();
+        
+        // 3. Compute dynamic exposure from the bright pass texture.
+     // Compute dynamic exposure from the bright pass texture.
+        float averageBrightness = computeAverageBrightnessFromScene();
+        float key = 0.5f; // Lower the key to reduce exposure
+        float targetExposure = key / Math.max(averageBrightness, 0.0001f);
+
+        // Clamp target exposure to avoid excessive brightness.
+        float maxExposure = 20.0f; // Lower max exposure if needed
+        targetExposure = Math.min(targetExposure, maxExposure);
+
+        // Smoothly update currentExposure.
+        currentExposure = currentExposure + (targetExposure - currentExposure) * (dt * adaptationSpeed);
+
+        
+        // 4. Combine the original scene with the blurred bloom texture.
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, windowWidth, windowHeight); // Reset to window viewport
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        bloomCombineShader.bind();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, sceneTexture);
+        bloomCombineShader.setUniformSampler("sceneTexture", 0);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
+        bloomCombineShader.setUniformSampler("bloomTexture", 1);
+        bloomCombineShader.setUniform1f("bloomIntensity", bloomIntensity);
+        // Set the dynamic exposure value in the combine shader.
+        System.out.println("currentExposure: " + currentExposure);
+        bloomCombineShader.setUniform1f("exposure", currentExposure);
+        renderQuad();
+        bloomCombineShader.unbind();
     }
-    blurShader.unbind();
     
-    // 3. Combine the original scene with the blurred bloom texture.
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, windowWidth, windowHeight); // Reset to window viewport
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    bloomCombineShader.bind();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, sceneTexture);
-    bloomCombineShader.setUniformSampler("sceneTexture", 0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
-    bloomCombineShader.setUniformSampler("bloomTexture", 1);
-    bloomCombineShader.setUniform1f("bloomIntensity", bloomIntensity);
-    //bloomCombineShader.setUniform1f("exposure", 4.2f);
-    renderQuad();
-    bloomCombineShader.unbind();
-}
+    /**
+     * Computes an approximate average brightness from the bright pass texture
+     * by generating mipmaps and reading the 1x1 (lowest) mip level.
+     */
+    private float computeAverageBrightnessFromScene() {
+        glBindTexture(GL_TEXTURE_2D, sceneTexture);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        
+        int mipLevel = (int)(Math.floor(Math.log(Math.min(width, height)) / Math.log(2)));
+        
+        FloatBuffer pixelBuffer = MemoryUtil.memAllocFloat(4);
+        glGetTexImage(GL_TEXTURE_2D, mipLevel, GL_RGBA, GL_FLOAT, pixelBuffer);
+        
+        float r = pixelBuffer.get(0);
+        float g = pixelBuffer.get(1);
+        float b = pixelBuffer.get(2);
+        MemoryUtil.memFree(pixelBuffer);
+        
+        // Compute luminance using standard weights.
+        return 0.2126f * r + 0.7152f * g + 0.0722f * b;
+    }
+    /**
+     * Computes an approximate average brightness from the bright pass texture
+     * by generating mipmaps and reading the 1x1 (lowest) mip level.
+     */
+    private float computeAverageBrightness() {
+        // Bind the bright texture and generate mipmaps.
+        glBindTexture(GL_TEXTURE_2D, brightTexture);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        
+        // Compute the mip level corresponding to 1x1 resolution.
+        int mipLevel = (int)(Math.floor(Math.log(Math.min(width, height)) / Math.log(2)));
+        
+        // Create a FloatBuffer to hold one texel (4 floats).
+        FloatBuffer pixelBuffer = MemoryUtil.memAllocFloat(4);
+        glGetTexImage(GL_TEXTURE_2D, mipLevel, GL_RGBA, GL_FLOAT, pixelBuffer);
+        
+        float r = pixelBuffer.get(0);
+        float g = pixelBuffer.get(1);
+        float b = pixelBuffer.get(2);
+        MemoryUtil.memFree(pixelBuffer);
+        
+        // Check if any component is NaN; if so, fall back to 0.
+        if (Float.isNaN(r) || Float.isNaN(g) || Float.isNaN(b)) {
+            r = g = b = 0.0f;
+        }
+        
+        // Compute luminance using standard weights.
+        float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+        return luminance;
+    }
+
+    
     // Utility method to render the full-screen quad.
     private void renderQuad() {
         glBindVertexArray(quadVAO);
