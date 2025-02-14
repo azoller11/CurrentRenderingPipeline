@@ -13,10 +13,7 @@ void main() {
     vec3 bloomColor = texture(bloomTexture, passTexCoords).rgb;
     
     // Combine scene and bloom in HDR.
-    vec3 hdrColor = sceneColor + bloomColor * bloomIntensity;
-    
-    // Apply exposure scaling.
-    hdrColor *= exposure;
+    vec3 hdrColor = sceneColor * exposure + bloomColor * bloomIntensity;
     
     // Reinhard tone mapping to compress the HDR range.
     vec3 mappedColor = hdrColor / (hdrColor + vec3(1.0));

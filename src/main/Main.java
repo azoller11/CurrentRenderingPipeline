@@ -180,7 +180,7 @@ public class Main {
         shadowRenderer = new ShadowRenderer(2048 * 10,2048 * 10);
        
         
-        gui.GuiTexture texture2 = new gui.GuiTexture(6, 0, 100, 50,50);
+        gui.GuiTexture texture2 = new gui.GuiTexture(4, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
         
        

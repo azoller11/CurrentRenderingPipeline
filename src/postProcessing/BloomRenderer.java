@@ -42,7 +42,7 @@ public class BloomRenderer {
     
     // ------------------- Dynamic Exposure Fields -------------------
     private float currentExposure = 1.0f;
-    private final float adaptationSpeed = 1.1f; // Adjust to taste
+    private final float adaptationSpeed = 0.5f; // Adjust to taste
     private final float key = 1.0f;             // Desired scene brightness
     // For simplicity, we use a fixed delta time (e.g., 1/60 seconds).
     private final float dt = 1.0f / 60.0f;
@@ -67,7 +67,7 @@ public class BloomRenderer {
         sceneTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, sceneTexture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, (java.nio.ByteBuffer)null);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -235,18 +235,22 @@ public class BloomRenderer {
         }
         blurShader.unbind();
         
-        // 3. Compute dynamic exposure from the bright pass texture.
-     // Compute dynamic exposure from the bright pass texture.
-        float averageBrightness = computeAverageBrightnessFromScene();
-        float key = 0.5f; // Lower the key to reduce exposure
-        float targetExposure = key / Math.max(averageBrightness, 0.0001f);
+     // Compute dynamic exposure from the scene texture.
+        float averageBrightness = computeAverageBrightness();
+        float minBrightness = 0.00f; // Prevent the average from being too low.
+        averageBrightness = Math.max(averageBrightness, minBrightness);
 
-        // Clamp target exposure to avoid excessive brightness.
-        float maxExposure = 20.0f; // Lower max exposure if needed
+        // Now compute targetExposure.
+        // Here we use a key value that you can adjust.
+        float key = 0.1f; 
+        float targetExposure = key / averageBrightness;
+
+        // Clamp the target exposure to avoid excessive brightness.
+        float maxExposure = 1.0f;
         targetExposure = Math.min(targetExposure, maxExposure);
 
         // Smoothly update currentExposure.
-        currentExposure = currentExposure + (targetExposure - currentExposure) * (dt * adaptationSpeed);
+        currentExposure += (targetExposure - currentExposure) * (dt * adaptationSpeed);
 
         
         // 4. Combine the original scene with the blurred bloom texture.
@@ -262,8 +266,8 @@ public class BloomRenderer {
         bloomCombineShader.setUniformSampler("bloomTexture", 1);
         bloomCombineShader.setUniform1f("bloomIntensity", bloomIntensity);
         // Set the dynamic exposure value in the combine shader.
-        System.out.println("currentExposure: " + currentExposure);
-        bloomCombineShader.setUniform1f("exposure", currentExposure);
+        System.out.println("currentExposure: " + currentExposure + " | averageBrightness: " + averageBrightness);
+        bloomCombineShader.setUniform1f("exposure", 1);
         renderQuad();
         bloomCombineShader.unbind();
     }
@@ -295,7 +299,7 @@ public class BloomRenderer {
      */
     private float computeAverageBrightness() {
         // Bind the bright texture and generate mipmaps.
-        glBindTexture(GL_TEXTURE_2D, brightTexture);
+        glBindTexture(GL_TEXTURE_2D, sceneTexture);
         glGenerateMipmap(GL_TEXTURE_2D);
         
         // Compute the mip level corresponding to 1x1 resolution.
