@@ -102,7 +102,7 @@ public class ShadowRenderer {
         // Render each entity using its model transform
         frustum.calculateFrustum(projectionMatrix, viewMatrix);
         for (Entity entity : entities) {
-        	if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint() * entity.getScale())) {
+        	//if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint() * entity.getScale())) {
         		 Matrix4f modelMatrix = createModelMatrix(entity);
                  shadowShader.setUniformMat4("model", modelMatrix);
                  
@@ -115,7 +115,7 @@ public class ShadowRenderer {
                  glBindVertexArray(vaoID);
                  glDrawArrays(GL_TRIANGLES, 0, entity.getMesh().getVertexCount());
                  glBindVertexArray(0);
-        	}
+        	//}
            
         }
        
@@ -140,7 +140,7 @@ public class ShadowRenderer {
     public static Matrix4f createLightSpaceMatrix(Light light, Camera camera) {
         float orthoSize = 400.0f; 
         float near = 1.0f;
-        float far = 1800.0f;
+        float far = 180000000.0f;
 
         // Light direction (keep your existing inversion logic)
         Vector3f lightDir = new Vector3f(light.getPosition()).normalize();

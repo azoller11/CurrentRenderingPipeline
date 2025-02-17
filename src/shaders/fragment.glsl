@@ -40,6 +40,10 @@ uniform int hasAo;          // 1 if aoMap is bound, 0 if missing
 uniform sampler2D shadowMap;
 uniform mat4 lightSpaceMatrix;
 
+// New uniforms for specular lighting (used when no metallic map is provided)
+uniform float shineDamper = 0;
+uniform float reflectivity = 0;
+
 
 const float PI = 3.14159265359;
 
@@ -128,7 +132,7 @@ void main()
     
    
     	
-        
+    float distanceToCamera = length(cameraPos - fs_in.wPosition);
     
     
 	// --- Compute view direction in tangent space.
@@ -136,7 +140,12 @@ void main()
 	vec3 viewDir = normalize(cameraPos - fs_in.wPosition);
 	vec3 viewDirTangent = normalize(transpose(TBN) * viewDir);  // Use transpose instead of direct multiplication
 	// --- Compute parallax-adjusted UVs.
-	vec2 parallaxedUV = parallaxMapping(fs_in.uv, viewDirTangent);
+	
+	
+	 vec2 parallaxedUV = fs_in.uv;
+    if(distanceToCamera < 3000.0) {
+        parallaxedUV = parallaxMapping(fs_in.uv, viewDirTangent);
+    }
 	
 	// --- Compute the normal using the parallaxed UV.
 	vec3 normal = computeNormal(fs_in.wNormal, fs_in.wTangent, parallaxedUV, TBN);
@@ -169,29 +178,44 @@ void main()
       float shadowFactor = calculatedDirectionalShadows();
       
       
+     // Loop over each light source.
     for (int i = 0; i < numLights; i++) {
         if (length(lights[i].color) < 0.001) continue;
 
-        // Calculate light direction in tangent space
+        // Calculate light direction in world space.
         vec3 lightDir = normalize(lights[i].position - fs_in.wPosition);
+        // Compute attenuation based on distance.
+        float distance = length(lights[i].position - fs_in.wPosition);
+        float attenuation = 1.0 / (lights[i].attenuation.x +
+                                   lights[i].attenuation.y * distance +
+                                   lights[i].attenuation.z * distance * distance);
+
+        // Calculate light direction in tangent space.
         vec3 lightDirTangent = normalize(transpose(TBN) * lightDir);
 
-        // Calculate shadow factor
+        // Calculate shadow factor.
         float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV);
-        //shadow += shadowFactor;
-        
-        if (i==0) {
-        	shadow *= shadowFactor;
+        if (i == 0) {
+            shadow *= shadowFactor;
         } else {
-        	shadow += shadowFactor;
+            shadow += shadowFactor;
         }
         
-
-        // Apply shadow to light contribution
+        // Base lighting contribution.
         lighting += shadow * brightnessFactor * 
-                   computeLightContribution(lights[i], fs_in.wPosition, normal, 
-                                          viewDir, metallic, roughness, ao, baseColor);
+                    computeLightContribution(lights[i], fs_in.wPosition, normal, 
+                                              viewDir, metallic, roughness, ao, baseColor) * attenuation;
+
+        // If there's no metallic map, add an extra specular term with attenuation.
+        if (hasMetallic == 0 && reflectivity != 0 && shineDamper != 0) {
+            vec3 reflectDir = reflect(-lightDir, normal);
+            float specAngle = max(dot(viewDir, reflectDir), 0.0);
+            float spec = pow(specAngle, shineDamper);
+            lighting += spec * reflectivity * lights[i].color * attenuation;
+        }
     }
+    
+    
     
     //This is not working :<
     

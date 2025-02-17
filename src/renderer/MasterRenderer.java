@@ -29,7 +29,7 @@ public class MasterRenderer {
 	
 	public static final float NEAR_PLANE = 0.1f;
 	public static final float FOV = 60;
-	public static final float FAR_PLANE = 10000;
+	public static final float FAR_PLANE = 2000000000;
 
     private final ShaderProgram shader;
     private final Matrix4f projectionMatrix;
@@ -290,8 +290,8 @@ public class MasterRenderer {
         shader.setUniform1f("isOpaquePass", (entity.getNormalMapId() != 0) ? 1 : 0);
         
         // If you still use "shineDamper"/"reflectivity" for older code, you can set them
-        //shader.setUniform1f("shineDamper", entity.getShineDamper());
-        //shader.setUniform1f("reflectivity", entity.getReflectivity());
+        shader.setUniform1f("shineDamper", entity.getShineDamper());
+        shader.setUniform1f("reflectivity", entity.getReflectivity());
         
     
         if (entity.isHasTransparency()) {

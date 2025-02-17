@@ -178,7 +178,7 @@ public class PostProcessingRenderer {
         
         postProcessShader.setUniform1f("gamma", 0);
         postProcessShader.setUniform1f("exposure", 0);
-        postProcessShader.setUniform1f("vignetteStrength", 0.0f);
+        postProcessShader.setUniform1f("vignetteStrength", 2.0f);
         
         // Draw the full-screen quad (6 vertices).
         glDrawArrays(GL_TRIANGLES, 0, 6);

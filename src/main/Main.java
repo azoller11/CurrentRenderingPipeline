@@ -11,6 +11,7 @@ import entities.Entity;
 import entities.Light;
 import gui.TextureRenderer;
 import loaders.ObjLoader;
+import loaders.SceneLoader;
 import loaders.TextureLoader;
 import postProcessing.BloomRenderer;
 import postProcessing.PostProcessingRenderer;
@@ -24,6 +25,7 @@ import text.TextRenderer.TextAlignment;
 import text.Font;
 import terrain.TerrainGenerator;
 import terrain.AdaptiveTerrainGenerator;
+import toolbox.Equations;
 import toolbox.Mesh;
 import toolbox.MousePicker;
 
@@ -81,6 +83,7 @@ public class Main {
     //
     private ShadowRenderer shadowRenderer;
     //
+    
     
     // A simple camera
     private Camera camera;
@@ -176,11 +179,12 @@ public class Main {
         
         bloomRenderer = new BloomRenderer(width, height);
         
+        
      // Initialize the ShadowMapRenderer
         shadowRenderer = new ShadowRenderer(2048 * 10,2048 * 10);
        
         
-        gui.GuiTexture texture2 = new gui.GuiTexture(4, 0, 100, 50,50);
+        gui.GuiTexture texture2 = new gui.GuiTexture(5, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
         
        
@@ -383,7 +387,7 @@ public class Main {
 
       
         
-        
+        entities.addAll(SceneLoader.loadScene("sponza.obj", "sponza.mtl"));
         
     
         
@@ -513,8 +517,8 @@ public class Main {
 
             int err = glGetError();
             
-            postRenderer.bindFBO();
-            bloomRenderer.bindSceneFBO();
+            //postRenderer.bindFBO();
+            //bloomRenderer.bindSceneFBO();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             
           
@@ -535,15 +539,18 @@ public class Main {
             // Could add more interesting transforms as well
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
             
-            skyboxRenderer.render(camera, camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000);            
+            skyboxRenderer.render(camera, camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000000);            
            
 
             
-            postRenderer.unbindFBO(width, height);
-            bloomRenderer.unbindSceneFBO(width, height);
+            //postRenderer.unbindFBO(width, height);
+            //bloomRenderer.unbindSceneFBO(width, height);
             
-            postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 0.8f, 1.8f);
+            //postRenderer.renderPostProcess();
+            //bloomRenderer.renderBloom(width, height, 1.8f, 1.8f);
+            
+            //int c = Equations.combineTexturesFixed(3, 4, width, height);
+            //System.out.print(c);
             
             //Render Texture
             glClear(GL_DEPTH_BUFFER_BIT);
@@ -583,7 +590,7 @@ public class Main {
         // Cleanup
     	//terrainRenderer.cleanup();
     	textRenderer.cleanUp();
-    	postRenderer.cleanup();
+    	//postRenderer.cleanup();
         masterRenderer.cleanup();
         skyboxRenderer.cleanUp();
         debugRenderer.cleanup();

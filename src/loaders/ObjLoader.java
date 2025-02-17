@@ -2,7 +2,6 @@ package loaders;
 
 import org.joml.Vector2f;
 import org.joml.Vector3f;
-import org.lwjgl.system.MemoryStack;
 import settings.EngineSettings;
 import toolbox.Mesh;
 
@@ -15,34 +14,17 @@ import java.util.List;
 
 import static org.lwjgl.opengl.GL40.*;
 
-/**
- * OBJ Loader that parses:
- *   v  (positions)
- *   vt (texture coords)
- *   vn (normals) -- but these will be recomputed for smooth shading!
- *   f  (faces) referencing v/t/n indices
- *
- * Produces a Mesh with layout (11 floats/vertex):
- *   [pos.x, pos.y, pos.z,
- *    uv.x, uv.y,
- *    normal.x, normal.y, normal.z,
- *    tangent.x, tangent.y, tangent.z]
- *
- * This version computes smooth normals by averaging the face normals for all vertices
- * sharing the same position.
- */
 public class ObjLoader {
 
     private static final String RES_LOC = "res/";
+    // Toggle debug output for load timing
+    private static final boolean DEBUG = true;
 
-    // Basic container for each "vertex" in the OBJ (pos/uv/normal).
-    // We now also store the original position index for proper normal averaging.
     static class VertexData {
         int posIndex;
         Vector3f position;
         Vector2f uv;
         Vector3f normal;
-        // We'll accumulate tangent here
         Vector3f tangent = new Vector3f(0, 0, 0);
 
         public VertexData(int posIndex, Vector3f pos, Vector2f uv, Vector3f nor) {
@@ -51,7 +33,7 @@ public class ObjLoader {
             this.uv = uv;
             this.normal = nor;
         }
-        
+
         public VertexData(Vector3f pos, Vector2f uv, Vector3f nor) {
             this.position = pos;
             this.uv = uv;
@@ -66,9 +48,10 @@ public class ObjLoader {
      * @return The loaded Mesh
      */
     public static Mesh loadObj(String objFileName) {
-        // Check if the mesh is already loaded and cached
+        long totalStartTime = System.nanoTime();
+
+        // Check cache first
         if (EngineSettings.meshCache.containsKey(objFileName)) {
-            //System.out.println("Model \"" + objFileName + "\" retrieved from cache.");
             return EngineSettings.meshCache.get(objFileName);
         }
 
@@ -78,14 +61,14 @@ public class ObjLoader {
         List<Vector2f> texCoords = new ArrayList<>();
         List<Vector3f> normals = new ArrayList<>();
 
-        // Index lists from faces
         List<Integer> indicesPos = new ArrayList<>();
         List<Integer> indicesTex = new ArrayList<>();
         List<Integer> indicesNor = new ArrayList<>();
 
-        float furthestDistanceSquared = 0.0f; // Store squared distance to avoid sqrt computations
+        float furthestDistanceSquared = 0.0f;
 
-        // 1) Parse the OBJ
+        // STEP 1: Parse the OBJ file.
+        long parseStartTime = System.nanoTime();
         try (FileReader fr = new FileReader(objFile);
              BufferedReader reader = new BufferedReader(fr)) {
             String line;
@@ -93,9 +76,7 @@ public class ObjLoader {
                 line = line.trim();
                 if (line.startsWith("v ")) {
                     Vector3f position = parseVector3f(line);
-
-                    // Update furthest distance
-                    float distanceSquared = position.lengthSquared(); // Faster than computing sqrt
+                    float distanceSquared = position.lengthSquared();
                     if (distanceSquared > furthestDistanceSquared) {
                         furthestDistanceSquared = distanceSquared;
                     }
@@ -111,99 +92,81 @@ public class ObjLoader {
         } catch (IOException e) {
             throw new RuntimeException("Error reading OBJ file: " + objFile.getAbsolutePath(), e);
         }
+        long parseEndTime = System.nanoTime();
 
-        // 2) Build an expanded VertexData array for each face vertex.
-        // For smooth shading we want to average normals across all vertices that share the same position,
-        // so we store the original position index and ignore (override) any normals read from file.
-        int numVertices = indicesPos.size(); // 3 per face for a triangle
+        // STEP 2: Build VertexData array.
+        long vertexDataStartTime = System.nanoTime();
+        int numVertices = indicesPos.size();
         VertexData[] vertexDataArray = new VertexData[numVertices];
-
         for (int i = 0; i < numVertices; i++) {
-            int pIndex = indicesPos.get(i) - 1; // OBJ is 1-based
+            int pIndex = indicesPos.get(i) - 1;
             int tIndex = indicesTex.get(i) - 1;
-            // We ignore the file-supplied normals for smooth shading.
-            // int nIndex = indicesNor.get(i) - 1;
-
             Vector3f pos = positions.get(pIndex);
-
             Vector2f uv = (tIndex >= 0 && tIndex < texCoords.size())
                     ? texCoords.get(tIndex)
                     : new Vector2f(0.0f, 0.0f);
-
-            // Initialize normal to zero vector; it will be computed below.
-            Vector3f nor = new Vector3f(0, 0, 0);
-
-            vertexDataArray[i] = new VertexData(pIndex, pos, uv, nor);
+            vertexDataArray[i] = new VertexData(pIndex, pos, uv, new Vector3f(0, 0, 0));
         }
+        long vertexDataEndTime = System.nanoTime();
 
-        // 3) Compute tangents face-by-face.
-        // Each face is 3 consecutive vertices in "vertexDataArray".
+        // STEP 3: Compute tangents for each triangle.
+        long tangentStartTime = System.nanoTime();
         for (int i = 0; i < numVertices; i += 3) {
-            VertexData v0 = vertexDataArray[i];
-            VertexData v1 = vertexDataArray[i + 1];
-            VertexData v2 = vertexDataArray[i + 2];
-
-            computeTangentsForTriangle(v0, v1, v2);
+            computeTangentsForTriangle(vertexDataArray[i],
+                                       vertexDataArray[i + 1],
+                                       vertexDataArray[i + 2]);
         }
+        long tangentEndTime = System.nanoTime();
 
-        // 4) Compute smooth normals by averaging the face normals for each unique vertex (by position)
+        // STEP 4: Compute smooth normals.
+        long normalsStartTime = System.nanoTime();
         Vector3f[] smoothNormals = new Vector3f[positions.size()];
         for (int i = 0; i < smoothNormals.length; i++) {
             smoothNormals[i] = new Vector3f(0, 0, 0);
         }
-
-        // Loop over each face (group of 3 vertices)
         for (int i = 0; i < numVertices; i += 3) {
             VertexData v0 = vertexDataArray[i];
             VertexData v1 = vertexDataArray[i + 1];
             VertexData v2 = vertexDataArray[i + 2];
 
-            // Compute the face normal (using cross product of two edges)
             Vector3f edge1 = new Vector3f(v1.position).sub(v0.position);
             Vector3f edge2 = new Vector3f(v2.position).sub(v0.position);
             Vector3f faceNormal = edge1.cross(edge2, new Vector3f()).normalize();
 
-            // Accumulate this face normal into each vertex's smooth normal (using the original position index)
             smoothNormals[v0.posIndex].add(faceNormal);
             smoothNormals[v1.posIndex].add(faceNormal);
             smoothNormals[v2.posIndex].add(faceNormal);
         }
-
-        // Now update each vertex with the normalized smooth normal.
         for (VertexData vd : vertexDataArray) {
-            // Use the accumulated normal for the original vertex position and normalize it.
-            Vector3f smooth = smoothNormals[vd.posIndex].normalize(new Vector3f());
-            vd.normal.set(smooth);
+            vd.normal.set(smoothNormals[vd.posIndex].normalize(new Vector3f()));
         }
+        long normalsEndTime = System.nanoTime();
 
-        // 5) Build final float[] with 11 floats per vertex:
-        //    (pos.x, pos.y, pos.z, uv.x, uv.y, normal.x, normal.y, normal.z, tangent.x, tangent.y, tangent.z)
+        // STEP 5: Build final float array.
+        long finalDataStartTime = System.nanoTime();
         float[] finalData = new float[numVertices * 11];
         int floatIndex = 0;
         for (int i = 0; i < numVertices; i++) {
             VertexData vd = vertexDataArray[i];
-
             finalData[floatIndex++] = vd.position.x;
             finalData[floatIndex++] = vd.position.y;
             finalData[floatIndex++] = vd.position.z;
-
             finalData[floatIndex++] = vd.uv.x;
             finalData[floatIndex++] = vd.uv.y;
-
             finalData[floatIndex++] = vd.normal.x;
             finalData[floatIndex++] = vd.normal.y;
             finalData[floatIndex++] = vd.normal.z;
-
-            // Normalize the tangent (since it was accumulated over faces)
             vd.tangent.normalize();
             finalData[floatIndex++] = vd.tangent.x;
             finalData[floatIndex++] = vd.tangent.y;
             finalData[floatIndex++] = vd.tangent.z;
         }
+        long finalDataEndTime = System.nanoTime();
 
         float furthestDistance = (float) Math.sqrt(furthestDistanceSquared);
 
-        // 6) Create VAO, VBO
+        // STEP 6: Create VAO, VBO and upload data.
+        long uploadStartTime = System.nanoTime();
         int vao = glGenVertexArrays();
         glBindVertexArray(vao);
 
@@ -216,50 +179,205 @@ public class ObjLoader {
         fb.put(finalData).flip();
         glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
 
-        // pos => loc=0 (3 floats)
         int stride = 11 * Float.BYTES;
         glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0L);
         glEnableVertexAttribArray(0);
 
-        // uv => loc=1 (2 floats)
         glVertexAttribPointer(1, 2, GL_FLOAT, false, stride, 3L * Float.BYTES);
         glEnableVertexAttribArray(1);
 
-        // normal => loc=2 (3 floats)
         glVertexAttribPointer(2, 3, GL_FLOAT, false, stride, 5L * Float.BYTES);
         glEnableVertexAttribArray(2);
 
-        // tangent => loc=3 (3 floats)
         glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 8L * Float.BYTES);
         glEnableVertexAttribArray(3);
 
         glBindVertexArray(0);
+        long uploadEndTime = System.nanoTime();
 
         Mesh mesh = new Mesh(vao, numVertices, furthestDistance);
-
-        // Store the loaded mesh in the cache
         EngineSettings.meshCache.put(objFileName, mesh);
-        //System.out.println("Model \"" + objFileName + "\" loaded and cached.");
+
+        long totalEndTime = System.nanoTime();
+
+        if (DEBUG) {
+            String debugInfo = String.format("OBJ Load [%s]: parse=%.2f ms, vertexData=%.2f ms, tangents=%.2f ms, normals=%.2f ms, finalData=%.2f ms, GPU upload=%.2f ms, total=%.2f ms",
+                    objFileName,
+                    (parseEndTime - parseStartTime) / 1_000_000.0,
+                    (vertexDataEndTime - vertexDataStartTime) / 1_000_000.0,
+                    (tangentEndTime - tangentStartTime) / 1_000_000.0,
+                    (normalsEndTime - normalsStartTime) / 1_000_000.0,
+                    (finalDataEndTime - finalDataStartTime) / 1_000_000.0,
+                    (uploadEndTime - uploadStartTime) / 1_000_000.0,
+                    (totalEndTime - totalStartTime) / 1_000_000.0);
+            System.out.println(debugInfo);
+        }
 
         return mesh;
     }
     
-  
-    // ---------------------------------------------------
-    //  Tangent Calculation for a Single Triangle
-    // ---------------------------------------------------
+      public static Mesh loadMeshFromLines(List<String> lines) {
+        long totalStartTime = System.nanoTime();
+
+        List<Vector3f> positions = new ArrayList<>();
+        List<Vector2f> texCoords = new ArrayList<>();
+        List<Vector3f> normals = new ArrayList<>();
+
+        List<Integer> indicesPos = new ArrayList<>();
+        List<Integer> indicesTex = new ArrayList<>();
+        List<Integer> indicesNor = new ArrayList<>();
+
+        float furthestDistanceSquared = 0.0f;
+
+        // STEP 1: Parse the lines.
+        long parseStartTime = System.nanoTime();
+        for (String line : lines) {
+            line = line.trim();
+            if (line.startsWith("v ")) {
+                Vector3f position = parseVector3f(line);
+                float distanceSquared = position.lengthSquared();
+                if (distanceSquared > furthestDistanceSquared) {
+                    furthestDistanceSquared = distanceSquared;
+                }
+                positions.add(position);
+            } else if (line.startsWith("vt ")) {
+                texCoords.add(parseVector2f(line));
+            } else if (line.startsWith("vn ")) {
+                normals.add(parseVector3f(line));
+            } else if (line.startsWith("f ")) {
+                parseFace(line, indicesPos, indicesTex, indicesNor);
+            }
+        }
+        long parseEndTime = System.nanoTime();
+
+        // STEP 2: Build VertexData array.
+        long vertexDataStartTime = System.nanoTime();
+        int numVertices = indicesPos.size();
+        VertexData[] vertexDataArray = new VertexData[numVertices];
+        for (int i = 0; i < numVertices; i++) {
+            int pIndex = indicesPos.get(i) - 1;
+            int tIndex = indicesTex.get(i) - 1;
+            Vector3f pos = positions.get(pIndex);
+            Vector2f uv = (tIndex >= 0 && tIndex < texCoords.size())
+                    ? texCoords.get(tIndex)
+                    : new Vector2f(0.0f, 0.0f);
+            vertexDataArray[i] = new VertexData(pIndex, pos, uv, new Vector3f(0, 0, 0));
+        }
+        long vertexDataEndTime = System.nanoTime();
+
+        // STEP 3: Compute tangents for each triangle.
+        long tangentStartTime = System.nanoTime();
+        for (int i = 0; i < numVertices; i += 3) {
+            computeTangentsForTriangle(vertexDataArray[i],
+                                       vertexDataArray[i + 1],
+                                       vertexDataArray[i + 2]);
+        }
+        long tangentEndTime = System.nanoTime();
+
+        // STEP 4: Compute smooth normals.
+        long normalsStartTime = System.nanoTime();
+        Vector3f[] smoothNormals = new Vector3f[positions.size()];
+        for (int i = 0; i < smoothNormals.length; i++) {
+            smoothNormals[i] = new Vector3f(0, 0, 0);
+        }
+        for (int i = 0; i < numVertices; i += 3) {
+            VertexData v0 = vertexDataArray[i];
+            VertexData v1 = vertexDataArray[i + 1];
+            VertexData v2 = vertexDataArray[i + 2];
+
+            Vector3f edge1 = new Vector3f(v1.position).sub(v0.position);
+            Vector3f edge2 = new Vector3f(v2.position).sub(v0.position);
+            Vector3f faceNormal = edge1.cross(edge2, new Vector3f()).normalize();
+
+            smoothNormals[v0.posIndex].add(faceNormal);
+            smoothNormals[v1.posIndex].add(faceNormal);
+            smoothNormals[v2.posIndex].add(faceNormal);
+        }
+        for (VertexData vd : vertexDataArray) {
+            vd.normal.set(smoothNormals[vd.posIndex].normalize(new Vector3f()));
+        }
+        long normalsEndTime = System.nanoTime();
+
+        // STEP 5: Build final float array.
+        long finalDataStartTime = System.nanoTime();
+        float[] finalData = new float[numVertices * 11]; // 3 pos, 2 uv, 3 normal, 3 tangent = 11 floats
+        int floatIndex = 0;
+        for (int i = 0; i < numVertices; i++) {
+            VertexData vd = vertexDataArray[i];
+            finalData[floatIndex++] = vd.position.x;
+            finalData[floatIndex++] = vd.position.y;
+            finalData[floatIndex++] = vd.position.z;
+            finalData[floatIndex++] = vd.uv.x;
+            finalData[floatIndex++] = vd.uv.y;
+            finalData[floatIndex++] = vd.normal.x;
+            finalData[floatIndex++] = vd.normal.y;
+            finalData[floatIndex++] = vd.normal.z;
+            vd.tangent.normalize();
+            finalData[floatIndex++] = vd.tangent.x;
+            finalData[floatIndex++] = vd.tangent.y;
+            finalData[floatIndex++] = vd.tangent.z;
+        }
+        long finalDataEndTime = System.nanoTime();
+
+        float furthestDistance = (float) Math.sqrt(furthestDistanceSquared);
+
+        // STEP 6: Create VAO, VBO and upload data.
+        long uploadStartTime = System.nanoTime();
+        int vao = glGenVertexArrays();
+        glBindVertexArray(vao);
+
+        int vbo = glGenBuffers();
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        FloatBuffer fb = ByteBuffer.allocateDirect(finalData.length * Float.BYTES)
+                .order(ByteOrder.nativeOrder())
+                .asFloatBuffer();
+        fb.put(finalData).flip();
+        glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+
+        int stride = 11 * Float.BYTES;
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0L);
+        glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 2, GL_FLOAT, false, stride, 3L * Float.BYTES);
+        glEnableVertexAttribArray(1);
+
+        glVertexAttribPointer(2, 3, GL_FLOAT, false, stride, 5L * Float.BYTES);
+        glEnableVertexAttribArray(2);
+
+        glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 8L * Float.BYTES);
+        glEnableVertexAttribArray(3);
+
+        glBindVertexArray(0);
+        long uploadEndTime = System.nanoTime();
+
+        Mesh mesh = new Mesh(vao, numVertices, furthestDistance);
+
+        long totalEndTime = System.nanoTime();
+
+        if (DEBUG) {
+            String debugInfo = String.format("Mesh Load from lines: parse=%.2f ms, vertexData=%.2f ms, tangents=%.2f ms, normals=%.2f ms, finalData=%.2f ms, GPU upload=%.2f ms, total=%.2f ms",
+                    (parseEndTime - parseStartTime) / 1_000_000.0,
+                    (vertexDataEndTime - vertexDataStartTime) / 1_000_000.0,
+                    (tangentEndTime - tangentStartTime) / 1_000_000.0,
+                    (normalsEndTime - normalsStartTime) / 1_000_000.0,
+                    (finalDataEndTime - finalDataStartTime) / 1_000_000.0,
+                    (uploadEndTime - uploadStartTime) / 1_000_000.0,
+                    (totalEndTime - totalStartTime) / 1_000_000.0);
+            System.out.println(debugInfo);
+        }
+
+        return mesh;
+    }
     private static void computeTangentsForTriangle(VertexData v0, VertexData v1, VertexData v2) {
-        // pos edges
         Vector3f edgePos1 = new Vector3f(v1.position).sub(v0.position);
         Vector3f edgePos2 = new Vector3f(v2.position).sub(v0.position);
 
-        // uv edges
         Vector2f edgeUV1 = new Vector2f(v1.uv).sub(v0.uv);
         Vector2f edgeUV2 = new Vector2f(v2.uv).sub(v0.uv);
 
         float r = (edgeUV1.x * edgeUV2.y - edgeUV1.y * edgeUV2.x);
         if (Math.abs(r) < 0.0001f) {
-            // Avoid division by zero (or handle degenerate UV)
             r = 0.0001f;
         }
         float inv = 1.0f / r;
@@ -270,18 +388,12 @@ public class ObjLoader {
                 inv * (edgePos1.z * edgeUV2.y - edgePos2.z * edgeUV1.y)
         );
 
-        // Accumulate the tangent into each vertex
         v0.tangent.add(tangent);
         v1.tangent.add(tangent);
         v2.tangent.add(tangent);
     }
 
-    // ---------------------------------------------------
-    //  Helpers
-    // ---------------------------------------------------
-
     private static Vector3f parseVector3f(String line) {
-        // e.g. "v 0.1 1.2 2.3" or "vn 0.5 0.6 0.7"
         String[] tokens = line.split("\\s+");
         float x = Float.parseFloat(tokens[1]);
         float y = Float.parseFloat(tokens[2]);
@@ -290,45 +402,27 @@ public class ObjLoader {
     }
 
     private static Vector2f parseVector2f(String line) {
-        // e.g. "vt 0.5 0.6"
         String[] tokens = line.split("\\s+");
         float u = Float.parseFloat(tokens[1]);
         float v = Float.parseFloat(tokens[2]);
-
-        // Flip the V to match typical OBJ convention
         v = 1.0f - v;
-
         return new Vector2f(u, v);
     }
 
-    /**
-     * Parse a face line: "f v1/t1/n1 v2/t2/n2 v3/t3/n3"
-     * We store the indices in separate lists (positions, texCoords, normals).
-     */
-    /**
-     * Parse a face line: "f v1/t1/n1 v2/t2/n2 v3/t3/n3 ..." and triangulate n-gons.
-     */
     private static void parseFace(String line,
                                   List<Integer> indicesPos,
                                   List<Integer> indicesTex,
                                   List<Integer> indicesNor) {
         String[] tokens = line.split("\\s+");
         List<String> faceVertices = new ArrayList<>();
-
-        // Collect all face vertices (skip "f" token)
         for (int i = 1; i < tokens.length; i++) {
             faceVertices.add(tokens[i]);
         }
-
         int numVertices = faceVertices.size();
         if (numVertices < 3) {
-            // Not a valid face; skip
             return;
         }
-
-        // Triangulate the face into (numVertices - 2) triangles
         for (int i = 1; i < numVertices - 1; i++) {
-            // Parse three vertices for each triangle: first, i+1, i+2
             processFaceVertex(faceVertices.get(0), indicesPos, indicesTex, indicesNor);
             processFaceVertex(faceVertices.get(i), indicesPos, indicesTex, indicesNor);
             processFaceVertex(faceVertices.get(i + 1), indicesPos, indicesTex, indicesNor);
@@ -340,24 +434,19 @@ public class ObjLoader {
                                           List<Integer> indicesTex,
                                           List<Integer> indicesNor) {
         String[] parts = vertexToken.split("/");
-        // Parse position index (mandatory)
         int posIndex = Integer.parseInt(parts[0]);
         indicesPos.add(posIndex);
 
-        // Parse texture index (optional)
         int texIndex = 0;
         if (parts.length > 1 && !parts[1].isEmpty()) {
             texIndex = Integer.parseInt(parts[1]);
         }
         indicesTex.add(texIndex);
 
-        // Parse normal index (optional)
         int norIndex = 0;
         if (parts.length > 2 && !parts[2].isEmpty()) {
             norIndex = Integer.parseInt(parts[2]);
         }
         indicesNor.add(norIndex);
     }
-    
-    
 }
