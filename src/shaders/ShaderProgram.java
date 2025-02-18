@@ -1,6 +1,7 @@
 package shaders;
 
 import org.joml.Matrix3f;
+import org.joml.Matrix3fc;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.joml.Vector3f; // Changed to JOML's Vector3f for consistency
@@ -370,6 +371,21 @@ public class ShaderProgram {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer buffer = stack.mallocFloat(16);
             matrix.get(buffer);
+            glUniformMatrix4fv(location, false, buffer);
+        }
+    }
+    
+    public void setUniformMat4(String name, org.lwjgl.util.vector.Matrix4f matrix) {
+        int location = getUniformLocation(name); // Get the uniform location
+        if (location < 0) {
+            System.err.println("Warning: Uniform '" + name + "' not found in shader program!");
+            return;
+        }
+
+        // Convert Matrix4f to a FloatBuffer and upload it to the shader
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer buffer = stack.mallocFloat(16);
+            ((Matrix3fc) matrix).get(buffer);
             glUniformMatrix4fv(location, false, buffer);
         }
     }

@@ -34,7 +34,8 @@ public class MasterRenderer {
     private final ShaderProgram shader;
     private final Matrix4f projectionMatrix;
     
-    private int screenWidth, screenHeight;
+    private static int screenWidth;
+	private static int screenHeight;
     
     private Frustum frustum;
 
@@ -342,9 +343,27 @@ public class MasterRenderer {
         
         return matrix;
     }
+    
+    
 
 
-    /**
+    public static int getScreenWidth() {
+		return screenWidth;
+	}
+
+	public void setScreenWidth(int screenWidth) {
+		this.screenWidth = screenWidth;
+	}
+
+	public static int getScreenHeight() {
+		return screenHeight;
+	}
+
+	public void setScreenHeight(int screenHeight) {
+		this.screenHeight = screenHeight;
+	}
+
+	/**
      * Cleanup the shader (call at end of program).
      */
     public void cleanup() {
