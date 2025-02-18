@@ -184,7 +184,7 @@ public class Main {
         shadowRenderer = new ShadowRenderer(2048 * 10,2048 * 10);
        
         
-        gui.GuiTexture texture2 = new gui.GuiTexture(5, 0, 100, 50,50);
+        gui.GuiTexture texture2 = new gui.GuiTexture(8, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
         
        
@@ -268,8 +268,8 @@ public class Main {
         Entity cube4 = new Entity(ObjLoader.loadObj("tallPine4"), TextureLoader.loadTexture("pineTexture3.png"), new Vector3f(5, 0, 0), new Vector3f(0,0,0), 1f);
         //cube4.setNormalMapId(TextureLoader.loadTexture("boxNormal.png"));
         //cube4.setHeighMapId(TextureLoader.loadTexture("boxHeightMap.png"));
-        cube4.setReflectivity(0.1f);
-        cube4.setShineDamper(1);
+        //cube4.setReflectivity(0.1f);
+        //cube4.setShineDamper(1);
         cube4.setHasTransparency(true);
         //cube4.setMetallicMap(metallicMapTexture);
         //cube4.setAoMap(aoMapTexture);
@@ -387,7 +387,7 @@ public class Main {
 
       
         
-        entities.addAll(SceneLoader.loadScene("sponza.obj", "sponza.mtl"));
+        //entities.addAll(SceneLoader.loadScene("sponza.obj", "sponza.mtl"));
         
     
         
@@ -514,7 +514,7 @@ public class Main {
             
            
             int shadowTextureID = shadowRenderer.getDepthMapTexture();
-
+            //System.out.println(shadowTextureID);
             int err = glGetError();
             
             //postRenderer.bindFBO();

@@ -202,6 +202,35 @@ public class Camera {
         getDirection().cross(getUp(), right).normalize();
         return right;
     }
+   
+    public Vector3f[] getFrustumCorners(Matrix4f projectionMatrix) {
+        Vector3f[] corners = new Vector3f[8];
+        
+        // Compute the combined projection-view matrix
+        Matrix4f viewMatrix = getViewMatrix();
+        Matrix4f viewProj = new Matrix4f();
+        projectionMatrix.mul(viewMatrix, viewProj);
+        
+        // Invert the matrix so we can transform from clip space to world space.
+        Matrix4f invViewProj = new Matrix4f(viewProj).invert();
+
+        // Loop over all combinations of x,y,z in clip space (-1 or 1)
+        int i = 0;
+        for (int x = -1; x <= 1; x += 2) {
+            for (int y = -1; y <= 1; y += 2) {
+                for (int z = -1; z <= 1; z += 2) {
+                    Vector4f clipSpaceCorner = new Vector4f(x, y, z, 1.0f);
+                    Vector4f worldSpaceCorner = new Vector4f();
+                    invViewProj.transform(clipSpaceCorner, worldSpaceCorner);
+                    // Divide by w to perform perspective divide.
+                    worldSpaceCorner.div(worldSpaceCorner.w);
+                    corners[i++] = new Vector3f(worldSpaceCorner.x, worldSpaceCorner.y, worldSpaceCorner.z);
+                }
+            }
+        }
+        
+        return corners;
+    }
 
     /**
      * Computes and returns the center of the camera's view frustum.

@@ -140,7 +140,7 @@ public class ShadowRenderer {
     public static Matrix4f createLightSpaceMatrix(Light light, Camera camera) {
         float orthoSize = 400.0f; 
         float near = 1.0f;
-        float far = 180000000.0f;
+        float far = 1800.0f;
 
         // Light direction (keep your existing inversion logic)
         Vector3f lightDir = new Vector3f(light.getPosition()).normalize();

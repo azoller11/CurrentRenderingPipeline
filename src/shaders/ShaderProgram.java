@@ -440,6 +440,11 @@ public class ShaderProgram {
 	        }
 		
 	}
+
+	public void cleanUp() {
+		// TODO Auto-generated method stub
+		
+	}
 	
 	
 

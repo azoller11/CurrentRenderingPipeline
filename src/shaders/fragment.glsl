@@ -202,16 +202,22 @@ void main()
         }
         
         // Base lighting contribution.
-        lighting += shadow * brightnessFactor * 
-                    computeLightContribution(lights[i], fs_in.wPosition, normal, 
-                                              viewDir, metallic, roughness, ao, baseColor) * attenuation;
+       
 
         // If there's no metallic map, add an extra specular term with attenuation.
-        if (hasMetallic == 0 && reflectivity != 0 && shineDamper != 0) {
+        if (hasMetallic == 0 && reflectivity > 0 && shineDamper > 0) {
+         	lighting += shadow * brightnessFactor * 
+                    computeLightContribution(lights[i], fs_in.wPosition, normal, 
+                                              viewDir, metallic, roughness, ao, baseColor) * attenuation;
             vec3 reflectDir = reflect(-lightDir, normal);
             float specAngle = max(dot(viewDir, reflectDir), 0.0);
             float spec = pow(specAngle, shineDamper);
             lighting += spec * reflectivity * lights[i].color * attenuation;
+        } else {
+         lighting += shadow * brightnessFactor * 
+                   computeLightContribution(lights[i], fs_in.wPosition, normal, 
+                                          viewDir, metallic, roughness, ao, baseColor);
+        
         }
     }
     
