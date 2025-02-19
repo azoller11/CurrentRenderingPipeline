@@ -2,6 +2,7 @@ package renderer;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.system.MemoryStack;
@@ -17,8 +18,10 @@ import toolbox.Equations;
 import toolbox.Frustum;
 import toolbox.Mesh;
 
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.List;
+import java.util.Random;
 
 import static org.lwjgl.opengl.GL11.GL_NO_ERROR;
 import static org.lwjgl.opengl.GL11.glClearColor;
@@ -38,6 +41,14 @@ public class MasterRenderer {
 	private static int screenHeight;
     
     private Frustum frustum;
+    
+    // --- New SSAO resources ---
+    private int depthFBO;
+    private int depthTextureID;
+    private int noiseTextureID;
+    private final int NOISE_SIZE = 4;
+    private final int NUM_SAMPLES = 64;
+    private Vector3f[] sampleKernel;
 
     // For each frame, we’ll set up the "view" from the camera.
     // We keep the "projection" in a single place here for simplicity.
@@ -114,6 +125,11 @@ public class MasterRenderer {
         // We'll use JOML to build the matrix. The final pass to GPU is still float[].
         projectionMatrix = new Matrix4f().perspective(fov, aspect, near, far);
         
+        // --- Initialize new SSAO resources ---
+        initDepthTexture();
+        initNoiseTexture();
+        generateSampleKernel();
+        
      // Initialize the ShadowMapRenderer
     }
 
@@ -188,6 +204,26 @@ public class MasterRenderer {
    
         
         frustum.calculateFrustum(projectionMatrix, view);
+        
+        
+        // Bind SSAO resources:
+        // Bind depth texture to texture unit 7.
+        glActiveTexture(GL_TEXTURE7);
+        glBindTexture(GL_TEXTURE_2D, depthTextureID);
+        shader.setUniform1i("depthTexture", 7);
+        // Bind noise texture to texture unit 8.
+        glActiveTexture(GL_TEXTURE8);
+        glBindTexture(GL_TEXTURE_2D, noiseTextureID);
+        shader.setUniform1i("noiseTexture", 8);
+        // Upload sample kernel array.
+        for (int i = 0; i < NUM_SAMPLES; i++) {
+            Vector3f sample = sampleKernel[i];
+            shader.setUniform3f("sampleKernel[" + i + "]", sample.x, sample.y, sample.z);
+        }
+        
+        
+        
+        
         // 5) For each entity, build the model matrix and draw
         for (Entity entity : entities) {
         	if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint() * entity.getScale()))
@@ -346,6 +382,80 @@ public class MasterRenderer {
         matrix.translate(new Vector3f(-pivot.x, -pivot.y, -pivot.z));
         
         return matrix;
+    }
+    
+    private void initDepthTexture() {
+        // Generate the FBO
+        depthFBO = glGenFramebuffers();
+        glBindFramebuffer(GL_FRAMEBUFFER, depthFBO);
+
+        // Create depth texture
+        depthTextureID = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, depthTextureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, screenWidth, screenHeight, 0,
+                GL_DEPTH_COMPONENT, GL_FLOAT, (ByteBuffer) null);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        // Attach texture to FBO as depth attachment
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTextureID, 0);
+
+        // No color buffer is drawn to.
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            System.err.println("Error: Depth framebuffer is not complete!");
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    /**
+     * Generates a small noise texture used to randomize sample directions.
+     */
+    private void initNoiseTexture() {
+        int noiseTextureSize = NOISE_SIZE;
+        FloatBuffer noiseBuffer = BufferUtils.createFloatBuffer(noiseTextureSize * noiseTextureSize * 3);
+        Random random = new Random();
+        for (int i = 0; i < noiseTextureSize * noiseTextureSize; i++) {
+            // Generate random xy values in range [-1,1], z = 0.
+            float x = random.nextFloat() * 2.0f - 1.0f;
+            float y = random.nextFloat() * 2.0f - 1.0f;
+            noiseBuffer.put(x).put(y).put(0.0f);
+        }
+        noiseBuffer.flip();
+
+        noiseTextureID = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, noiseTextureID);
+        // Using GL_RGB16F for high precision; adjust if needed.
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, noiseTextureSize, noiseTextureSize, 0, GL_RGB, GL_FLOAT, noiseBuffer);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        // Tiling the noise texture over the screen.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    /**
+     * Generates an array of sample kernel vectors for SSAO.
+     */
+    private void generateSampleKernel() {
+        sampleKernel = new Vector3f[NUM_SAMPLES];
+        Random random = new Random();
+        for (int i = 0; i < NUM_SAMPLES; i++) {
+            // Random vector with x,y in range [-1,1] and z in range [0,1]
+            float x = random.nextFloat() * 2.0f - 1.0f;
+            float y = random.nextFloat() * 2.0f - 1.0f;
+            float z = random.nextFloat();
+            Vector3f sample = new Vector3f(x, y, z).normalize();
+            // Scale samples so they're more concentrated near the origin.
+            float scale = (float) i / NUM_SAMPLES;
+            scale = 0.1f + 0.9f * (scale * scale);
+            sample.mul(scale);
+            sampleKernel[i] = sample;
+        }
     }
     
     

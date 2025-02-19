@@ -19,15 +19,15 @@ public class SkyboxRenderer {
 
     // Controls progression along the orbit (in radians). 
     // When sunAngle == 0, the sun will be overhead (if orbitRotation==0).
-    private float sunAngle = 0.0f;
+    private float sunAngle = 0.5f;
     private float scrollSpeed = 0.02f; // Adjusts sun movement per scroll
 
     // New variable: Adjusts the rotation (or tilt) of the sun/moon orbit around the Y-axis.
     // When orbitRotation == 0, the orbit’s “zero” position is along the positive Y axis.
-    private float orbitRotation = 0.0f; // in radians
+    private float orbitRotation = 0.25f; // in radians
 
     // New variables for sun & moon brightness & size
-    private float maxSunBrightness = 2.2f;
+    private float maxSunBrightness = 3.2f;
     private float maxMoonBrightness = 0.25f;
     private float sunSize = 0.015f;
     private float moonSize = 0.02f;

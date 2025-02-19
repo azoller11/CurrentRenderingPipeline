@@ -63,26 +63,28 @@ public class MTLLoader {
                             // Only load once if not already set.
                             if (currentMaterial.diffuseTextureId == 0) {
                                 currentMaterial.diffuseTextureId = TextureLoader.loadTexture(texFile);
-                                
-                                try {
-                                	if (texFile.replace("diff", "spec") != texFile)
-                                		currentMaterial.metallicMapId = TextureLoader.loadTexture(texFile.replace("diff", "spec"));
-                                	//currentMaterial.roughnessMapId = TextureLoader.loadTexture(texFile.replace("diff", "spec"));
-                                } catch(Exception e) {}
-                                try {
-                                	if (texFile.replace("diff", "bump") != texFile)
-                                		currentMaterial.heightMapId = TextureLoader.loadTexture(texFile.replace("diff", "bump"));
-                                } catch(Exception e) {}
                                 try {
                                 	if (texFile.replace("diff", "mask") != texFile)
                                 		currentMaterial.roughnessMapId = TextureLoader.loadTexture(texFile.replace("diff", "mask"));
                                 } catch(Exception e) {}
                                 try {
-                                	if (texFile.replace("diff", "NRM") != texFile)
-                                		currentMaterial.normalTextureId = TextureLoader.loadTexture(texFile.replace("diff", "NRM"));
+                                	if (texFile.replace("diff", "spec") != texFile)
+                                		currentMaterial.metallicMapId = TextureLoader.loadTexture(texFile.replace("diff", "spec"));
+                                	    currentMaterial.roughnessMapId = TextureLoader.loadTexture(texFile.replace("diff", "spec"));
                                 } catch(Exception e) {}
                                 try {
-                                	//currentMaterial.normalTextureId = TextureLoader.loadTexture(texFile.replace("diff", "ddn"));
+                                	if (texFile.replace("diff", "bump") != texFile)
+                                		currentMaterial.heightMapId = TextureLoader.loadTexture(texFile.replace("diff", "bump"));
+                                } catch(Exception e) {}
+                               
+                                try {
+                                	if (texFile.replace("diff", "ddn") != texFile)
+                                		currentMaterial.normalTextureId = TextureLoader.loadTexture(texFile.replace("diff", "ddn"));
+                                } catch(Exception e) {}
+                                
+                                try {
+                                	if (texFile.replace("diff", "NRM") != texFile)
+                                		currentMaterial.normalTextureId = TextureLoader.loadTexture(texFile.replace("diff", "NRM"));
                                 } catch(Exception e) {}
                                 
                             }

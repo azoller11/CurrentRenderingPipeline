@@ -54,6 +54,15 @@ uniform int debugMode;
 // New Uniform for Opaque Pass
 uniform int isOpaquePass;
 
+
+uniform sampler2D depthTexture;
+uniform sampler2D noiseTexture;
+uniform vec3 sampleKernel[64];
+uniform mat4 projection;
+uniform float noiseScale = 1.0;
+uniform float radius = 0.5;
+uniform float bias = 0.025;
+
 // -----------------------------------------------------------------------------
 // Inputs and Outputs
 // -----------------------------------------------------------------------------
@@ -78,6 +87,41 @@ float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV);
 float calculatedDirectionalShadows();
 
 
+float computeAO(vec2 uv, vec3 fragPos, vec3 normal) {
+    float occlusion = 0.0;
+    
+    if (hasAo == 0)
+    	return occlusion;
+    	
+    // Get a random rotation vector from the noise texture.
+    vec3 randomVec = normalize(texture(noiseTexture, uv * noiseScale).rgb);
+
+    // Construct TBN matrix.
+    vec3 tangent   = normalize(randomVec - normal * dot(randomVec, normal));
+    vec3 bitangent = cross(normal, tangent);
+    mat3 TBN = mat3(tangent, bitangent, normal);
+    
+    for (int i = 0; i < 64; i++) {
+        // Transform sample to view space.
+        vec3 sampleVec = TBN * sampleKernel[i];
+        sampleVec = fragPos + sampleVec * radius;
+        
+        // Project the sample position into clip space.
+        vec4 offset = projection * vec4(sampleVec, 1.0);
+        offset.xyz /= offset.w;
+        offset.xyz = offset.xyz * 0.5 + 0.5;
+        
+        // Sample depth from depth texture.
+        float sampleDepth = texture(depthTexture, offset.xy).r;
+        
+        // Compare depths to determine occlusion.
+        float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragPos.z - sampleDepth));
+        occlusion += (sampleDepth >= sampleVec.z + bias ? 1.0 : 0.0) * rangeCheck;
+    }
+    
+    occlusion = 1.0 - (occlusion / float(64));
+    return occlusion;
+}
 
 
 // Trowbridge-Reitz GGX normal distribution function.
@@ -156,14 +200,17 @@ void main()
 	 
     // Sample textures.
     vec4 texColor = texture(diffuseTexture, parallaxedUV);
-    if (texColor.a < 0.1)
-        discard;
-        
+    //if (texColor.a < 0.1)
+    //    discard;
+    if (isOpaquePass != 1 && texColor.a < 0.1)
+    	discard;  
         
        
         
         
     vec3 baseColor = texColor.rgb;
+    
+    
     
     // Sample PBR maps.
     float metallic = (hasMetallic == 1) ? texture(metallicMap, parallaxedUV).r : 0.0;
@@ -171,10 +218,14 @@ void main()
     float ao = (hasAo == 1) ? texture(aoMap, parallaxedUV).r : 1.0;
 
     // Increase ambient brightness.
-    vec3 ambient = 0.1 * baseColor * ao;  // Increased ambient multiplier.
+    float computedAO = computeAO(fs_in.uv, fs_in.wPosition, normalize(fs_in.wNormal));
+    vec3 ambient = 0.35 * baseColor * computedAO;
+    
+    //vec3 ambient = 0.35 * baseColor * ao;  // Increased ambient multiplier.
+    
     vec3 lighting = ambient;
 
-     float brightnessFactor = 2.0;
+     float brightnessFactor = 1.0;
      
       float shadowFactor = calculatedDirectionalShadows();
       
@@ -225,9 +276,10 @@ void main()
     
     
     //This is not working :<
+    //Its making a blue outline on transparent objects.
     
 	//  if (isOpaquePass == 1) {
-	    // Opaque pass: Ignore the texture alpha.
+	//    // Opaque pass: Ignore the texture alpha.
 	//    vec3 finalColor = lighting;
 	//    outColor = vec4(finalColor, 1.0);
 	//} else {
@@ -239,6 +291,7 @@ void main()
 	vec3 finalColor = lighting;
 	    outColor = vec4(finalColor, 1.0);
 		
+	//outColor = vec4(vec3(computedAO), 1.0);
 
 
    

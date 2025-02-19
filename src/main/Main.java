@@ -182,7 +182,7 @@ public class Main {
         
         
      // Initialize the ShadowMapRenderer
-        shadowRenderer = new ShadowRenderer(2048 * 10,2048 * 10);
+        shadowRenderer = new ShadowRenderer(2048 * 16,2048 * 16);
        
         //shadowMapRenderer = new ShadowMapRenderer(camera);
         
@@ -528,8 +528,8 @@ public class Main {
             //shadowMapRenderer.render(entities, lights.get(lights.size() - 1), camera);
             //System.out.println(shadowMapRenderer.getShadowMap());
             
-            //postRenderer.bindFBO();
-            //bloomRenderer.bindSceneFBO();
+            postRenderer.bindFBO();
+            bloomRenderer.bindSceneFBO();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             
           
@@ -554,11 +554,11 @@ public class Main {
            
 
             
-            //postRenderer.unbindFBO(width, height);
-            //bloomRenderer.unbindSceneFBO(width, height);
+            postRenderer.unbindFBO(width, height);
+            bloomRenderer.unbindSceneFBO(width, height);
             
-            //postRenderer.renderPostProcess();
-            //bloomRenderer.renderBloom(width, height, 1.8f, 1.8f);
+            postRenderer.renderPostProcess();
+            bloomRenderer.renderBloom(width, height, 1.8f, 1.8f);
             
             //int c = Equations.combineTexturesFixed(3, 4, width, height);
             //System.out.print(c);

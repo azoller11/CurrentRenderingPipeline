@@ -1,13 +1,24 @@
 vec2 parallaxMapping(vec2 texCoords, vec3 viewDirTangent) {
     if (hasHeight == 0) return texCoords;
     
-    // Optionally reduce iterations for distant fragments (assume we pass in a distance factor)
-    float distanceFactor = clamp(length(cameraPos - fs_in.wPosition) / 100.0, 0.0, 1.0);
-    // Interpolate between min and max layers based on distance (fewer layers for distant fragments)
-    float effectiveLayers = mix(maxLayers, minLayers, distanceFactor);
+    // Calculate the distance from the camera to the fragment.
+    float dist = length(cameraPos - fs_in.wPosition);
     
+    float effectiveLayers;
+    // If the camera is really close, use fewer iterations to improve performance.
+    if (dist < 5.0) {
+        // When very close, use a simplified approach by choosing only the minimum layers.
+        effectiveLayers = minLayers;
+    } else {
+        // Otherwise, determine effectiveLayers based on distance.
+        float distanceFactor = clamp(dist / 100.0, 0.0, 1.0);
+        effectiveLayers = mix(maxLayers, minLayers, distanceFactor);
+    }
+    
+    // Flip Y-axis for the view direction
     viewDirTangent.y *= -1.0;
     
+    // Pre-calculate the parallax offset and delta per layer.
     vec2 P = viewDirTangent.xy * (parallaxScale / viewDirTangent.z);
     vec2 delta = P / effectiveLayers;
     
@@ -15,18 +26,25 @@ vec2 parallaxMapping(vec2 texCoords, vec3 viewDirTangent) {
     float currentLayerDepth = 0.0;
     vec2 currentCoords = texCoords;
     float currentDepthValue = 1.0 - texture(heightMap, currentCoords).r;
-
-    while(currentLayerDepth < currentDepthValue) {
+    
+    // Use a fixed iteration loop with early exit.
+    int maxIterations = int(effectiveLayers);
+    for (int i = 0; i < maxIterations; i++) {
+        if (currentLayerDepth >= currentDepthValue)
+            break;
+        
+        // Step the texture coordinate and update depth value.
         currentCoords -= delta;
         currentDepthValue = 1.0 - texture(heightMap, currentCoords).r;
         currentLayerDepth += layerDepth;
     }
-
+    
+    // Refine the intersection by interpolating between the last two coordinates.
     vec2 prevCoords = currentCoords + delta;
     float prevDepth = 1.0 - texture(heightMap, prevCoords).r - (currentLayerDepth - layerDepth);
-    float currentDepth = currentDepthValue - currentLayerDepth;
-    float weight = currentDepth / (currentDepth - prevDepth);
-    vec2 finalCoords = mix(currentCoords, prevCoords, weight);
-
+    float currentDiff = currentDepthValue - currentLayerDepth;
+    float weight = currentDiff / (currentDiff - prevDepth);
+    vec2 finalCoords = mix(currentCoords, prevCoords, clamp(weight, 0.0, 1.0));
+    
     return finalCoords;
 }

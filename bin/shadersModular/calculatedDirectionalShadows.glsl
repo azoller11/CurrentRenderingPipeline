@@ -1,5 +1,10 @@
+
 float calculatedDirectionalShadows()
 {
+
+	const float SHADOW_SOFTNESS = 1.0f;
+
+
     // Transform the fragment position to light space.
     vec4 fragPosLightSpace = lightSpaceMatrix * vec4(fs_in.wPosition, 1.0);
     // Perform perspective divide.
@@ -12,18 +17,27 @@ float calculatedDirectionalShadows()
         return 1.0;
     
     // Apply a bias to help reduce shadow acne.
-        float bias = max(0.0005 * (1.0 - dot(normalize(fs_in.wNormal), normalize(directionalLightDir))), 0.00005);
-
-
+    float bias = max(0.0005 * (1.0 - dot(normalize(fs_in.wNormal), normalize(directionalLightDir))), 0.00005);
     
-    // Retrieve the closest depth stored in the shadow map.
-    float closestDepth = texture(shadowMap, projCoords.xy).r;
-    // Current fragment depth from light's perspective.
-    float currentDepth = projCoords.z;
+    // Compute the size of one texel in the shadow map.
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
     
-    // If the current depth is greater than the stored depth (plus bias),
-    // then this fragment is in shadow.
-    float shadow = currentDepth - bias > closestDepth ? 0.00 : 1.0;
+    // Use PCF to average the shadow result over a 3x3 kernel.
+    float shadow = 0.0;
+    int samples = 0;
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            // Offset texture coordinates based on the softness constant.
+            vec2 offset = vec2(x, y) * texelSize * SHADOW_SOFTNESS;
+            float closestDepth = texture(shadowMap, projCoords.xy + offset).r;
+            // If the current depth (with bias) is less than the closest depth, then this sample is lit.
+            shadow += (projCoords.z - bias > closestDepth) ? 0.0 : 1.0;
+            samples++;
+        }
+    }
+    shadow /= float(samples);
     
     return shadow;
 }

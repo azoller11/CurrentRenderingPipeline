@@ -104,18 +104,25 @@ public class ShadowRenderer {
      
         for (Entity entity : entities) {
         	 if (frustum.contains(entity.getPosition(), entity.getMesh().getFurthestPoint() * entity.getScale())) {
-        		 Matrix4f modelMatrix = createModelMatrix(entity);
+        		 Matrix4f modelMatrix = entity.getModelMatrix();
                  shadowShader.setUniformMat4("model", modelMatrix);
-                 
+                 //System.out.println("entity.getMesh().getFurthestPoint(): " + entity.getMesh().getFurthestPoint());
                  
                  shadowShader.setUniform1i("diffuseMap", 0);
                  glActiveTexture(GL_TEXTURE0);
                  glBindTexture(GL_TEXTURE_2D, entity.getTextureId());
+                 
+                 if (entity.isHasOpaque() || entity.isHasTransparency())
+                	 shadowShader.setUniform1i("useTexture", 1);
+                 else 
+                	 shadowShader.setUniform1i("useTexture", 0);
 
                  int vaoID = entity.getMesh().getVaoId();
                  glBindVertexArray(vaoID);
                  glDrawArrays(GL_TRIANGLES, 0, entity.getMesh().getVertexCount());
                  glBindVertexArray(0);
+        	} else {
+        		//System.out.println("skipped!");
         	}
            
         }
