@@ -5,6 +5,9 @@ import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
+import java.nio.FloatBuffer;
+
+import org.lwjgl.BufferUtils;
 import org.lwjgl.system.MemoryUtil;
 import shaders.ShaderProgram;
 import toolbox.Equations;
@@ -190,8 +193,10 @@ public class BloomRenderer {
     
     // Unbind and switch back to default framebuffer.
     public void unbindSceneFBO(int windowWidth, int windowHeight) {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glViewport(0, 0, windowWidth, windowHeight);
+    	glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+       glBindFramebuffer(GL_FRAMEBUFFER, 0);
+       glViewport(0, 0, windowWidth, windowHeight);
     }
     
     /**
@@ -250,11 +255,64 @@ public class BloomRenderer {
     bloomCombineShader.bind();
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, sceneTexture);
+    glGenerateMipmap(GL_TEXTURE_2D); 
+    
+ // Create a buffer to store one pixel (RGBA floats)
+    FloatBuffer pixelBuffer = BufferUtils.createFloatBuffer(4);
+
+    // Read from the smallest mipmap level (assuming level = mipLevels - 1)
+    int mipLevel = (int) (Math.log(Math.max(width, height)) / Math.log(2));
+    glGetTexImage(GL_TEXTURE_2D, mipLevel, GL_RGBA, GL_FLOAT, pixelBuffer);
+
+ // Retrieve color components
+    float r = pixelBuffer.get(0);
+    float g = pixelBuffer.get(1);
+    float b = pixelBuffer.get(2);
+    // Optionally ignore the alpha or use it if needed.
+
+    // Compute luminance using a common formula (adjust weights as needed)
+    float averageBrightness = r * 0.2126f + g * 0.7152f + b * 0.0722f;
+    System.out.println("averageBrightness: " + averageBrightness);
+    
+    float minExposure = 1.0f; // for bright, outdoor scenes
+    float maxExposure = 2.5f; // for dark, indoor scenes
+    
+    float minGamma = 0.8f;
+    float maxGamma = 2.2f;
+    
+    float brightnessThresholdLow = 0.2f;  // below this, assume it's dark
+    float brightnessThresholdHigh = 0.8f; // above this, assume it's bright
+    
+    float t = (averageBrightness - brightnessThresholdLow) / (brightnessThresholdHigh - brightnessThresholdLow);
+	 // Clamp 't' between 0 and 1.
+	 if (t < 0.0f) {
+	     t = 0.0f;
+	 } else if (t > 1.0f) {
+	     t = 1.0f;
+	 }
+	
+	 // Linear interpolation function: mix(a, b, t) = a * (1 - t) + b * t.
+	 // For exposure: when t is 0 (dark), use maxExposure; when t is 1 (bright), use minExposure.
+	 float dynamicExposure = maxExposure * (1.0f - t) + minExposure * t;
+	 // For gamma: when t is 0 (dark), use maxGamma; when t is 1 (bright), use minGamma.
+	 float dynamicGamma = maxGamma * (1.0f - t) + minGamma * t;
+	 
+    
+    
+    bloomCombineShader.setUniform1f("gamma", 0);
+    bloomCombineShader.setUniform1f("exposure",dynamicExposure);
+    bloomCombineShader.setUniform1f("vignetteStrength", 0.1f);
+    
+    
     bloomCombineShader.setUniformSampler("sceneTexture", 0);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, pingpongTexture[horizontal ? 0 : 1]);
     bloomCombineShader.setUniformSampler("bloomTexture", 1);
     bloomCombineShader.setUniform1f("bloomIntensity", bloomIntensity);
+    
+    
+    
+    
     //bloomCombineShader.setUniform1f("exposure", 4.2f);
     renderQuad();
     bloomCombineShader.unbind();

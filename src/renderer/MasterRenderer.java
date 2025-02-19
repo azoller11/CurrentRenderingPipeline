@@ -40,22 +40,11 @@ public class MasterRenderer {
     private Frustum frustum;
     
     
-
-    // For each frame, we’ll set up the "view" from the camera.
-    // We keep the "projection" in a single place here for simplicity.
     public MasterRenderer(int width, int height) {
     	
     	this.screenHeight = height;
     	this.screenWidth = width;
-        // 1) Load/compile/link your pipeline
-    	/*
-        shader = new ShaderProgram(
-            "src/shaders/vertex.glsl",
-            "src/shaders/tess_control.glsl",
-            "src/shaders/tess_eval.glsl",
-            "src/shaders/geometry.glsl",
-            "src/shaders/fragment.glsl"
-        );*/
+      
     	
 	   String vertex =  "src/shaders/vertex.glsl";
 	   String tess_control =  "src/shaders/tess_control.glsl";

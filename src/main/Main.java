@@ -75,6 +75,10 @@ public class Main {
     private PostProcessingRenderer postRenderer;
     //Bloom
     private BloomRenderer bloomRenderer;
+    //
+    
+    
+    
     //Terrain
     private TerrainRenderer terrainRenderer;
     private Mesh terrainMesh;
@@ -181,15 +185,16 @@ public class Main {
         bloomRenderer = new BloomRenderer(width, height);
         
         
+        
      // Initialize the ShadowMapRenderer
         shadowRenderer = new ShadowRenderer(2048 * 16,2048 * 16);
        
         //shadowMapRenderer = new ShadowMapRenderer(camera);
         
-        gui.GuiTexture texture2 = new gui.GuiTexture(8, 0, 100, 50,50);
+        gui.GuiTexture texture2 = new gui.GuiTexture(1, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
         
-        gui.GuiTexture texture12 = new gui.GuiTexture(9, 60, 100, 50,50);
+        gui.GuiTexture texture12 = new gui.GuiTexture(1, 60, 100, 50,50);
         textureRenderer.addTexture(texture12);
         
        
@@ -528,7 +533,7 @@ public class Main {
             //shadowMapRenderer.render(entities, lights.get(lights.size() - 1), camera);
             //System.out.println(shadowMapRenderer.getShadowMap());
             
-            postRenderer.bindFBO();
+            //postRenderer.bindFBO();
             bloomRenderer.bindSceneFBO();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             
@@ -545,6 +550,8 @@ public class Main {
           
             //terrainRenderer.renderAdaptiveTerrain(adaptiveGen, masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), terrainModelMatrix, camera.getPosition(), lights);
 
+           
+            
             
             
             // Could add more interesting transforms as well
@@ -554,11 +561,13 @@ public class Main {
            
 
             
-            postRenderer.unbindFBO(width, height);
+            //postRenderer.unbindFBO(width, height);
             bloomRenderer.unbindSceneFBO(width, height);
             
-            postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 1.8f, 1.8f);
+            //postRenderer.renderPostProcess();
+            bloomRenderer.renderBloom(width, height, 0.8f, 1.8f);
+            
+            
             
             //int c = Equations.combineTexturesFixed(3, 4, width, height);
             //System.out.print(c);
@@ -599,6 +608,7 @@ public class Main {
 
     private void cleanup() {
         // Cleanup
+
     	//terrainRenderer.cleanup();
     	textRenderer.cleanUp();
     	//postRenderer.cleanup();
