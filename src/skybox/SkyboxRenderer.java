@@ -17,8 +17,14 @@ public class SkyboxRenderer {
     private Vector3f topColor;
     private Vector3f bottomColor;
 
-    private float sunAngle = 0.0f; // Controls the sun position
+    // Controls progression along the orbit (in radians). 
+    // When sunAngle == 0, the sun will be overhead (if orbitRotation==0).
+    private float sunAngle = 0.0f;
     private float scrollSpeed = 0.02f; // Adjusts sun movement per scroll
+
+    // New variable: Adjusts the rotation (or tilt) of the sun/moon orbit around the Y-axis.
+    // When orbitRotation == 0, the orbit’s “zero” position is along the positive Y axis.
+    private float orbitRotation = 0.0f; // in radians
 
     // New variables for sun & moon brightness & size
     private float maxSunBrightness = 2.2f;
@@ -49,46 +55,53 @@ public class SkyboxRenderer {
 
         // Scroll callback for sun movement.
         GLFW.glfwSetScrollCallback(window, (win, xoffset, yoffset) -> {
+            // Adjust the sun's progression along the orbit.
             sunAngle += yoffset * scrollSpeed;
-
-            // Keep sunAngle looping continuously.
-            if (sunAngle > 1.0f) {
-                sunAngle -= 2.0f;
-            } else if (sunAngle < -1.0f) {
-                sunAngle += 2.0f;
-            }
+            // Keep sunAngle looping continuously over 0 to 2*PI.
+            sunAngle = (float) ((sunAngle % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI));
         });
+    }
+    
+    /**
+     * Optional: Setter to allow external code (or input) to adjust the orbit rotation.
+     * @param orbitRotation The new orbit rotation in radians.
+     */
+    public void setOrbitRotation(float orbitRotation) {
+        this.orbitRotation = orbitRotation;
     }
 
     public void render(Camera camera, Matrix4f viewMatrix, Matrix4f projectionMatrix, Light sun, Light moon, int scale) {
         shader.bind();
     
         // Increase the vertical multiplier for sun/moon movement.
-        float sunHeightFactor = 7000.0f; // Determines maximum vertical distance.
+        float sunHeightFactor = 7000.0f; // Determines the “radius” of the sun's orbit.
     
-        // ☀️ Compute Sun Position with increased horizontal and vertical distances.
-        float angle = sunAngle * (float) Math.PI * 2.0f;
-        float sunX = (float) Math.cos(angle) * sunHeightFactor / 2;  // Horizontal distance.
-        float sunY = (float) Math.sin(angle) * sunHeightFactor; // Vertical distance.
-        float sunZ = (float) Math.sin(angle) * sunHeightFactor / 2;   // Horizontal distance.
-        //sun.setPosition(new Vector3f(sunX + camera.getPosition().x, sunY + camera.getPosition().y, sunZ + camera.getPosition().z));
+        // --- Compute Sun Position using spherical coordinates ---
+        // We want a full daily cycle:
+        //   - When sunAngle == 0: cos(0)==1 so sun is at maximum height.
+        //   - When sunAngle == PI/2: sun is at the horizon (y=0).
+        //   - When sunAngle == PI: sun is at the nadir.
+        float r = sunHeightFactor;
+        float sunY = (float) Math.cos(sunAngle) * r;
+        float horizontalDistance = (float) Math.sin(sunAngle) * r;
         
+        // Apply the orbitRotation to rotate the horizontal (x,z) position.
+        float sunX = horizontalDistance * (float) Math.cos(orbitRotation);
+        float sunZ = horizontalDistance * (float) Math.sin(orbitRotation);
         sun.setPosition(new Vector3f(sunX, sunY, sunZ));
         
-        // 🌙 Compute Moon Position (Opposite of Sun).
-        float moonX = -sunX;
-        float moonY = -sunY;
-        float moonZ = -sunZ;
-        moon.setPosition(new Vector3f(moonX, moonY, moonZ));
+        // --- Compute Moon Position as the opposite of the Sun ---
+        // Simply invert the sun's position.
+        moon.setPosition(new Vector3f(-sunX, -sunY, -sunZ));
         
-     // <-- Update our boolean based on the sun's y-position.
+        // Update our boolean based on the sun's y-position.
         isSunOut = sun.getPosition().y >= 0;
     
         // Update sky colors and light intensities based on the sun's height.
         updateSkyColors(sunY);
         updateLightIntensity(sun, moon, sunHeightFactor);
     
-        // 🏙 Remove translation from view matrix for the skybox.
+        // Remove translation from view matrix for the skybox.
         Matrix4f skyboxView = new Matrix4f(viewMatrix).scale(scale);
         skyboxView.m30(0);
         skyboxView.m31(0);
@@ -134,7 +147,6 @@ public class SkyboxRenderer {
         glBindVertexArray(0);
     
         shader.unbind();
-        
     }
 
     /**
@@ -151,8 +163,6 @@ public class SkyboxRenderer {
         float normalizedAlt = clamp(sunY / 200.0f, 0.0f, 1.0f);
         // Use smoothstep to get a warm factor that is 1 at the horizon and 0 at or above 200 units.
         sunWarmFactor = 1.0f - smoothstep(0.0f, 0.2f, normalizedAlt);
-        // Alternatively, you could use a logistic curve:
-        // sunWarmFactor = 1.0f / (1.0f + (float)Math.exp(10.0f*(normalizedAlt - 0.1f)));
     
         // Define “noon” (default) colors.
         Vector3f noonSunCore  = new Vector3f(1.0f, 0.9f, 0.6f);  // Bright yellowish white.
@@ -205,17 +215,16 @@ public class SkyboxRenderer {
         return t * t * (3.0f - 2.0f * t);
     }
 
-
     public void cleanUp() {
         shader.destroy();
         glDeleteVertexArrays(vao);
     }
 
-	public boolean isSunOut() {
-		return isSunOut;
-	}
+    public boolean isSunOut() {
+        return isSunOut;
+    }
 
-	public void setSunOut(boolean isSunOut) {
-		this.isSunOut = isSunOut;
-	}
+    public void setSunOut(boolean isSunOut) {
+        this.isSunOut = isSunOut;
+    }
 }
