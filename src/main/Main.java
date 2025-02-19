@@ -83,6 +83,7 @@ public class Main {
     //
     private ShadowRenderer shadowRenderer;
     //
+    //private ShadowMapRenderer shadowMapRenderer;
     
     
     // A simple camera
@@ -183,9 +184,13 @@ public class Main {
      // Initialize the ShadowMapRenderer
         shadowRenderer = new ShadowRenderer(2048 * 10,2048 * 10);
        
+        //shadowMapRenderer = new ShadowMapRenderer(camera);
         
         gui.GuiTexture texture2 = new gui.GuiTexture(8, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
+        
+        gui.GuiTexture texture12 = new gui.GuiTexture(9, 60, 100, 50,50);
+        textureRenderer.addTexture(texture12);
         
        
         
@@ -387,7 +392,7 @@ public class Main {
 
       
         
-        //entities.addAll(SceneLoader.loadScene("sponza.obj", "sponza.mtl"));
+        entities.addAll(SceneLoader.loadScene("sponza.obj", "sponza.mtl"));
         
     
         
@@ -426,6 +431,9 @@ public class Main {
    		         new Vector3f(1, 0.62f, 0.232f)
    		     ));
       
+   	     
+   	  Light fakesun = new Light(new Vector3f(0, 20,0), new Vector3f(12,12,12),new Vector3f(1, 0.62f, 0.232f));
+      lights.add(fakesun); 
     
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entities, lights);
 	        
@@ -516,6 +524,9 @@ public class Main {
             int shadowTextureID = shadowRenderer.getDepthMapTexture();
             //System.out.println(shadowTextureID);
             int err = glGetError();
+            
+            //shadowMapRenderer.render(entities, lights.get(lights.size() - 1), camera);
+            //System.out.println(shadowMapRenderer.getShadowMap());
             
             //postRenderer.bindFBO();
             //bloomRenderer.bindSceneFBO();

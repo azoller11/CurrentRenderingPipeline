@@ -28,7 +28,7 @@ import static org.lwjgl.opengl.GL40.*;
 public class MasterRenderer {
 	
 	public static final float NEAR_PLANE = 0.1f;
-	public static final float FOV = 60;
+	public static final float FOV = 90;
 	public static final float FAR_PLANE = 2000000000;
 
     private final ShaderProgram shader;
@@ -180,7 +180,11 @@ public class MasterRenderer {
         }
         
         shader.setUniformMat4("lightSpaceMatrix", ShadowRenderer.createLightSpaceMatrix(lights.get(0), camera));
-    
+        Vector3f lightDir = new Vector3f(lights.get(0).getPosition()).normalize();
+        lightDir.z = -lightDir.z;
+        lightDir.x = -lightDir.x;
+        
+        shader.setUniform3f("directionalLightDir", lightDir);
    
         
         frustum.calculateFrustum(projectionMatrix, view);

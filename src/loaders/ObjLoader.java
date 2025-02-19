@@ -4,6 +4,7 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 import settings.EngineSettings;
 import toolbox.Mesh;
+import toolbox.MeshData;
 
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -216,6 +217,111 @@ public class ObjLoader {
         return mesh;
     }
     
+    public static MeshData parseMeshDataFromLines(List<String> lines) {
+        List<Vector3f> positions = new ArrayList<>();
+        List<Vector2f> texCoords = new ArrayList<>();
+        List<Vector3f> normals = new ArrayList<>();
+
+        List<Integer> indicesPos = new ArrayList<>();
+        List<Integer> indicesTex = new ArrayList<>();
+        List<Integer> indicesNor = new ArrayList<>();
+
+        float furthestDistanceSquared = 0.0f;
+
+        // STEP 1: Parse the OBJ lines.
+        for (String line : lines) {
+            line = line.trim();
+            if (line.startsWith("v ")) {
+                Vector3f position = parseVector3f(line);
+                float distanceSquared = position.lengthSquared();
+                if (distanceSquared > furthestDistanceSquared) {
+                    furthestDistanceSquared = distanceSquared;
+                }
+                positions.add(position);
+            } else if (line.startsWith("vt ")) {
+                texCoords.add(parseVector2f(line));
+            } else if (line.startsWith("vn ")) {
+                normals.add(parseVector3f(line));
+            } else if (line.startsWith("f ")) {
+                parseFace(line, indicesPos, indicesTex, indicesNor);
+            }
+        }
+
+        // STEP 2: Build VertexData array.
+        int numVertices = indicesPos.size();
+        VertexData[] vertexDataArray = new VertexData[numVertices];
+        for (int i = 0; i < numVertices; i++) {
+            int pIndex = indicesPos.get(i) - 1;
+            int tIndex = indicesTex.get(i) - 1;
+            Vector3f pos = positions.get(pIndex);
+            Vector2f uv = (tIndex >= 0 && tIndex < texCoords.size())
+                    ? texCoords.get(tIndex)
+                    : new Vector2f(0.0f, 0.0f);
+            // Create a new VertexData with a placeholder normal (will be computed later)
+            vertexDataArray[i] = new VertexData(pIndex, pos, uv, new Vector3f(0, 0, 0));
+        }
+
+        // STEP 3: Compute tangents for each triangle.
+        for (int i = 0; i < numVertices; i += 3) {
+            computeTangentsForTriangle(vertexDataArray[i],
+                                       vertexDataArray[i + 1],
+                                       vertexDataArray[i + 2]);
+        }
+
+        // STEP 4: Compute smooth normals.
+        Vector3f[] smoothNormals = new Vector3f[positions.size()];
+        for (int i = 0; i < smoothNormals.length; i++) {
+            smoothNormals[i] = new Vector3f(0, 0, 0);
+        }
+        for (int i = 0; i < numVertices; i += 3) {
+            VertexData v0 = vertexDataArray[i];
+            VertexData v1 = vertexDataArray[i + 1];
+            VertexData v2 = vertexDataArray[i + 2];
+
+            Vector3f edge1 = new Vector3f(v1.position).sub(v0.position);
+            Vector3f edge2 = new Vector3f(v2.position).sub(v0.position);
+            Vector3f faceNormal = edge1.cross(edge2, new Vector3f()).normalize();
+
+            smoothNormals[v0.posIndex].add(faceNormal);
+            smoothNormals[v1.posIndex].add(faceNormal);
+            smoothNormals[v2.posIndex].add(faceNormal);
+        }
+        for (VertexData vd : vertexDataArray) {
+            vd.normal.set(smoothNormals[vd.posIndex].normalize(new Vector3f()));
+        }
+
+        // STEP 5: Build the final interleaved float array.
+        // Format: 3 position, 2 uv, 3 normal, 3 tangent = 11 floats per vertex.
+        float[] finalData = new float[numVertices * 11];
+        int floatIndex = 0;
+        for (int i = 0; i < numVertices; i++) {
+            VertexData vd = vertexDataArray[i];
+            finalData[floatIndex++] = vd.position.x;
+            finalData[floatIndex++] = vd.position.y;
+            finalData[floatIndex++] = vd.position.z;
+            finalData[floatIndex++] = vd.uv.x;
+            finalData[floatIndex++] = vd.uv.y;
+            finalData[floatIndex++] = vd.normal.x;
+            finalData[floatIndex++] = vd.normal.y;
+            finalData[floatIndex++] = vd.normal.z;
+            vd.tangent.normalize();
+            finalData[floatIndex++] = vd.tangent.x;
+            finalData[floatIndex++] = vd.tangent.y;
+            finalData[floatIndex++] = vd.tangent.z;
+        }
+
+        float furthestDistance = (float) Math.sqrt(furthestDistanceSquared);
+
+        // Package the CPU-side mesh data.
+        MeshData meshData = new MeshData();
+        meshData.finalData = finalData;
+        meshData.vertexCount = numVertices;
+        meshData.furthestDistance = furthestDistance;
+
+        return meshData;
+    }
+    
+    
       public static Mesh loadMeshFromLines(List<String> lines) {
         long totalStartTime = System.nanoTime();
 
@@ -369,29 +475,38 @@ public class ObjLoader {
 
         return mesh;
     }
-    private static void computeTangentsForTriangle(VertexData v0, VertexData v1, VertexData v2) {
-        Vector3f edgePos1 = new Vector3f(v1.position).sub(v0.position);
-        Vector3f edgePos2 = new Vector3f(v2.position).sub(v0.position);
+      
+      private static final Vector3f tempEdge1 = new Vector3f();
+      private static final Vector3f tempEdge2 = new Vector3f();
+      private static final Vector2f tempUV1 = new Vector2f();
+      private static final Vector2f tempUV2 = new Vector2f();
+      
+      
+      private static void computeTangentsForTriangle(VertexData v0, VertexData v1, VertexData v2) {
+    	    // Compute position deltas
+    	    tempEdge1.set(v1.position).sub(v0.position);
+    	    tempEdge2.set(v2.position).sub(v0.position);
 
-        Vector2f edgeUV1 = new Vector2f(v1.uv).sub(v0.uv);
-        Vector2f edgeUV2 = new Vector2f(v2.uv).sub(v0.uv);
+    	    // Compute UV deltas
+    	    tempUV1.set(v1.uv).sub(v0.uv);
+    	    tempUV2.set(v2.uv).sub(v0.uv);
 
-        float r = (edgeUV1.x * edgeUV2.y - edgeUV1.y * edgeUV2.x);
-        if (Math.abs(r) < 0.0001f) {
-            r = 0.0001f;
-        }
-        float inv = 1.0f / r;
+    	    float r = (tempUV1.x * tempUV2.y - tempUV1.y * tempUV2.x);
+    	    if (Math.abs(r) < 0.0001f) {
+    	        r = 0.0001f;
+    	    }
+    	    float inv = 1.0f / r;
 
-        Vector3f tangent = new Vector3f(
-                inv * (edgePos1.x * edgeUV2.y - edgePos2.x * edgeUV1.y),
-                inv * (edgePos1.y * edgeUV2.y - edgePos2.y * edgeUV1.y),
-                inv * (edgePos1.z * edgeUV2.y - edgePos2.z * edgeUV1.y)
-        );
+    	    Vector3f tangent = new Vector3f(
+    	            inv * (tempEdge1.x * tempUV2.y - tempEdge2.x * tempUV1.y),
+    	            inv * (tempEdge1.y * tempUV2.y - tempEdge2.y * tempUV1.y),
+    	            inv * (tempEdge1.z * tempUV2.y - tempEdge2.z * tempUV1.y)
+    	    );
 
-        v0.tangent.add(tangent);
-        v1.tangent.add(tangent);
-        v2.tangent.add(tangent);
-    }
+    	    v0.tangent.add(tangent);
+    	    v1.tangent.add(tangent);
+    	    v2.tangent.add(tangent);
+    	}
 
     private static Vector3f parseVector3f(String line) {
         String[] tokens = line.split("\\s+");

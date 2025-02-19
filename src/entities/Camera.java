@@ -19,7 +19,7 @@ public class Camera {
     private final Vector3f worldUp = new Vector3f(0, 1, 0);
 
     // Movement & mouse settings
-    private float moveSpeed = 50.5f;
+    private float moveSpeed = 250.5f;
     private float mouseSensitivity = 0.2f;
 
     // Track last mouse pos
@@ -159,6 +159,9 @@ public class Camera {
     }
 
     // --- Added Getter Methods ---
+    public Vector3f getForward() {
+        return new Vector3f(front);
+    }
 
     /**
      * Returns a new vector representing the camera's forward direction.
@@ -231,6 +234,8 @@ public class Camera {
         
         return corners;
     }
+    
+    
 
     /**
      * Computes and returns the center of the camera's view frustum.

@@ -39,6 +39,7 @@ uniform int hasAo;          // 1 if aoMap is bound, 0 if missing
 // Shadow mapping uniforms
 uniform sampler2D shadowMap;
 uniform mat4 lightSpaceMatrix;
+uniform vec3 directionalLightDir;
 
 // New uniforms for specular lighting (used when no metallic map is provided)
 uniform float shineDamper = 0;

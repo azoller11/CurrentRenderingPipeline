@@ -17,7 +17,7 @@ public class SkyboxRenderer {
     private Vector3f topColor;
     private Vector3f bottomColor;
 
-    private float sunAngle = 0.27f; // Controls the sun position
+    private float sunAngle = 0.0f; // Controls the sun position
     private float scrollSpeed = 0.02f; // Adjusts sun movement per scroll
 
     // New variables for sun & moon brightness & size
@@ -64,14 +64,16 @@ public class SkyboxRenderer {
         shader.bind();
     
         // Increase the vertical multiplier for sun/moon movement.
-        float sunHeightFactor = 4000.0f; // Determines maximum vertical distance.
+        float sunHeightFactor = 7000.0f; // Determines maximum vertical distance.
     
         // ☀️ Compute Sun Position with increased horizontal and vertical distances.
         float angle = sunAngle * (float) Math.PI * 2.0f;
         float sunX = (float) Math.cos(angle) * sunHeightFactor / 2;  // Horizontal distance.
         float sunY = (float) Math.sin(angle) * sunHeightFactor; // Vertical distance.
         float sunZ = (float) Math.sin(angle) * sunHeightFactor / 2;   // Horizontal distance.
-        sun.setPosition(new Vector3f(sunX + camera.getPosition().x, sunY + camera.getPosition().y, sunZ + camera.getPosition().z));
+        //sun.setPosition(new Vector3f(sunX + camera.getPosition().x, sunY + camera.getPosition().y, sunZ + camera.getPosition().z));
+        
+        sun.setPosition(new Vector3f(sunX, sunY, sunZ));
         
         // 🌙 Compute Moon Position (Opposite of Sun).
         float moonX = -sunX;
@@ -132,6 +134,7 @@ public class SkyboxRenderer {
         glBindVertexArray(0);
     
         shader.unbind();
+        
     }
 
     /**

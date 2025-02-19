@@ -12,7 +12,9 @@ float calculatedDirectionalShadows()
         return 1.0;
     
     // Apply a bias to help reduce shadow acne.
-    float bias = 0.005;
+        float bias = max(0.0005 * (1.0 - dot(normalize(fs_in.wNormal), normalize(directionalLightDir))), 0.00005);
+
+
     
     // Retrieve the closest depth stored in the shadow map.
     float closestDepth = texture(shadowMap, projCoords.xy).r;
