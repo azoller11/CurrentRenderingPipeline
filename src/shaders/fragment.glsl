@@ -176,7 +176,7 @@ void main()
     // Increase ambient brightness.
   
     
-    vec3 ambient = 0.35 * baseColor * ao;  // Increased ambient multiplier.
+    vec3 ambient = 0.31 * baseColor * ao;  // Increased ambient multiplier.
     
     vec3 lighting = ambient;
 

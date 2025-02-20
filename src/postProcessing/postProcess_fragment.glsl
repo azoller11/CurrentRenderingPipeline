@@ -39,6 +39,8 @@ void main() {
         // Mix the original corrected color with the vignetted version.
         correctedColor = mix(correctedColor, correctedColor * vignette, vignetteStrength);
     }
+    
+    correctedColor = clamp(correctedColor, 0.0, 1.0);
 
     fragColor = vec4(correctedColor, 1.0);
 }

@@ -101,6 +101,8 @@ public class BloomRenderer {
     private void initBrightFBO() {
         brightFBO = glGenFramebuffers();
         glBindFramebuffer(GL_FRAMEBUFFER, brightFBO);
+        glViewport(0, 0, width, height);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         brightTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, brightTexture);
@@ -186,6 +188,9 @@ public class BloomRenderer {
     // Bind the scene FBO for rendering your scene.
     public void bindSceneFBO() {
         glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Ensure black background
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glViewport(0, 0, width, height);
 
         
@@ -274,8 +279,8 @@ public class BloomRenderer {
     float averageBrightness = r * 0.2126f + g * 0.7152f + b * 0.0722f;
     System.out.println("averageBrightness: " + averageBrightness);
     
-    float minExposure = 1.0f; // for bright, outdoor scenes
-    float maxExposure = 2.5f; // for dark, indoor scenes
+    float minExposure = 0.5f; // for bright, outdoor scenes
+    float maxExposure = 2.0f; // for dark, indoor scenes
     
     float minGamma = 0.8f;
     float maxGamma = 2.2f;
@@ -299,8 +304,8 @@ public class BloomRenderer {
 	 
     
     
-    bloomCombineShader.setUniform1f("gamma", 0);
-    bloomCombineShader.setUniform1f("exposure",dynamicExposure);
+    bloomCombineShader.setUniform1f("gamma", 0); //dynamicGamma
+    bloomCombineShader.setUniform1f("exposure",0); //dynamicExposure
     bloomCombineShader.setUniform1f("vignetteStrength", 0.1f);
     
     
