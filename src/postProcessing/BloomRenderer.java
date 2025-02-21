@@ -215,6 +215,8 @@ public class BloomRenderer {
      * @param threshold    The brightness threshold for bloom extraction.
      * @param bloomIntensity The intensity for combining bloom.
      */
+    float averageBrightness = 0;
+    
     public void renderBloom(int windowWidth, int windowHeight, float threshold, float bloomIntensity) {
     // 1. Extract bright areas.
     glDisable(GL_DEPTH_TEST);
@@ -276,17 +278,24 @@ public class BloomRenderer {
     // Optionally ignore the alpha or use it if needed.
 
     // Compute luminance using a common formula (adjust weights as needed)
-    float averageBrightness = r * 0.2126f + g * 0.7152f + b * 0.0722f;
+    
+    if (r != Float.NaN && r < 1.0 && r > 0.0 &&
+    	g != Float.NaN  && g < 1.0 && g > 0.0 &&
+    	b != Float.NaN  && b < 1.0 && b > 0.0) {
+    	 averageBrightness = r * 0.2126f + g * 0.7152f + b * 0.0722f;
+    }
+    
+   
     System.out.println("averageBrightness: " + averageBrightness);
     
-    float minExposure = 0.5f; // for bright, outdoor scenes
-    float maxExposure = 2.0f; // for dark, indoor scenes
+    float minExposure = 0.95f; // for bright, outdoor scenes
+    float maxExposure = 3.52f; // for dark, indoor scenes
     
-    float minGamma = 0.8f;
-    float maxGamma = 2.2f;
+    float minGamma = 0.75f;
+    float maxGamma = 2.52f;
     
-    float brightnessThresholdLow = 0.2f;  // below this, assume it's dark
-    float brightnessThresholdHigh = 0.8f; // above this, assume it's bright
+    float brightnessThresholdLow = 0.1f;  // below this, assume it's dark
+    float brightnessThresholdHigh = 0.7f; // above this, assume it's bright
     
     float t = (averageBrightness - brightnessThresholdLow) / (brightnessThresholdHigh - brightnessThresholdLow);
 	 // Clamp 't' between 0 and 1.
@@ -305,7 +314,7 @@ public class BloomRenderer {
     
     
     bloomCombineShader.setUniform1f("gamma", 0); //dynamicGamma
-    bloomCombineShader.setUniform1f("exposure",0); //dynamicExposure
+    bloomCombineShader.setUniform1f("exposure",dynamicExposure); //dynamicExposure
     bloomCombineShader.setUniform1f("vignetteStrength", 0.1f);
     
     

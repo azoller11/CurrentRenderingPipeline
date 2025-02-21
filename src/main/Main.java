@@ -413,27 +413,27 @@ public class Main {
         lights.add(new Light(
    	         new Vector3f(2,0,0),
    	         new Vector3f(1.0f, 0.8f, 0.7f),
-   	         new Vector3f(1, 0.62f, 0.0032f)
+   	         new Vector3f(1, 0.62f, 0.000032f)
    	     ));
    	     
    	     lights.add(new Light(
    		         new Vector3f(-2,-10,0),
    		         new Vector3f(0.0f, 8f, 7f),
-   		         new Vector3f(1, 0.62f, 0.0032f)
+   		         new Vector3f(1, 0.0062f,  0.000232f)
    		     ));
    	     
    	     
    	     lights.add(new Light(
    		         new Vector3f(-20,0,20),
    		         new Vector3f(10.0f, 0.0f, 0.7f),
-   		         new Vector3f(1, 0.62f, 0.232f)
+   		         new Vector3f(1, 0.0062f, 0.000232f)
    		     ));
    	     
    	     
    	     lights.add(new Light(
    		         new Vector3f(0,10,0),
    		         new Vector3f(10.0f, 10.0f, 0.7f),
-   		         new Vector3f(1, 0.62f, 0.232f)
+   		         new Vector3f(1, 0.0062f, 0.000232f)
    		     ));
       
    	     
