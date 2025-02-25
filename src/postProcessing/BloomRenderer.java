@@ -217,6 +217,10 @@ public class BloomRenderer {
      */
     float averageBrightness = 0;
     
+    private float currentExposure = 1.0f;
+    private float currentGamma = 1.0f;
+    float smoothingFactor = 0.01f; 
+    
     public void renderBloom(int windowWidth, int windowHeight, float threshold, float bloomIntensity) {
     // 1. Extract bright areas.
     glDisable(GL_DEPTH_TEST);
@@ -286,7 +290,7 @@ public class BloomRenderer {
     }
     
    
-    System.out.println("averageBrightness: " + averageBrightness);
+    //System.out.println("averageBrightness: " + averageBrightness + " " + sceneTexture);
     
     float minExposure = 0.95f; // for bright, outdoor scenes
     float maxExposure = 3.52f; // for dark, indoor scenes
@@ -311,11 +315,14 @@ public class BloomRenderer {
 	 // For gamma: when t is 0 (dark), use maxGamma; when t is 1 (bright), use minGamma.
 	 float dynamicGamma = maxGamma * (1.0f - t) + minGamma * t;
 	 
+	 
+	 currentExposure += (dynamicExposure - currentExposure) * smoothingFactor;
+	 currentGamma   += (dynamicGamma - currentGamma) * smoothingFactor;
     
     
     bloomCombineShader.setUniform1f("gamma", 0); //dynamicGamma
-    bloomCombineShader.setUniform1f("exposure",dynamicExposure); //dynamicExposure
-    bloomCombineShader.setUniform1f("vignetteStrength", 0.1f);
+    bloomCombineShader.setUniform1f("exposure",currentExposure); //dynamicExposure
+    bloomCombineShader.setUniform1f("vignetteStrength", 0.0f);
     
     
     bloomCombineShader.setUniformSampler("sceneTexture", 0);

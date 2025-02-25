@@ -193,14 +193,16 @@ public class MasterRenderer {
     private void drawEntity(Entity entity, int shadowMap) {
         // 1) Build model matrix from the entity's transform
     	
-    	Matrix4f model = new Matrix4f()
+    	Matrix4f model = entity.getModelMatrix();
+    			
+    			/*new Matrix4f()
     		    .identity()
     		    .scale(entity.getScale())            // Scale first
     		    .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z)         // Rotate next
     		    .translate(entity.getPosition());    // Finally translate
 
     		model.setTranslation(entity.getPosition());
-    	 
+    	 */
     	
     	
     	//model.scale(entity.getScale(),entity.getScale(),entity.getScale());

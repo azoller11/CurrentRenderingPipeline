@@ -11,6 +11,7 @@ public class Mesh {
     private final int vaoId;
     private final int vertexCount;
     private float furthestPoint;
+    private MeshData meshData;
 
     public Mesh(int vaoId, int vertexCount) {
         this.vaoId = vaoId;
@@ -81,9 +82,18 @@ public class Mesh {
         this.vaoId = vao;
         this.vertexCount = meshData.vertexCount;
         this.furthestPoint = meshData.furthestDistance;
+        this.meshData = meshData;
     }
 
-    public int getVaoId() {
+    public Mesh(int vao, int numVertices, float furthestDistance, MeshData meshData2) {
+    	this.vaoId = vao;
+        this.vertexCount = numVertices;
+        this.furthestPoint = furthestDistance;
+        this.meshData = meshData2;
+		// TODO Auto-generated constructor stub
+	}
+
+	public int getVaoId() {
         return vaoId;
     }
 
@@ -98,4 +108,13 @@ public class Mesh {
     public void setFurthestPoint(float furthestPoint) {
         this.furthestPoint = furthestPoint;
     }
+
+	public float[] getVertices() {
+		return this.meshData.getVertices();
+	}
+
+	public int[] getIndices() {
+		// TODO Auto-generated method stub
+		return this.meshData.getIndices();
+	}
 }

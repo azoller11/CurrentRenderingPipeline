@@ -13,6 +13,7 @@ import gui.TextureRenderer;
 import loaders.ObjLoader;
 import loaders.SceneLoader;
 import loaders.TextureLoader;
+import physics.PhysicsManager;
 import postProcessing.BloomRenderer;
 import postProcessing.PostProcessingRenderer;
 import renderer.MasterRenderer;
@@ -76,6 +77,7 @@ public class Main {
     //Bloom
     private BloomRenderer bloomRenderer;
     //
+    private PhysicsManager physicsManager;
     
     
     
@@ -189,12 +191,14 @@ public class Main {
      // Initialize the ShadowMapRenderer
         shadowRenderer = new ShadowRenderer(2048 * 16,2048 * 16);
        
-        //shadowMapRenderer = new ShadowMapRenderer(camera);
+        physicsManager = new PhysicsManager();
+        
+        
         
         gui.GuiTexture texture2 = new gui.GuiTexture(1, 0, 100, 50,50);
         textureRenderer.addTexture(texture2);
         
-        gui.GuiTexture texture12 = new gui.GuiTexture(1, 60, 100, 50,50);
+        gui.GuiTexture texture12 = new gui.GuiTexture(4, 60, 100, 50,50);
         textureRenderer.addTexture(texture12);
         
        
@@ -317,6 +321,7 @@ public class Main {
         cube7.setAoMap(TextureLoader.loadTexture("ganges_river_pebbles_ao_2k.png"));
         cube7.setRoughnessMap(TextureLoader.loadTexture("ganges_river_pebbles_rough_2k.png"));
         entities.add(cube7);
+        physicsManager.addStaticAccurateCollision(cube7);
         
         
         Entity cube8 = new Entity(planeMesh, TextureLoader.loadTexture("blue_metal_plate_diff_2k.png"), new Vector3f(15, 45, 15), new Vector3f(0,0,0), 1f);
@@ -326,7 +331,7 @@ public class Main {
         cube8.setMetallicMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
         cube8.setAoMap(TextureLoader.loadTexture("blue_metal_plate_ao_2k.png"));
         cube8.setRoughnessMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
-        entities.add(cube8);
+       // entities.add(cube8);
         
         Entity cube9 = new Entity(planeMesh, TextureLoader.loadTexture("roots_diff_2k.png"), new Vector3f(15, 15, 85), new Vector3f(0,0,0), 1f);
         cube9.setNormalMapId(TextureLoader.loadTexture("roots_nor_gl_2k.png"));
@@ -335,7 +340,7 @@ public class Main {
         cube9.setMetallicMap(TextureLoader.loadTexture("roots_rough_2k.png"));
         cube9.setAoMap(TextureLoader.loadTexture("roots_ao_2k.png"));
         cube9.setRoughnessMap(TextureLoader.loadTexture("roots_rough_2k.png"));
-        entities.add(cube9);
+        //entities.add(cube9);
         
         Entity cube10 = new Entity(cubeMesh, TextureLoader.loadTexture("blue_metal_plate_diff_2k.png"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 1f);
         cube10.setNormalMapId(TextureLoader.loadTexture("blue_metal_plate_nor_gl_2k.png"));
@@ -344,20 +349,20 @@ public class Main {
         cube10.setMetallicMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
         cube10.setAoMap(TextureLoader.loadTexture("blue_metal_plate_ao_2k.png"));
         cube10.setRoughnessMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
-        entities.add(cube10);
+        //entities.add(cube10);
         
         
         for (int i = 0; i < 20; i++) {
         	Entity bush = new Entity(ObjLoader.loadObj("bush1"), TextureLoader.loadTexture("searsia_lucida_diff_2k.png"),
-        			new Vector3f(-30 + random.nextInt(60), 15, 60 + random.nextInt(60)), 
-        			new Vector3f(0,0,0), random.nextFloat(5) + 10);
+        			new Vector3f(-30 + random.nextInt(600), 15, 0 + random.nextInt(200)), 
+        			new Vector3f(0,0,0), random.nextFloat(5) + 60);
             bush.setNormalMapId(TextureLoader.loadTexture("searsia_lucida_nor_gl_2k.png"));
             //bush.setMetallicMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
             bush.setAoMap(TextureLoader.loadTexture("searsia_lucida_ao_2k.png"));
             bush.setRoughnessMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
             bush.setHasTransparency(true);
             bush.setHasOpaque(false);
-            entities.add(bush);
+            //entities.add(bush);
             
         }
         
@@ -368,12 +373,14 @@ public class Main {
         
         //cube6.setReflectivity(0.1f);
         //cube6.setShineDamper(1);
+        physicsManager.addStaticAccurateCollision(cube6);
         entities.add(cube6);
+        
 
-        entities.add(cube2);
-        entities.add(cube3);
-        entities.add(cube4);
-        entities.add(cube5);
+        //entities.add(cube2);
+        //entities.add(cube3);
+       // entities.add(cube4);
+        //entities.add(cube5);
         
         
         for (int i = 0; i < 300; i++) {
@@ -388,12 +395,38 @@ public class Main {
         	
         	 cube2.setReflectivity(10);
              cube2.setShineDamper(100);
-        	entities.add(cubec);
+        	//entities.add(cubec);
         	
         	cubec.setPosition(cubec.getPosition().x, cubec.getPosition().y+100, cubec.getPosition().z);
-        	entities.add(cubec);
+        	//entities.add(cubec);
         	
         }
+        
+        
+        Entity cubeB = new Entity(cubeMesh, TextureLoader.loadTexture("blue_metal_plate_diff_2k.png"), new Vector3f(0, 30, 0), new Vector3f(0,0,0), 1f);
+        cubeB.setNormalMapId(TextureLoader.loadTexture("blue_metal_plate_nor_gl_2k.png"));
+        cubeB.setHeighMapId(TextureLoader.loadTexture("blue_metal_plate_disp_2k.png"));
+        cubeB.setParallaxScale(new Vector3f(0.15f, 120, 160));
+        cubeB.setMetallicMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
+        cubeB.setAoMap(TextureLoader.loadTexture("blue_metal_plate_ao_2k.png"));
+        cubeB.setRoughnessMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
+        physicsManager.addStaticAccurateCollision(cubeB);
+        entities.add(cubeB);
+        
+        
+        
+        for (int i = 0; i < 30; i++) {
+        	Entity cubeX = new Entity(cubeMesh, TextureLoader.loadTexture("blue_metal_plate_diff_2k.png"), new Vector3f(0, 45 + (i * 20), 0), new Vector3f(0,0,0), 1f);
+            cubeX.setNormalMapId(TextureLoader.loadTexture("blue_metal_plate_nor_gl_2k.png"));
+            cubeX.setHeighMapId(TextureLoader.loadTexture("blue_metal_plate_disp_2k.png"));
+            cubeX.setParallaxScale(new Vector3f(0.15f, 120, 160));
+            cubeX.setMetallicMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
+            cubeX.setAoMap(TextureLoader.loadTexture("blue_metal_plate_ao_2k.png"));
+            cubeX.setRoughnessMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
+            physicsManager.addMovableAccurateCollision(cubeX, 100);
+            entities.add(cubeX);
+        }
+        
 
       
         
@@ -410,6 +443,7 @@ public class Main {
         Light moon = new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0)); 
         lights.add(moon); 
         
+        /*
         lights.add(new Light(
    	         new Vector3f(2,0,0),
    	         new Vector3f(1.0f, 0.8f, 0.7f),
@@ -435,7 +469,7 @@ public class Main {
    		         new Vector3f(10.0f, 10.0f, 0.7f),
    		         new Vector3f(1, 0.0062f, 0.000232f)
    		     ));
-      
+      */
    	     
    	  Light fakesun = new Light(new Vector3f(0, 20,0), new Vector3f(12,12,12),new Vector3f(1, 0.62f, 0.232f));
       lights.add(fakesun); 
@@ -509,7 +543,7 @@ public class Main {
             	
             
             
-            
+            physicsManager.updateEntitiesFromCollisionShapes(deltaTime, entities);
             
             
             
@@ -565,7 +599,7 @@ public class Main {
             bloomRenderer.unbindSceneFBO(width, height);
             
             //postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height, 0.8f, 1.8f);
+            bloomRenderer.renderBloom(width, height, 0.99f, 1.8f);
             
             
             

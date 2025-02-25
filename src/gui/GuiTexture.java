@@ -17,6 +17,7 @@ public class GuiTexture {
     private float posY;
     private float scaleX;
     private float scaleY;
+    private float rotation;
     
     private boolean isHovered;
     
@@ -82,6 +83,14 @@ public class GuiTexture {
     
     public Vector4f getColor() {
         return color;
+    }
+    
+    public float getRotation() {
+        return rotation;
+    }
+
+    public void setRotation(float rotation) {
+        this.rotation = rotation;
     }
 
     public boolean hasTexture() {

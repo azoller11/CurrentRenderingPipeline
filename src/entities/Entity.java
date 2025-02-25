@@ -195,11 +195,12 @@ public class Entity {
 	public Matrix4f getModelMatrix() {
 		Matrix4f model = new Matrix4f()
     		    .identity()
-    		    .scale(this.getScale())            // Scale first
+    		    //.scale(this.getScale(),this.getScale(),this.getScale())            // Scale first
     		    .rotateXYZ(this.getRotation().x, this.getRotation().y, this.getRotation().z)         // Rotate next
     		    .translate(this.getPosition());    // Finally translate
 
     		model.setTranslation(this.getPosition());
+    		model.scale(this.getScale(),this.getScale(),this.getScale());
     		return model;
 	}
 

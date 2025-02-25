@@ -139,8 +139,9 @@ public class TextureRenderer {
 
             // Calculate model matrix for position and scale
             model = new Matrix4f()
-                    .translate(new Vector3f(texture.getPosX(), texture.getPosY(), 0.0f))
-                    .scale(new Vector3f(texture.getScaleX(), texture.getScaleY(), 1.0f));
+            	    .translate(new Vector3f(texture.getPosX(), texture.getPosY(), 0.0f)) // Move to position
+            	    .rotateZ((float) Math.toRadians(texture.getRotation())) // Rotate around Z-axis
+            	    .scale(new Vector3f(texture.getScaleX(), texture.getScaleY(), 1.0f)); // Scale
 
             modelBuffer = BufferUtils.createFloatBuffer(16);
             model.get(modelBuffer);
