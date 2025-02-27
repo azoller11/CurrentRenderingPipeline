@@ -187,47 +187,48 @@ void main()
       
       
      // Loop over each light source.
-    for (int i = 0; i < numLights; i++) {
-        if (length(lights[i].color) < 0.001) continue;
+	   for (int i = 0; i < numLights; i++) {
+	    // Skip lights with negligible contribution.
+	    if (length(lights[i].color) < 0.001) continue;
+	    
+	    // Compute vector from fragment to light.
+	    vec3 lightVec = lights[i].position - fs_in.wPosition;
+	    float distance = length(lightVec);
+	    
+	    // Early exit: skip if fragment is beyond the light's effective range.
+	    if (distance > lights[i].distance) continue;
+	    
+	    // Compute light direction (reuse lightVec).
+	    vec3 lightDir = normalize(lightVec);
+	    
+	    // Compute attenuation only once.
+	    float attenuation = 1.0 / (lights[i].attenuation.x +
+	                                lights[i].attenuation.y * distance +
+	                                lights[i].attenuation.z * distance * distance);
+	    
+	    // Transform light direction to tangent space.
+	    vec3 lightDirTangent = normalize(transpose(TBN) * lightDir);
+	    
+	    // Compute shadow factor using optimized function.
+	    float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV, distance, lights[i].distance);
+	    shadow = (i == 0) ? shadow * shadowFactor : shadow + shadowFactor;
+	    
+	    // Base lighting contribution.
+	    if (hasMetallic == 0 && reflectivity > 0 && shineDamper > 0) {
+	        lighting += shadow * brightnessFactor * 
+	                    computeLightContribution(lights[i], fs_in.wPosition, normal, 
+	                                             viewDir, metallic, roughness, ao, baseColor) * attenuation;
+	        vec3 reflectDir = reflect(-lightDir, normal);
+	        float specAngle = max(dot(viewDir, reflectDir), 0.0);
+	        float spec = pow(specAngle, shineDamper);
+	        lighting += spec * reflectivity * lights[i].color * attenuation;
+	    } else {
+	        lighting += shadow * brightnessFactor * 
+	                    computeLightContribution(lights[i], fs_in.wPosition, normal, 
+	                                             viewDir, metallic, roughness, ao, baseColor);
+	    }
+	}
 
-        // Calculate light direction in world space.
-        vec3 lightDir = normalize(lights[i].position - fs_in.wPosition);
-        // Compute attenuation based on distance.
-        float distance = length(lights[i].position - fs_in.wPosition);
-        float attenuation = 1.0 / (lights[i].attenuation.x +
-                                   lights[i].attenuation.y * distance +
-                                   lights[i].attenuation.z * distance * distance);
-
-        // Calculate light direction in tangent space.
-        vec3 lightDirTangent = normalize(transpose(TBN) * lightDir);
-
-        // Calculate shadow factor.
-    	float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV, distance, lights[i].distance);
-        if (i == 0) {
-            shadow *= shadowFactor;
-        } else {
-            shadow += shadowFactor;
-        }
-        
-        // Base lighting contribution.
-       
-
-        // If there's no metallic map, add an extra specular term with attenuation.
-        if (hasMetallic == 0 && reflectivity > 0 && shineDamper > 0) {
-         	lighting += shadow * brightnessFactor * 
-                    computeLightContribution(lights[i], fs_in.wPosition, normal, 
-                                              viewDir, metallic, roughness, ao, baseColor) * attenuation;
-            vec3 reflectDir = reflect(-lightDir, normal);
-            float specAngle = max(dot(viewDir, reflectDir), 0.0);
-            float spec = pow(specAngle, shineDamper);
-            lighting += spec * reflectivity * lights[i].color * attenuation;
-        } else {
-         lighting += shadow * brightnessFactor * 
-                   computeLightContribution(lights[i], fs_in.wPosition, normal, 
-                                          viewDir, metallic, roughness, ao, baseColor);
-        
-        }
-    }
     
     
     
