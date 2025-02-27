@@ -383,8 +383,8 @@ public class Main {
         //entities.add(cube5);
         
         
-        for (int i = 0; i < 300; i++) {
-        	int scale = 6000;
+        for (int i = 0; i < 10; i++) {
+        	int scale = 1000;
         	Entity cubec = new Entity(sphereMesh, TextureId, new Vector3f(random.nextInt(scale) - scale/2, 300,random.nextInt(scale) - scale/2),  new Vector3f(random.nextInt(90),random.nextInt(90),random.nextInt(90)), random.nextFloat(10));
         	cubec.setNormalMapId(normalTexture);
         	//cubec.setHeighMapId(heightMapTexture);
@@ -395,7 +395,8 @@ public class Main {
         	
         	 cube2.setReflectivity(10);
              cube2.setShineDamper(100);
-        	//entities.add(cubec);
+             physicsManager.addMovableAccurateCollision(cubec, 10);
+        	entities.add(cubec);
         	
         	cubec.setPosition(cubec.getPosition().x, cubec.getPosition().y+100, cubec.getPosition().z);
         	//entities.add(cubec);
@@ -416,21 +417,32 @@ public class Main {
         
         
         for (int i = 0; i < 30; i++) {
-        	Entity cubeX = new Entity(cubeMesh, TextureLoader.loadTexture("blue_metal_plate_diff_2k.png"), new Vector3f(0, 45 + (i * 20), 0), new Vector3f(0,0,0), 1f);
+        	Entity cubeX = new Entity(cubeMesh, TextureLoader.loadTexture("blue_metal_plate_diff_2k.png"), new Vector3f(0, 45 + (i * 200), 0), new Vector3f(0,0,0), 3f);
             cubeX.setNormalMapId(TextureLoader.loadTexture("blue_metal_plate_nor_gl_2k.png"));
             cubeX.setHeighMapId(TextureLoader.loadTexture("blue_metal_plate_disp_2k.png"));
             cubeX.setParallaxScale(new Vector3f(0.15f, 120, 160));
             cubeX.setMetallicMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
             cubeX.setAoMap(TextureLoader.loadTexture("blue_metal_plate_ao_2k.png"));
             cubeX.setRoughnessMap(TextureLoader.loadTexture("blue_metal_plate_rough_2k.png"));
-            physicsManager.addMovableAccurateCollision(cubeX, 100);
-            entities.add(cubeX);
+           // physicsManager.addMovableAccurateCollision(cubeX, 10);
+            //entities.add(cubeX);
         }
         
 
       
         
-        entities.addAll(SceneLoader.loadScene("sponza.obj", "sponza.mtl"));
+        for (Entity e : SceneLoader.loadScene("sponza.obj", "sponza.mtl")) {
+        	try {
+        		physicsManager.addStaticAccurateCollision(e);
+        	} catch (Exception a) {
+        		System.out.println("ERROR ADDING On to Physics. " + a.getMessage());
+        	}
+        	
+        	entities.add(e);
+        }
+        
+        
+        
         
     
         
@@ -443,7 +455,7 @@ public class Main {
         Light moon = new Light(new Vector3f(-10000, -20000,0), new Vector3f(0,0,0)); 
         lights.add(moon); 
         
-        /*
+       
         lights.add(new Light(
    	         new Vector3f(2,0,0),
    	         new Vector3f(1.0f, 0.8f, 0.7f),
@@ -455,8 +467,7 @@ public class Main {
    		         new Vector3f(0.0f, 8f, 7f),
    		         new Vector3f(1, 0.0062f,  0.000232f)
    		     ));
-   	     
-   	     
+   	  
    	     lights.add(new Light(
    		         new Vector3f(-20,0,20),
    		         new Vector3f(10.0f, 0.0f, 0.7f),
@@ -469,7 +480,7 @@ public class Main {
    		         new Vector3f(10.0f, 10.0f, 0.7f),
    		         new Vector3f(1, 0.0062f, 0.000232f)
    		     ));
-      */
+      
    	     
    	  Light fakesun = new Light(new Vector3f(0, 20,0), new Vector3f(12,12,12),new Vector3f(1, 0.62f, 0.232f));
       lights.add(fakesun); 
@@ -543,7 +554,7 @@ public class Main {
             	
             
             
-            physicsManager.updateEntitiesFromCollisionShapes(deltaTime, entities);
+            physicsManager.updateEntitiesFromCollisionShapes(deltaTime * 100000, entities);
             
             
             

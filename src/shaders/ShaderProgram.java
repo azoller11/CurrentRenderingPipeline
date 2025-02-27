@@ -351,7 +351,9 @@ public class ShaderProgram {
             setUniform3f(prefix + ".color", l.getColor());
             // attenuation
             setUniform3f(prefix + ".attenuation", l.getAttenuation());
-            // type
+            // distance
+            setUniform1f(prefix + ".distance", l.getEffectiveDistance());
+            //System.out.println("Light[" + i + "] Distance: " + l.getEffectiveDistance());
         }
     }
 

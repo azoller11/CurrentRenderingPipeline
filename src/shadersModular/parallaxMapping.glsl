@@ -19,7 +19,8 @@ vec2 parallaxMapping(vec2 texCoords, vec3 viewDirTangent) {
     viewDirTangent.y *= -1.0;
     
     // Pre-calculate the parallax offset and delta per layer.
-    vec2 P = viewDirTangent.xy * (parallaxScale / viewDirTangent.z);
+    float safeZ = max(viewDirTangent.z, 0.15);
+    vec2 P = viewDirTangent.xy * (parallaxScale / safeZ);
     vec2 delta = P / effectiveLayers;
     
     float layerDepth = 1.0 / effectiveLayers;

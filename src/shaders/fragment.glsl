@@ -7,6 +7,7 @@ struct Light {
     vec3 position;    // For point lights, this is the light position.
     vec3 color;
     vec3 attenuation; // (constant, linear, quadratic)
+    float distance;
 };
 
 uniform int numLights;
@@ -75,7 +76,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0);
 vec3 computeNormal(vec3 worldNormal, vec3 worldTangent, vec2 uv, out mat3 TBN);
 vec3 computeLightContribution(Light light, vec3 fragPos, vec3 N, vec3 V, float metallic, float roughness, float ao, vec3 baseColor);
 vec2 parallaxMapping(vec2 texCoords, vec3 viewDirTangent);
-float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV);
+float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV, float lightDistance, float maxLightDistance);
 float calculatedDirectionalShadows();
 
 
@@ -201,7 +202,7 @@ void main()
         vec3 lightDirTangent = normalize(transpose(TBN) * lightDir);
 
         // Calculate shadow factor.
-        float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV);
+    	float shadow = calculatePOMShadow(lightDirTangent, parallaxedUV, distance, lights[i].distance);
         if (i == 0) {
             shadow *= shadowFactor;
         } else {

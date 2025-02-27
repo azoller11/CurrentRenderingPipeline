@@ -22,6 +22,7 @@ import com.bulletphysics.linearmath.Transform;
 import com.bulletphysics.util.ObjectArrayList;
 import com.bulletphysics.collision.shapes.ConvexHullShape;
 import entities.Entity;
+import settings.EngineSettings;
 import toolbox.Mesh;
 
 import java.util.HashMap;
@@ -91,6 +92,8 @@ public class PhysicsManager {
 
         // Create a high-precision collision shape from the triangle mesh.
         CollisionShape shape = new BvhTriangleMeshShape(indexVertexArray, true);
+    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
+
         return shape;
     }
 
@@ -107,6 +110,8 @@ public class PhysicsManager {
         // Here we use a fixed size as a placeholder.
         Vector3f halfExtents = new Vector3f(1f, 1f, 1f);
         CollisionShape shape = new BoxShape(halfExtents);
+    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
+
         return shape;
     }
 
@@ -185,6 +190,7 @@ public class PhysicsManager {
      */
     public RigidBody addMovableAccurateCollision(Entity entity, float mass) {
     	CollisionShape shape = createDynamicConvexCollisionMesh(entity);
+    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addMovableCollisionMesh(entity, shape, mass);
     }
 
@@ -197,6 +203,7 @@ public class PhysicsManager {
      */
     public RigidBody addMovableNotSoAccurateCollision(Entity entity, float mass) {
         CollisionShape shape = createNotSoAccurateCollisionMesh(entity);
+    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addMovableCollisionMesh(entity, shape, mass);
     }
 
@@ -208,6 +215,7 @@ public class PhysicsManager {
      */
     public RigidBody addStaticAccurateCollision(Entity entity) {
         CollisionShape shape = createAccurateCollisionMesh(entity);
+    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addStaticCollisionMesh(entity, shape);
     }
 
@@ -219,6 +227,7 @@ public class PhysicsManager {
      */
     public RigidBody addStaticNotSoAccurateCollision(Entity entity) {
         CollisionShape shape = createDynamicConvexCollisionMesh(entity);
+    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addStaticCollisionMesh(entity, shape);
     }
 
@@ -258,7 +267,8 @@ public class PhysicsManager {
             }
         }
         
-        dynamicsWorld.stepSimulation(deltaTime);
+        if (!EngineSettings.pause)
+        	dynamicsWorld.stepSimulation(deltaTime);
     }
 
     
