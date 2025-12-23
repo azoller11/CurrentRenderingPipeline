@@ -17,6 +17,12 @@ public class GuiButton extends GuiTexture {
         this.onClick = onClick;
         this.isHovered = false;
     }
+    
+    public GuiButton(int textureId, float posX, float posY, float scaleX, float scaleY, Runnable onClick) {
+        super(textureId, posX, posY, scaleX, scaleY);
+        this.onClick = onClick;
+        this.isHovered = false;
+    }
 
     public GuiButton(Vector4f color, float posX, float posY, float scaleX, float scaleY, Runnable onClick) {
         super(color, posX, posY, scaleX, scaleY);

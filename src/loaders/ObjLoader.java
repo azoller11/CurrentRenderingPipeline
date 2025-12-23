@@ -56,7 +56,12 @@ public class ObjLoader {
             return EngineSettings.meshCache.get(objFileName);
         }
 
-        File objFile = new File(RES_LOC + objFileName + ".obj");
+        
+        File objFile;
+        if (objFileName.contains(".obj"))
+        	objFile = new File(RES_LOC + objFileName);
+        else
+        	objFile = new File(RES_LOC + objFileName + ".obj");
 
         List<Vector3f> positions = new ArrayList<>();
         List<Vector2f> texCoords = new ArrayList<>();

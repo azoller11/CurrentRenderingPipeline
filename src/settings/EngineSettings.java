@@ -1,7 +1,6 @@
 package settings;
 
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.glfw.GLFW.glfwGetKey;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,10 +11,13 @@ import org.lwjgl.opengl.GL11;
 
 import entities.Entity;
 import entities.Light;
+import entityManager.EntityManager;
 import main.Main;
+import terrain.Terrain;
 import toolbox.Mesh;
 
 public class EngineSettings {
+	
 	
 	//General 
 	public static boolean pause = false;
@@ -31,6 +33,7 @@ public class EngineSettings {
 	
 	//Graphics
 	public static DebugMode ShaderDebug = DebugMode.STANDARD_RENDERING;
+	public static boolean POMRendering = false;
 	
 	//Computation
 	public static boolean MemoryUsage = false;
@@ -41,6 +44,30 @@ public class EngineSettings {
 	public static boolean LightPicker = false;
 	public static Entity SelectedEntity;
 	public static Light SelectedLight;
+	public static Terrain SelectedTerrain;
+	public static boolean TerrainEditor = false;
+	public static boolean TerrainPainter = false;
+	public static float TerrainBrushSize = 50.0f;
+	public static final float TerrainBrushStrength = 100;
+	
+	
+	public static TerrainBrushTool TerrainTool = TerrainBrushTool.RAISE;
+	public static enum TerrainBrushTool {
+	    RAISE,
+	    LOWER,
+	    FLATTEN,
+	    SMOOTH,
+	    RANDOM
+	}
+	
+	public static TerrainBrushColor TerrainColor = TerrainBrushColor.BLACK;
+	public static enum TerrainBrushColor {
+	    BLACK,
+	    RED,
+	    GREEN,
+	    BLUE,
+	}
+	
 	
 	public static Entity OpenEntity;
 	public static Light OpenLight;
@@ -48,20 +75,33 @@ public class EngineSettings {
 	
 	
 	 // Cache to store loaded meshes
-    public static final Map<String, Mesh> meshCache = new HashMap<>();
+    public static Map<String, Mesh> meshCache = new HashMap<>();
     // Cache to store loaded textures
-    public static final Map<String, Integer> textureCache = new HashMap<>();
+    public static Map<String, Integer> textureCache = new HashMap<>();
 	
 	
 	public static boolean keyPressing = false;
 	
 	public static void updateSettings(long window) {
 		
-		
 		//General
-		if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) {
+		if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
 		    if (!keyPressing) { // Only trigger when the key was not previously pressed
 		        pause = !pause;
+		        //grabMouse = !grabMouse;
+		       // System.out.println("Pause: " + pause);
+		        keyPressing = true; // Mark the key as pressed
+		    }
+		} else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
+			keyPressing = false; // Reset the state when the key is released
+		}
+		
+		if (pause) {
+			
+		}
+		
+		if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) {
+		    if (!keyPressing) { // Only trigger when the key was not previously pressed
 		        grabMouse = !grabMouse;
 		       // System.out.println("Pause: " + pause);
 		        keyPressing = true; // Mark the key as pressed
@@ -69,6 +109,7 @@ public class EngineSettings {
 		} else if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_RELEASE) {
 			keyPressing = false; // Reset the state when the key is released
 		}
+		
 		
 		
 		
@@ -122,8 +163,7 @@ public class EngineSettings {
 		
 	}
 	
-	
-	
+
 	public enum DebugMode {
 		STANDARD_RENDERING(0),
 	    VISUALIZE_NORMALS(1),

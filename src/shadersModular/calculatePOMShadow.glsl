@@ -7,7 +7,13 @@ float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV, float lightDistan
     
     // Scale the parallax based on the ratio between the current distance and the light's max distance.
     float distanceScale = clamp(lightDistance / maxLightDistance, 0.0, 1.0);
-    float shadowParallaxScale = parallaxScale * 1.2 * distanceScale;
+    
+    //	ATTENTION!!!!!
+    //	IF YOU WANT TO CALC SELF SHADOWS FOR ALL LIGHTS (INCLUDING SUN)
+    //	REMOVE * distanceScale FROM THE shadowParallaxScale EQUATION!!!!
+    
+    
+    float shadowParallaxScale = parallaxScale * 1.2;// * distanceScale;
     float shadowMinLayers = minLayers * 0.7;
     float shadowMaxLayers = maxLayers * 0.7;
     
@@ -46,6 +52,7 @@ float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV, float lightDistan
         
         currentDepth -= layerDepth;
     }
+    
     
     return clamp(shadowFactor, 0.3, 1.0);
 }

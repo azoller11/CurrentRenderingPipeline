@@ -5,6 +5,8 @@ import org.joml.Vector3f;
 import org.lwjgl.opengl.GL40;
 import org.lwjgl.system.MemoryStack;
 
+import com.bulletphysics.dynamics.RigidBody;
+
 import entities.Camera;
 import shaders.ShaderProgram;
 
@@ -66,6 +68,20 @@ public class DebugRenderer {
         DebugSphere sphere = new DebugSphere(center, radius, color);
         debugObjects.add(sphere);
         return sphere;
+    }
+    
+    public DebugCircle addCircle(Vector3f center, float radius, Vector3f color) {
+        DebugCircle circle = new DebugCircle(center, radius, color);
+        debugObjects.add(circle);
+        return circle;
+    }
+    
+    
+    public DebugCollisionMesh addCollisionMesh(RigidBody rigidBody, Vector3f color) {
+      
+        DebugCollisionMesh mesh = new DebugCollisionMesh(rigidBody, new javax.vecmath.Vector3f(color.x(), color.y(), color.z()));
+        debugObjects.add(mesh);
+        return mesh;
     }
 
     public void removeObject(DebugObject object) {

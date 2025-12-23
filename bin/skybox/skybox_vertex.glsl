@@ -6,7 +6,6 @@ uniform mat4 view;
 uniform mat4 projection;
 
 void main() {
-    // Use only the rotational part of the view matrix (translation removed) for the skybox.
-    texCoords = position; // or a normalized direction from the cube/sphere vertex
+    texCoords = position;
     gl_Position = projection * view * vec4(position, 1.0);
 }

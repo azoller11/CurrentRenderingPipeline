@@ -6,10 +6,18 @@ vec3 computeNormal(vec3 worldNormal, vec3 worldTangent, vec2 uv, out mat3 TBN)
     TBN = mat3(T, B, N);
 
     if (hasNormal == 1) {
-        // Sample and convert the normal map value from [0,1] to [-1,1]
+        // Sample and convert normal map from [0,1] to [-1,1]
         vec3 tangentNormal = texture(normalMap, uv).rgb * 2.0 - 1.0;
-        // Transform the tangent-space normal into world space using TBN.
+
+        // Transform from tangent space to world space
         N = normalize(TBN * tangentNormal);
+        return N;
     }
-    return N;
+    
+    if (useFakeLighting == 1) {
+    	return vec3(0.0,0.75,0.0);
+    }
+    
+    return normalize(worldNormal);
+
 }

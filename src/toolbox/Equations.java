@@ -3,6 +3,8 @@ package toolbox;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 
+import javax.vecmath.Quat4f;
+
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 
@@ -52,6 +54,14 @@ public class Equations {
 	    return newMat;
 	}
 	
+	
+	public static org.joml.Vector3f convertVecmathToJOML(javax.vecmath.Vector3f vec) {
+	    return new org.joml.Vector3f(vec.x, vec.y, vec.z);
+	}
+
+	public static javax.vecmath.Vector3f convertJOMLToVecmath(org.joml.Vector3f vec) {
+	    return new javax.vecmath.Vector3f(vec.x, vec.y, vec.z);
+	}
 	
 	public static int combineTexturesFixed(int textureId1, int textureId2, int width, int height) {
 	    // 1. Create and bind an FBO.
@@ -164,6 +174,24 @@ public class Equations {
             System.err.println("[OpenGL Error] " + errorStr + " at: " + location);
         }
     }
+
+
+
+	public static Quat4f eulerToQuat(Vector3f euler) {
+	    org.joml.Quaternionf jomlQuat = new org.joml.Quaternionf()
+	        .rotateXYZ(
+	            (float) Math.toRadians(euler.x),
+	            (float) Math.toRadians(euler.y),
+	            (float) Math.toRadians(euler.z)
+	        );
+	    return new Quat4f(jomlQuat.x, jomlQuat.y, jomlQuat.z, jomlQuat.w);
+	}
+
+	public static float lerp(float a, float b, float t) {
+	    return a + t * (b - a);
+	}
+
+
 
   
 

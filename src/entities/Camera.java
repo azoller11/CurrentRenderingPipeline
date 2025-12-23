@@ -19,7 +19,7 @@ public class Camera {
     private final Vector3f worldUp = new Vector3f(0, 1, 0);
 
     // Movement & mouse settings
-    private float moveSpeed = 250.5f;
+    private float moveSpeed = 250.5f * 1;
     private float mouseSensitivity = 0.2f;
 
     // Track last mouse pos

@@ -119,6 +119,96 @@ public class MeshUtil {
     }
     
     /**
+     * Creates a unit cube VAO for decal projection.
+     * Cube is centered at origin, size = 1.
+     * Positions ONLY (location = 0).
+     *
+     * @return int[2] { vaoId, vertexCount }
+     */
+    public static int[] createDecalCube() {
+
+        // 36 vertices, position only
+        float[] vertices = {
+            // Front
+            -0.5f, -0.5f,  0.5f,
+             0.5f, -0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+            -0.5f, -0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+            -0.5f,  0.5f,  0.5f,
+
+            // Back
+             0.5f, -0.5f, -0.5f,
+            -0.5f, -0.5f, -0.5f,
+            -0.5f,  0.5f, -0.5f,
+             0.5f, -0.5f, -0.5f,
+            -0.5f,  0.5f, -0.5f,
+             0.5f,  0.5f, -0.5f,
+
+            // Left
+            -0.5f, -0.5f, -0.5f,
+            -0.5f, -0.5f,  0.5f,
+            -0.5f,  0.5f,  0.5f,
+            -0.5f, -0.5f, -0.5f,
+            -0.5f,  0.5f,  0.5f,
+            -0.5f,  0.5f, -0.5f,
+
+            // Right
+             0.5f, -0.5f,  0.5f,
+             0.5f, -0.5f, -0.5f,
+             0.5f,  0.5f, -0.5f,
+             0.5f, -0.5f,  0.5f,
+             0.5f,  0.5f, -0.5f,
+             0.5f,  0.5f,  0.5f,
+
+            // Top
+            -0.5f,  0.5f,  0.5f,
+             0.5f,  0.5f,  0.5f,
+             0.5f,  0.5f, -0.5f,
+            -0.5f,  0.5f,  0.5f,
+             0.5f,  0.5f, -0.5f,
+            -0.5f,  0.5f, -0.5f,
+
+            // Bottom
+            -0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f,  0.5f,
+            -0.5f, -0.5f, -0.5f,
+             0.5f, -0.5f,  0.5f,
+            -0.5f, -0.5f,  0.5f
+        };
+
+        int vao = glGenVertexArrays();
+        int vbo = glGenBuffers();
+
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer fb = stack.mallocFloat(vertices.length);
+            fb.put(vertices).flip();
+            glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
+        }
+
+        // position only → location 0
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(
+            0,
+            3,
+            GL_FLOAT,
+            false,
+            3 * Float.BYTES,
+            0L
+        );
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+
+        return new int[] { vao, 36 };
+    }
+
+    
+    /**
      * Creates a circle mesh using a triangle fan.
      * The mesh is defined in the XY-plane and centered at the origin.
      * This method initializes the circleVAO and circleVertexCount.

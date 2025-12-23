@@ -4,60 +4,42 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import com.bulletphysics.dynamics.RigidBody;
+
 import toolbox.Mesh;
 
 public class Entity {
 
 	private int Id;
 	
-    private Mesh mesh;
+	private TexturedModel texturedModel;
+	
 
     // Basic transform
     private Vector3f position;
     private Vector3f rotation; // rotation.x => pitch, rotation.y => yaw, rotation.z => roll
     private float scale;
     
-    private int textureId;
-    
-    
-  
- // Parallax
-    private Vector3f parallaxScale ;
-    
-    private int metallicMap;
-    private int roughnessMap;
-    private int aoMap; //Ambient Occlusion
-    private int heighMapId;
-    private int normalMapId;
-    
-    private float shineDamper = 0;
-    private float reflectivity = 0;
-    
-    private boolean hasTransparency;
-    private boolean hasOpaque;
     
     
     
-    public Entity(Mesh mesh, int textureId, Vector3f position, Vector3f rotation, float scale) {
-        this.mesh = mesh;
-        this.textureId = textureId;
+    
+    private RigidBody collisionBody;
+    private String collisionType = "STATIC";
+    private float mass = 0f;
+    
+    
+    public Entity(TexturedModel texturedModel, Vector3f position, Vector3f rotation, float scale) {
+        this.texturedModel = texturedModel;
         this.position = new Vector3f(position);
         this.rotation = new Vector3f(rotation);
         this.scale = scale;
-        this.Id = position.hashCode();
+        this.Id = generateNewId();
     }
 
-    public Entity(Mesh mesh, Vector3f position, Vector3f rotation, float scale) {
-        this.mesh = mesh;
-        this.position = new Vector3f(position);
-        this.rotation = new Vector3f(rotation);
-        this.scale = scale;
-        this.Id = position.hashCode();
-    }
-
-    public Mesh getMesh() {
-        return mesh;
-    }
+    public Entity() {
+		// TODO Auto-generated constructor stub
+	}
 
     public Vector3f getPosition() {
         return position;
@@ -76,74 +58,7 @@ public class Entity {
     }
     // Similarly, setRotation, setScale, etc.
 
-	public int getTextureId() {
-		return textureId;
-	}
-
-	public void setTextureId(int textureId) {
-		textureId = textureId;
-	}
-
-	public int getNormalMapId() {
-		return normalMapId;
-	}
-
-	public void setNormalMapId(int normalMapId) {
-		this.normalMapId = normalMapId;
-	}
-
-	public float getShineDamper() {
-		return shineDamper;
-	}
-
-	public void setShineDamper(float shineDamper) {
-		this.shineDamper = shineDamper;
-	}
-
-	public float getReflectivity() {
-		return reflectivity;
-	}
-
-	public void setReflectivity(float reflectivity) {
-		this.reflectivity = reflectivity;
-	}
-
-	public int getHeighMapId() {
-		return heighMapId;
-	}
-
-	public void setHeighMapId(int heighMapId) {
-		this.heighMapId = heighMapId;
-	}
-
-	public int getMetallicMap() {
-		return metallicMap;
-	}
-
-	public void setMetallicMap(int metallicMap) {
-		this.metallicMap = metallicMap;
-	}
-
-	public int getRoughnessMap() {
-		return roughnessMap;
-	}
-
-	public void setRoughnessMap(int roughnessMap) {
-		this.roughnessMap = roughnessMap;
-	}
-
-	public int getAoMap() {
-		return aoMap;
-	}
-
-	public void setAoMap(int aoMap) {
-		this.aoMap = aoMap;
-	}
-
-	public void setMesh(Mesh mesh) {
-		this.mesh = mesh;
-	}
-
+	
 	public void setRotation(Vector3f rotation) {
 		this.rotation = rotation;
 	}
@@ -152,35 +67,23 @@ public class Entity {
 		this.scale = scale;
 	}
 
-	public Vector3f getParallaxScale() {
-		return parallaxScale;
-	}
 
-	public void setParallaxScale(Vector3f parallaxScale) {
-		this.parallaxScale = parallaxScale;
-	}
-
-	public boolean isHasTransparency() {
-		return hasTransparency;
-	}
-
-	public void setHasTransparency(boolean hasTransparency) {
-		this.hasTransparency = hasTransparency;
-	}
-
-	public boolean isHasOpaque() {
-		return hasOpaque;
-	}
-
-	public void setHasOpaque(boolean hasOpaque) {
-		this.hasOpaque = hasOpaque;
-	}
 
 	public void setPosition(float x, float y, float z) {
 		this.position = new Vector3f(x,y,z);
 		
 	}
 	
+	
+	
+	public RigidBody getCollisionBody() {
+		return collisionBody;
+	}
+
+	public void setCollisionBody(RigidBody collisionBody) {
+		this.collisionBody = collisionBody;
+	}
+
 	public org.lwjgl.util.vector.Matrix4f createTransformationMatrix() {
 		org.lwjgl.util.vector.Matrix4f matrix = new org.lwjgl.util.vector.Matrix4f();
 		matrix.setIdentity();
@@ -211,6 +114,67 @@ public class Entity {
 	public void setId(int id) {
 		Id = id;
 	}
+	
+	public String getCollisionType() {
+	    return collisionType;
+	}
+
+	public void setCollisionType(String collisionType) {
+	    this.collisionType = collisionType;
+	}
+
+	public float getMass() {
+	    return mass;
+	}
+
+	public void setMass(float mass) {
+	    this.mass = mass;
+	}
+	
+	private static int generateNewId() {
+	    return (int)(System.nanoTime() ^ System.currentTimeMillis());
+	}
+	
+	
+	
+	
+	public TexturedModel getTexturedModel() {
+		return texturedModel;
+	}
+
+	public void setTexturedModel(TexturedModel texturedModel) {
+		this.texturedModel = texturedModel;
+	}
+
+	public Entity cloneEntity() {
+	    Entity e = new Entity();
+
+	    // ---- Clone basic properties ----
+	    e.texturedModel = this.getTexturedModel();
+
+	    e.position = new Vector3f(this.position);
+	    e.rotation = new Vector3f(this.rotation);
+	    e.scale = this.scale;
+
+
+	    
+
+
+	    // ---- Clone physics properties ----
+	    e.collisionType = this.collisionType;
+	    e.mass = this.mass;
+
+	    // IMPORTANT:
+	    // Do NOT clone collisionBody, Bullet rigid bodies cannot be duplicated safely.
+	    e.collisionBody = null;
+
+	    // ---- Generate NEW ID ----
+	    e.Id = generateNewId();
+
+	    return e;
+	}
+
+
 	
 	/*
 	public Vector3f getTruePosition() {

@@ -3,6 +3,7 @@ package toolbox;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 import static org.lwjgl.opengl.GL40.*;
 
@@ -38,52 +39,62 @@ public class Mesh {
      * @param meshData The MeshData containing the interleaved vertex attributes.
      */
     public Mesh(MeshData meshData) {
-        // Create a new VAO.
+        this.meshData = meshData;
+
+        // ----- VAO -----
         int vao = glGenVertexArrays();
         glBindVertexArray(vao);
 
-        // Create a new VBO and bind it.
+        // ----- VBO (vertex data) -----
         int vbo = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
-        // Convert the finalData array into a FloatBuffer.
         FloatBuffer fb = ByteBuffer
                 .allocateDirect(meshData.finalData.length * Float.BYTES)
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer();
         fb.put(meshData.finalData).flip();
 
-        // Upload the vertex data to the VBO.
         glBufferData(GL_ARRAY_BUFFER, fb, GL_STATIC_DRAW);
 
-        // Each vertex consists of 11 floats.
         int stride = 11 * Float.BYTES;
 
-        // Vertex positions (location 0): 3 floats, starting at offset 0.
         glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0L);
         glEnableVertexAttribArray(0);
 
-        // Texture coordinates (location 1): 2 floats, starting at offset 3 * Float.BYTES.
         glVertexAttribPointer(1, 2, GL_FLOAT, false, stride, 3L * Float.BYTES);
         glEnableVertexAttribArray(1);
 
-        // Normals (location 2): 3 floats, starting at offset 5 * Float.BYTES.
         glVertexAttribPointer(2, 3, GL_FLOAT, false, stride, 5L * Float.BYTES);
         glEnableVertexAttribArray(2);
 
-        // Tangents (location 3): 3 floats, starting at offset 8 * Float.BYTES.
         glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 8L * Float.BYTES);
         glEnableVertexAttribArray(3);
 
-        // Unbind the VAO to prevent accidental modification.
-        glBindVertexArray(0);
+        // ----- EBO (indices) -----
+        int ebo = glGenBuffers();
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);   // MUST stay bound to VAO
 
-        // Store the VAO ID, vertex count, and furthest distance.
+        IntBuffer ib = ByteBuffer
+                .allocateDirect(meshData.indices.length * Integer.BYTES)
+                .order(ByteOrder.nativeOrder())
+                .asIntBuffer();
+        ib.put(meshData.indices).flip();
+
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, ib, GL_STATIC_DRAW);
+
+        // ----- store handles -----
         this.vaoId = vao;
-        this.vertexCount = meshData.vertexCount;
+        this.vertexCount = meshData.indices.length;
         this.furthestPoint = meshData.furthestDistance;
-        this.meshData = meshData;
+
+        // ----- unbind VAO (BUT NEVER EBO) -----
+        glBindVertexArray(0); // good
+        // DO NOT glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
+
+    
+    
 
     public Mesh(int vao, int numVertices, float furthestDistance, MeshData meshData2) {
     	this.vaoId = vao;
@@ -117,4 +128,31 @@ public class Mesh {
 		// TODO Auto-generated method stub
 		return this.meshData.getIndices();
 	}
+
+	public float[] getTextureCoords() {
+		// TODO Auto-generated method stub
+		return this.meshData.texCoords;
+	}
+
+	public float[] getNormals() {
+		// TODO Auto-generated method stub
+		return this.meshData.normals;
+	}
+
+	public int getIndexCount() {
+		// TODO Auto-generated method stub
+		return this.meshData.indices.length;
+	}
+
+	public void updateVertexData(float[] vertexArray) {
+		this.meshData.vertices = vertexArray;
+		
+	}
+
+	public void updateNormals(float[] normals) {
+		this.meshData.normals = normals;
+		
+	}
+	
+	
 }

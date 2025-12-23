@@ -71,6 +71,7 @@ public class TextRenderer {
         setupShaderUniforms(projection);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, font.getTextureID());
+        
 
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);

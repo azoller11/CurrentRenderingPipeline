@@ -87,6 +87,16 @@ public class TextureRenderer {
     public void removeTexture(GuiTexture texture) {
         textures.remove(texture);
     }
+    
+    public boolean loadedTexture(GuiTexture texture) {
+    	return textures.contains(texture);
+    }
+    
+    public boolean loadedButton(GuiButton button) {
+    	return textures.contains(button);
+    }
+   
+    
 
     FloatBuffer projBuffer;
     FloatBuffer viewBuffer;
@@ -111,9 +121,9 @@ public class TextureRenderer {
         EngineSettings.overTexture = false;
         for (int i = 0; i < textures.size(); i++) {
             texture = textures.get(i);
+            if (!texture.isVisible()) continue;
             
-            
-            shaderProgram.setUniform1f("brightness", 1.0f);
+        	shaderProgram.setUniform1f("brightness", 1.0f);
             if (!EngineSettings.grabMouse) {
             	texture.checkOver(mouseX, mouseY);
                 
@@ -151,6 +161,9 @@ public class TextureRenderer {
             glDrawElements(GL_TRIANGLES, INDICES.length, GL_UNSIGNED_INT, 0);
             // Unbind texture
             texture.unbind(0);
+        
+        
+            
             
             
         }

@@ -6,11 +6,10 @@ public class Light {
 	
 	private int Id;
 	
-    private Vector3f position;      // Used for point lights
+    private Vector3f position;     
     private Vector3f color;
-    private Vector3f attenuation;   // (constant, linear, quadratic) - used for point lights
+    private Vector3f attenuation;  
     private boolean castShadow;
-    private Vector3f direction;     // Used for directional lights (like the sun)
 
     /**
      * Constructor for a point light.
@@ -19,8 +18,6 @@ public class Light {
         this.position = new Vector3f(position);
         this.color = new Vector3f(color);
         this.attenuation = new Vector3f(attenuation);
-        // For point lights the direction isn’t used.
-        this.direction = new Vector3f(0, 0, 0);
         
         this.Id = position.hashCode();
     }
@@ -30,11 +27,10 @@ public class Light {
      * For a directional light, the position is less meaningful because its rays are parallel.
      * Instead, the direction indicates where the light comes from.
      */
-    public Light(Vector3f direction, Vector3f color) {
-        this.direction = new Vector3f(direction).normalize();
+    public Light(Vector3f position, Vector3f color) {
         this.color = new Vector3f(color);
         // For directional lights, you might set a default position (or leave it at zero).
-        this.position = new Vector3f(0, 0, 0);
+        this.position = position;
         // Attenuation is not used for directional lights.
         this.attenuation = new Vector3f(1, 0, 0);
         
@@ -62,8 +58,14 @@ public class Light {
     public Vector3f getAttenuation() {
         return attenuation;
     }
+    
+    
 
-    public boolean isCastShadow() {
+    public void setAttenuation(Vector3f attenuation) {
+		this.attenuation = attenuation;
+	}
+
+	public boolean isCastShadow() {
         return castShadow;
     }
 
@@ -71,19 +73,7 @@ public class Light {
         this.castShadow = castShadow;
     }
 
-    /**
-     * Returns the direction of the light (for directional lights).
-     */
-    public Vector3f getDirection() {
-        return direction;
-    }
-
-    /**
-     * Sets the light's direction. The vector will be normalized.
-     */
-    public void setDirection(Vector3f newDirection) {
-        this.direction.set(newDirection).normalize();
-    }
+    
 
     // Existing methods for attenuation calculations remain unchanged.
 

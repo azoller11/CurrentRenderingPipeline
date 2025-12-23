@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Asset>
+    <Name>playerBody</Name>
+    <Model>playerBody</Model>
+    <ModelTexture>playerTexture</ModelTexture>
+    <NormalMap/>
+    <SpecularMap/>
+    <NumberOfRows>1</NumberOfRows>
+    <ShineDamper>10.0</ShineDamper>
+    <Reflectivity>10.0</Reflectivity>
+    <Transparency>false</Transparency>
+    <FakeLighting>false</FakeLighting>
+    <Collision>true</Collision>
+    <Movable>false</Movable>
+</Asset>

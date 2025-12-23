@@ -20,6 +20,7 @@ public class GuiTexture {
     private float rotation;
     
     private boolean isHovered;
+    private boolean visible = true;
     
     public GuiTexture(String filePath) {
         this.filePath = filePath;
@@ -108,4 +109,38 @@ public class GuiTexture {
     public int getTextureId() { return textureId; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }
+    
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
+
+	public boolean isHovered() {
+		return isHovered;
+	}
+
+	public void setHovered(boolean isHovered) {
+		this.isHovered = isHovered;
+	}
+
+	public void setTextureId(int textureId) {
+		this.textureId = textureId;
+	}
+
+	public void setColor(Vector4f color) {
+		this.color = color;
+	}
+
+	public void setWidth(int width) {
+		this.width = width;
+	}
+
+	public void setHeight(int height) {
+		this.height = height;
+	}
+    
+    
 }

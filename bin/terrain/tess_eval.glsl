@@ -1,40 +1,86 @@
 #version 400 core
 
-layout(triangles, equal_spacing, cw) in;
+layout(quads, fractional_even_spacing) in;
 
-in vec2 tcTexCoord[];
-in float tcBlend[];
-out vec2 teTexCoord;
-out float teBlend;
-out vec3 teWorldPosition;
-out vec4 teLightSpacePos;  // <-- NEW: Light-space position
-
+uniform sampler2D heightMap;
+uniform float maxHeight;
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
-uniform mat4 lightSpaceMatrix; // NEW: transforms world-space into light-space
+uniform mat4 lightSpaceMatrix;
 
-void main() {
-    // Interpolate position.
-    vec3 p0 = gl_in[0].gl_Position.xyz;
-    vec3 p1 = gl_in[1].gl_Position.xyz;
-    vec3 p2 = gl_in[2].gl_Position.xyz;
-    vec3 pos = gl_TessCoord.x * p0 + gl_TessCoord.y * p1 + gl_TessCoord.z * p2;
-    
-    // Interpolate texture coordinates and blend factor.
-    teTexCoord = gl_TessCoord.x * tcTexCoord[0] +
-                 gl_TessCoord.y * tcTexCoord[1] +
-                 gl_TessCoord.z * tcTexCoord[2];
-    teBlend = gl_TessCoord.x * tcBlend[0] +
-              gl_TessCoord.y * tcBlend[1] +
-              gl_TessCoord.z * tcBlend[2];
-    
-    // Compute world-space position.
-    vec4 worldPos = model * vec4(pos, 1.0);
-    teWorldPosition = worldPos.xyz;
-    
-    // Compute the light-space position for shadow mapping.
-    teLightSpacePos = lightSpaceMatrix * worldPos;
-    
-    gl_Position = projection * view * worldPos;
+in VS_OUT {
+    vec2 uv;
+    vec2 baseUV;
+    vec3 worldPos;
+    vec3 normal;
+    vec3 tangent;
+    vec4 lightSpacePos;
+} tes_in[];
+
+out VS_OUT {
+    vec2 uv;
+    vec2 baseUV;
+    vec3 worldPos;
+    vec3 normal;
+    vec3 tangent;
+    vec4 lightSpacePos;
+} tes_out;
+
+vec3 interpolate3(vec3 v0, vec3 v1, vec3 v2, vec3 v3)
+{
+    vec2 uv = gl_TessCoord.xy;
+    return mix(mix(v0, v1, uv.x), mix(v2, v3, uv.x), uv.y);
+}
+
+vec2 interpolate2(vec2 v0, vec2 v1, vec2 v2, vec2 v3)
+{
+    vec2 uv = gl_TessCoord.xy;
+    return mix(mix(v0, v1, uv.x), mix(v2, v3, uv.x), uv.y);
+}
+
+void main()
+{
+    // Bilinear interpolation of input vertices
+    vec3 pos = interpolate3(
+        tes_in[0].worldPos, tes_in[1].worldPos,
+        tes_in[2].worldPos, tes_in[3].worldPos
+    );
+
+    vec2 uv = interpolate2(
+        tes_in[0].uv, tes_in[1].uv,
+        tes_in[2].uv, tes_in[3].uv
+    );
+
+    vec2 baseUV = interpolate2(
+        tes_in[0].baseUV, tes_in[1].baseUV,
+        tes_in[2].baseUV, tes_in[3].baseUV
+    );
+
+    vec3 normal = normalize(interpolate3(
+        tes_in[0].normal, tes_in[1].normal,
+        tes_in[2].normal, tes_in[3].normal
+    ));
+
+    vec3 tangent = normalize(interpolate3(
+        tes_in[0].tangent, tes_in[1].tangent,
+        tes_in[2].tangent, tes_in[3].tangent
+    ));
+
+    // Height-based displacement
+    float heightValue = texture(heightMap, uv).r;
+    pos.y = heightValue * maxHeight;
+
+    // Apply model transform
+    vec4 world = model * vec4(pos, 1.0);
+
+    // Output
+    tes_out.uv       = uv;
+    tes_out.baseUV   = baseUV;
+    tes_out.worldPos = world.xyz;
+    tes_out.normal   = normal;
+    tes_out.tangent  = tangent;
+    tes_out.lightSpacePos = lightSpaceMatrix * world;
+
+    gl_Position = projection * view * world;
 }

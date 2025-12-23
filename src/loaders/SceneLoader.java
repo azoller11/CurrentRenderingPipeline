@@ -1,6 +1,7 @@
 package loaders;
 
 import entities.Entity;
+import entities.TexturedModel;
 import org.joml.Vector3f;
 import toolbox.Material;
 import toolbox.Mesh;
@@ -12,11 +13,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class SceneLoader {
+public class SceneLoader { 
 
-    /**
-     * Container class to hold the asynchronous task's result.
-     */
+    private static final int MAX_CONCURRENT_JOBS = 4; // Limit concurrent jobs
+    private static final int MAX_TOTAL_JOBS = 500;     // Limit total jobs to prevent memory issues
+
     private static class MeshDataResult {
         MeshData meshData;
         String materialName;
@@ -29,14 +30,6 @@ public class SceneLoader {
         }
     }
 
-    /**
-     * Loads a scene from an OBJ file with multiple objects.
-     * Mesh data is parsed asynchronously and OpenGL resource creation is deferred to the main thread.
-     *
-     * @param fullObjFileName The OBJ file name (e.g., "sponza.obj") in "res/"
-     * @param mtlFileName     The MTL file name (e.g., "sponza.mtl") in "res/"
-     * @return A list of Entity objects for the scene.
-     */
     public static List<Entity> loadScene(String fullObjFileName, String mtlFileName) {
         final String RES_LOC = "res/";
         List<Entity> entities = new ArrayList<>();
@@ -50,9 +43,10 @@ public class SceneLoader {
             }
         } catch (IOException e) {
             e.printStackTrace();
+            return entities;
         }
 
-        // 2. Extract header lines (vertex, texture coordinate, normal, etc.).
+        // 2. Extract header lines
         List<String> headerLines = new ArrayList<>();
         for (String line : allLines) {
             if (line.startsWith("v ") || line.startsWith("vt ") ||
@@ -61,8 +55,7 @@ public class SceneLoader {
             }
         }
 
-        // 3. Split the OBJ file into groups based on "o" (object) or "g" (group) tokens.
-        // Each group is stored as a list of lines (excluding the header).
+        // 3. Split the OBJ file into groups
         Map<String, List<String>> objectLinesMap = new LinkedHashMap<>();
         String currentObject = "default";
         objectLinesMap.put(currentObject, new ArrayList<>());
@@ -73,40 +66,50 @@ public class SceneLoader {
                 currentObject = tokens.length >= 2 ? tokens[1] : "default";
                 objectLinesMap.putIfAbsent(currentObject, new ArrayList<>());
             }
-            // Exclude header lines—they will be added separately.
             if (!(line.startsWith("v ") || line.startsWith("vt ") ||
                   line.startsWith("vn ") || line.startsWith("vp "))) {
                 objectLinesMap.get(currentObject).add(line);
             }
         }
 
-        // 4. Load materials from the MTL file.
+        // 4. Load materials
         Map<String, Material> materials = MTLLoader.loadMTL(mtlFileName);
 
-        // 5. Create an ExecutorService for asynchronous CPU-bound work.
-        int threads = Runtime.getRuntime().availableProcessors();
-        System.out.println("[SceneLoader] Launching async tasks using " + threads + " threads.");
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        // 5. Limit the number of objects to process
+        if (objectLinesMap.size() > MAX_TOTAL_JOBS) {
+            System.err.println("[SceneLoader] Warning: Too many objects (" + objectLinesMap.size() + 
+                             "). Limiting to " + MAX_TOTAL_JOBS);
+            // Keep only the first MAX_TOTAL_JOBS objects
+            objectLinesMap = objectLinesMap.entrySet().stream()
+                .limit(MAX_TOTAL_JOBS)
+                .collect(LinkedHashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()), Map::putAll);
+        }
+
+        // 6. Create limited thread pool
+        System.out.println("[SceneLoader] Processing " + objectLinesMap.size() + " objects with " + 
+                         MAX_CONCURRENT_JOBS + " concurrent jobs");
+        
+        ExecutorService executor = Executors.newFixedThreadPool(MAX_CONCURRENT_JOBS);
         List<Future<MeshDataResult>> futures = new ArrayList<>();
 
-        // 6. For each object/group, submit a task to parse its mesh data.
+        // 7. Submit tasks with progress tracking
+        int submittedCount = 0;
         for (Map.Entry<String, List<String>> entry : objectLinesMap.entrySet()) {
             final String objectName = entry.getKey();
             final List<String> groupLines = entry.getValue();
 
-            System.out.println("[SceneLoader] Submitting async job for object: " + objectName);
+            submittedCount++;
+            System.out.println("[SceneLoader] Submitting job " + submittedCount + "/" + 
+                             objectLinesMap.size() + ": " + objectName);
+            
             Future<MeshDataResult> future = executor.submit(() -> {
-                System.out.println("[Async Job] Started processing object: " + objectName);
-                // Combine header lines and group-specific lines.
+                System.out.println("[Async Job] Started: " + objectName);
                 List<String> combinedLines = new ArrayList<>();
                 combinedLines.addAll(headerLines);
                 combinedLines.addAll(groupLines);
 
-                // Parse OBJ data into MeshData without making any OpenGL calls.
-                // (You must implement parseMeshDataFromLines in your ObjLoader.)
                 MeshData meshData = ObjLoader.parseMeshDataFromLines(combinedLines);
 
-                // Determine the material name from the group lines (first "usemtl" token).
                 String materialName = "";
                 for (String l : groupLines) {
                     if (l.startsWith("usemtl")) {
@@ -117,78 +120,94 @@ public class SceneLoader {
                         break;
                     }
                 }
-                System.out.println("[Async Job] Finished processing object: " + objectName);
+                System.out.println("[Async Job] Finished: " + objectName);
                 return new MeshDataResult(meshData, materialName, objectName);
             });
             futures.add(future);
         }
 
-        // Shutdown the executor as we have submitted all tasks.
         executor.shutdown();
-        System.out.println("[SceneLoader] All async jobs submitted. Waiting for results...");
-
-        // 7. In the main thread (with the OpenGL context), create the Mesh and Entities.
+        
+        // 8. Process results with timeout protection
         int processedCount = 0;
         int totalJobs = futures.size();
+        
         for (Future<MeshDataResult> future : futures) {
             try {
-                MeshDataResult result = future.get(); // Wait for the asynchronous task to complete.
+                // Add timeout to prevent hanging
+                MeshDataResult result = future.get(30, TimeUnit.SECONDS);
                 processedCount++;
-                System.out.println("[SceneLoader] Processing result (" + processedCount + "/" + totalJobs + ") for object: " + result.objectName);
+                
+                System.out.println("[SceneLoader] Processing result (" + processedCount + "/" + 
+                                 totalJobs + "): " + result.objectName);
 
-                // Create the Mesh on the main thread (this involves OpenGL calls).
-                Mesh mesh = new Mesh(result.meshData);
+                // Create mesh and entity on main thread
+                processMeshResult(result, materials, entities);
 
-                // Retrieve material properties.
-                int diffuseTextureId = 0;
-                int normalTextureId = 0;
-                int metallicMapId = 0;
-                int roughnessMapId = 0;
-                int aoMapId = 0;
-                int heightMapId = 0;
-                float shineDamper = 0;
-                float reflectivity = 0;
-                if (materials.containsKey(result.materialName)) {
-                    Material mat = materials.get(result.materialName);
-                    diffuseTextureId = mat.diffuseTextureId;
-                    normalTextureId = mat.normalTextureId;
-                    metallicMapId = mat.metallicMapId;
-                    roughnessMapId = mat.roughnessMapId;
-                    aoMapId = mat.aoMapId;
-                    heightMapId = mat.heightMapId;
-                    shineDamper = mat.shineDamper;
-                    reflectivity = mat.reflectivity;
-                } else {
-                    System.err.println("[SceneLoader] Material not found for object '" + result.objectName + "': " + result.materialName);
-                }
-
-                // Create the Entity using an identity transform (adjust as needed).
-                Entity entity = new Entity(mesh, diffuseTextureId, new Vector3f(0, 0, 0),
-                                           new Vector3f(0, 0, 0), 1.0f);
-                if (normalTextureId != 0)
-                    entity.setNormalMapId(normalTextureId);
-                if (shineDamper != 0)
-                    entity.setShineDamper(shineDamper);
-                if (reflectivity != 0)
-                    entity.setReflectivity(reflectivity);
-                if (metallicMapId != 0)
-                    entity.setMetallicMap(metallicMapId);
-                if (roughnessMapId != 0)
-                    entity.setRoughnessMap(roughnessMapId);
-                if (aoMapId != 0)
-                    entity.setAoMap(aoMapId);
-                if (heightMapId != 0) {
-                    entity.setHeighMapId(heightMapId);
-                    entity.setParallaxScale(new Vector3f(0.01f, 120, 160));
-                }
-
-                entities.add(entity);
-
+            } catch (TimeoutException e) {
+                System.err.println("[SceneLoader] Timeout processing object, skipping...");
+                future.cancel(true);
             } catch (InterruptedException | ExecutionException e) {
+                System.err.println("[SceneLoader] Error processing object: " + e.getMessage());
                 e.printStackTrace();
             }
         }
-        System.out.println("[SceneLoader] All async jobs completed and processed. Total entities: " + entities.size());
+        
+        System.out.println("[SceneLoader] Completed: " + entities.size() + " entities loaded");
         return entities;
+    }
+
+    private static void processMeshResult(MeshDataResult result, Map<String, Material> materials, List<Entity> entities) {
+        try {
+            Mesh mesh = new Mesh(result.meshData);
+
+            int diffuseTextureId = 0;
+            int normalTextureId = 0;
+            int metallicMapId = 0;
+            int roughnessMapId = 0;
+            int aoMapId = 0;
+            int heightMapId = 0;
+            float shineDamper = 0;
+            float reflectivity = 0;
+            
+            if (materials.containsKey(result.materialName)) {
+                Material mat = materials.get(result.materialName);
+                diffuseTextureId = mat.diffuseTextureId;
+                normalTextureId = mat.normalTextureId;
+                metallicMapId = mat.metallicMapId;
+                roughnessMapId = mat.roughnessMapId;
+                aoMapId = mat.aoMapId;
+                heightMapId = mat.heightMapId;
+                shineDamper = mat.shineDamper;
+                reflectivity = mat.reflectivity;
+            } else {
+                System.err.println("[SceneLoader] Material not found: " + result.materialName);
+            }
+
+          
+            
+            TexturedModel tm = new TexturedModel();
+            
+            
+            if (normalTextureId != 0) tm.setNormalMapId(normalTextureId);
+            if (shineDamper != 0) tm.setShineDamper(shineDamper);
+            if (reflectivity != 0) tm.setReflectivity(reflectivity);
+            if (metallicMapId != 0) tm.setMetallicMap(metallicMapId);
+            if (roughnessMapId != 0) tm.setRoughnessMap(roughnessMapId);
+            if (aoMapId != 0) tm.setAoMap(aoMapId);
+            if (heightMapId != 0) {
+            	tm.setHeighMapId(heightMapId);
+            	tm.setParallaxScale(new Vector3f(0.01f, 120, 160));
+            }
+            
+            Entity entity = new Entity(tm, new Vector3f(0, 0, 0),
+                    new Vector3f(0, 0, 0), 1.0f);
+
+            entities.add(entity);
+            
+        } catch (Exception e) {
+            System.err.println("[SceneLoader] Error creating entity for: " + result.objectName);
+            e.printStackTrace();
+        }
     }
 }

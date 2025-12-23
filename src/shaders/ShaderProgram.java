@@ -109,69 +109,89 @@ public class ShaderProgram {
     
     
     //For a modular approach
-        private static String loadShaderSource(String[] filePaths) {
+    private static String loadShaderSource(String[] filePaths) {
+        if (filePaths == null || filePaths.length == 0)
+            return null; // No shader
+
         StringBuilder source = new StringBuilder();
+
         for (String filePath : filePaths) {
+            if (filePath == null) continue;
+
             try {
                 List<String> lines = Files.readAllLines(Paths.get(filePath));
                 for (String line : lines) {
                     source.append(line).append("\n");
                 }
             } catch (IOException e) {
-                e.printStackTrace();
-                throw new RuntimeException("Failed to load shader file: " + filePath);
+                throw new RuntimeException("Failed to load shader: " + filePath, e);
             }
         }
-        return source.toString();
+
+        return source.length() == 0 ? null : source.toString();
     }
+
     
     private static String[] concatenatePaths(String mainPath, String[] additionalPaths) {
-        String[] allPaths = new String[additionalPaths.length + 1];
-        allPaths[0] = mainPath;
-        System.arraycopy(additionalPaths, 0, allPaths, 1, additionalPaths.length);
-        return allPaths;
+        // If main path is null and no additional paths, return empty to skip
+        if (mainPath == null && (additionalPaths == null || additionalPaths.length == 0)) {
+            return new String[0];
+        }
+
+        // Count valid entries
+        int count = 0;
+        if (mainPath != null) count++;
+        if (additionalPaths != null) {
+            for (String p : additionalPaths) {
+                if (p != null) count++;
+            }
+        }
+
+        // Build clean array
+        String[] result = new String[count];
+        int idx = 0;
+
+        if (mainPath != null)
+            result[idx++] = mainPath;
+
+        if (additionalPaths != null) {
+            for (String p : additionalPaths) {
+                if (p != null)
+                    result[idx++] = p;
+            }
+        }
+
+        return result;
     }
+
 
     
     private static int compileShader(String type, String[] filePaths) {
-    // Load and concatenate the shader files
-    String source = loadShaderSource(filePaths);
+        String source = loadShaderSource(filePaths);
+        if (source == null)
+            return 0; // No shader → skip
 
-    // Select the correct shader type based on the argument
-    int shaderType;
-    switch (type) {
-        case "vertex":
-            shaderType = GL_VERTEX_SHADER;
-            break;
-        case "fragment":
-            shaderType = GL_FRAGMENT_SHADER;
-            break;
-        case "geometry":
-            shaderType = GL_GEOMETRY_SHADER;
-            break;
-        case "tessellation_control":
-            shaderType = GL_TESS_CONTROL_SHADER;
-            break;
-        case "tessellation_eval":
-            shaderType = GL_TESS_EVALUATION_SHADER;
-            break;
-        default:
-            throw new IllegalArgumentException("Unknown shader type: " + type);
+        int shaderType;
+        switch (type) {
+            case "vertex": shaderType = GL_VERTEX_SHADER; break;
+            case "fragment": shaderType = GL_FRAGMENT_SHADER; break;
+            case "geometry": shaderType = GL_GEOMETRY_SHADER; break;
+            case "tessellation_control": shaderType = GL_TESS_CONTROL_SHADER; break;
+            case "tessellation_eval": shaderType = GL_TESS_EVALUATION_SHADER; break;
+            default:
+                throw new IllegalArgumentException("Unknown shader type: " + type);
+        }
+
+        int shaderId = glCreateShader(shaderType);
+        glShaderSource(shaderId, source);
+        glCompileShader(shaderId);
+
+        if (glGetShaderi(shaderId, GL_COMPILE_STATUS) == GL_FALSE) {
+            throw new RuntimeException("Shader compile error:\n" + glGetShaderInfoLog(shaderId));
+        }
+
+        return shaderId;
     }
-
-    int shaderId = glCreateShader(shaderType);
-    glShaderSource(shaderId, source);
-    glCompileShader(shaderId);
-
-    // Check for compile status
-    int status = glGetShaderi(shaderId, GL_COMPILE_STATUS);
-    if (status == GL_FALSE) {
-        String log = glGetShaderInfoLog(shaderId);
-        throw new RuntimeException("Shader compile error:\n" + log);
-    }
-
-    return shaderId;
-}
 
     
     public ShaderProgram(String vertPath,

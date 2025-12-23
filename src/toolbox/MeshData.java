@@ -19,6 +19,71 @@ public class MeshData {
     
     
     
+    
+	public MeshData(float[] vertices, float[] texCoords, float[] normals, int[] indices, float furthestDistance) {
+		super();
+		this.vertices = vertices;
+		this.normals = normals;
+		this.texCoords = texCoords;
+		this.indices = indices;
+		this.furthestDistance = furthestDistance;
+		 // Calculate vertex count (3 floats per vertex position)
+        this.vertexCount = vertices.length / 3;
+        
+        // Generate finalData (interleaved array) and tangents
+        generateFinalData();
+	}
+	
+	public MeshData() {
+	}
+	
+	
+  
+
+	private void generateFinalData() {
+        // Each vertex has: position(3), texCoord(2), normal(3), tangent(3) = 11 floats
+        finalData = new float[vertexCount * 11];
+        
+        // Generate tangents (simplified - all zeros for terrain)
+        tangents = new int[vertexCount * 3];
+        for (int i = 0; i < tangents.length; i += 3) {
+            tangents[i] = 1;   // tangent.x
+            tangents[i+1] = 0; // tangent.y
+            tangents[i+2] = 0; // tangent.z
+        }
+        
+        // Interleave the data
+        for (int i = 0; i < vertexCount; i++) {
+            int finalIdx = i * 11;
+            int vertIdx = i * 3;
+            int texIdx = i * 2;
+            int normIdx = i * 3;
+            int tanIdx = i * 3;
+            
+            // Position
+            finalData[finalIdx] = vertices[vertIdx];
+            finalData[finalIdx + 1] = vertices[vertIdx + 1];
+            finalData[finalIdx + 2] = vertices[vertIdx + 2];
+            
+            // Texture coordinates
+            finalData[finalIdx + 3] = texCoords[texIdx];
+            finalData[finalIdx + 4] = texCoords[texIdx + 1];
+            
+            // Normal
+            finalData[finalIdx + 5] = normals[normIdx];
+            finalData[finalIdx + 6] = normals[normIdx + 1];
+            finalData[finalIdx + 7] = normals[normIdx + 2];
+            
+            // Tangent
+            finalData[finalIdx + 8] = tangents[tanIdx];
+            finalData[finalIdx + 9] = tangents[tanIdx + 1];
+            finalData[finalIdx + 10] = tangents[tanIdx + 2];
+        }
+    }
+	
+	
+    
+
 	public float[] getFinalData() {
 		return finalData;
 	}
@@ -68,9 +133,7 @@ public class MeshData {
 		this.tangents = tangents;
 	}
     
+	
     
-    
-    // Additional data (e.g., tangents) can be added here as needed.
-
-    // You can add constructors, setters, or helper methods here if necessary.
+  
 }

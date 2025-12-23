@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Asset>
+    <Name>grassBillboard5</Name>
+    <Model>billboard6</Model>
+    <ModelTexture>tallGrass1</ModelTexture>
+    <NormalMap/>
+    <SpecularMap/>
+    <NumberOfRows>1</NumberOfRows>
+    <ShineDamper>0.0</ShineDamper>
+    <Reflectivity>0.0</Reflectivity>
+    <Transparency>true</Transparency>
+    <FakeLighting>true</FakeLighting>
+    <Collision>false</Collision>
+    <Movable>false</Movable>
+</Asset>

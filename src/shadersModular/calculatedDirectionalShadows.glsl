@@ -3,6 +3,7 @@ float calculatedDirectionalShadows()
 {
 
 	const float SHADOW_SOFTNESS = 1.0f;
+	
 
 
     // Transform the fragment position to light space.
@@ -12,12 +13,23 @@ float calculatedDirectionalShadows()
     // Transform from NDC [-1,1] to texture space [0,1].
     projCoords = projCoords * 0.5 + 0.5;
     
+	    // outside the shadow map -> treat as fully lit
+	if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
+	    projCoords.y < 0.0 || projCoords.y > 1.0 ||
+	    projCoords.z < 0.0 || projCoords.z > 1.0)
+	{
+	    return 1.0;
+	}
+	    
     // If the fragment is outside the light's frustum, assume full light.
     if (projCoords.z > 1.0)
         return 1.0;
     
     // Apply a bias to help reduce shadow acne.
-    float bias = max(0.0005 * (1.0 - dot(normalize(fs_in.wNormal), normalize(directionalLightDir))), 0.00005);
+    
+    //*********BIAS SHIFTS THE SHADOWS, BE CARFUL
+    
+    float bias = 0;//max(0.0005 * (1.0 - dot(normalize(fs_in.wNormal), normalize(directionalLightDir))), 0.00005);
     
     // Compute the size of one texel in the shadow map.
     vec2 texelSize = 1.0 / textureSize(shadowMap, 0);

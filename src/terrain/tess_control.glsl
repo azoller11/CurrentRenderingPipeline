@@ -1,59 +1,55 @@
 #version 400 core
 
-layout(vertices = 3) out;
+layout(vertices = 4) out;
 
-in vec2 vTexCoord[];
-in float vBlend[];
-out vec2 tcTexCoord[];
-out float tcBlend[];
+uniform vec3 cameraPos;
 
-uniform vec3 cameraPosition;
+// Tessellation multipliers
+uniform float tessMin = 2.0;
+uniform float tessMax = 16.0;
+uniform float tessDistance = 400.0;
 
-void main() {
-    // Pass through texture coordinates and blend factor.
-    tcTexCoord[gl_InvocationID] = vTexCoord[gl_InvocationID];
-    tcBlend[gl_InvocationID] = vBlend[gl_InvocationID];
+in VS_OUT {
+    vec2 uv;
+    vec2 baseUV;
+    vec3 worldPos;
+    vec3 normal;
+    vec3 tangent;
+    vec4 lightSpacePos;
+} tcs_in[];
 
-    // Compute the patch center from the three control points.
-    vec3 p0 = gl_in[0].gl_Position.xyz;
-    vec3 p1 = gl_in[1].gl_Position.xyz;
-    vec3 p2 = gl_in[2].gl_Position.xyz;
-    vec3 patchCenter = (p0 + p1 + p2) / 3.0;
+out VS_OUT {
+    vec2 uv;
+    vec2 baseUV;
+    vec3 worldPos;
+    vec3 normal;
+    vec3 tangent;
+    vec4 lightSpacePos;
+} tcs_out[];
 
-    // Compute the distance from the camera to the patch center.
-    float distance = length(cameraPosition - patchCenter);
+void main()
+{
+    // Pass through data
+    tcs_out[gl_InvocationID].uv            = tcs_in[gl_InvocationID].uv;
+    tcs_out[gl_InvocationID].baseUV        = tcs_in[gl_InvocationID].baseUV;
+    tcs_out[gl_InvocationID].worldPos      = tcs_in[gl_InvocationID].worldPos;
+    tcs_out[gl_InvocationID].normal        = tcs_in[gl_InvocationID].normal;
+    tcs_out[gl_InvocationID].tangent       = tcs_in[gl_InvocationID].tangent;
+    tcs_out[gl_InvocationID].lightSpacePos = tcs_in[gl_InvocationID].lightSpacePos;
 
-    // Piecewise LOD with shorter distance intervals and lower detail for farther patches.
-    float tessLevel;
-    float distanceLevel = 4;
-    if (distance < 5.0 * distanceLevel) {
-        tessLevel = 1024.0;  // Extremely high detail when extremely close.
-    } else if (distance < 10.0 * distanceLevel) {
-        tessLevel = 512.0;
-    } else if (distance < 15.0 * distanceLevel) {
-        tessLevel = 256.0;
-    } else if (distance < 20.0 * distanceLevel) {
-        tessLevel = 128.0;
-    } else if (distance < 30.0 * distanceLevel) {
-        tessLevel = 64.0;
-    } else if (distance < 40.0 * distanceLevel) {
-        tessLevel = 32.0;
-    } else if (distance < 60.0 * distanceLevel) {
-        tessLevel = 16.0;
-    } else if (distance < 80.0 * distanceLevel) {
-        tessLevel = 8.0;
-    } else {
-        tessLevel = 4.0;     // Minimal tessellation for distant patches.
+    // Compute tessFactor based on distance to camera
+    float dist = length(tcs_in[gl_InvocationID].worldPos - cameraPos);
+    float factor = mix(tessMax, tessMin, clamp(dist / tessDistance, 0.0, 1.0));
+
+    // Set tessellation levels only for invocation 0
+    if (gl_InvocationID == 0)
+    {
+        gl_TessLevelOuter[0] = factor;
+        gl_TessLevelOuter[1] = factor;
+        gl_TessLevelOuter[2] = factor;
+        gl_TessLevelOuter[3] = factor;
+
+        gl_TessLevelInner[0] = factor;
+        gl_TessLevelInner[1] = factor;
     }
-
-    // Only one invocation sets the tessellation levels.
-    if (gl_InvocationID == 0) {
-        gl_TessLevelInner[0] = tessLevel;
-        gl_TessLevelOuter[0] = tessLevel;
-        gl_TessLevelOuter[1] = tessLevel;
-        gl_TessLevelOuter[2] = tessLevel;
-    }
-    
-    // Pass through the vertex position.
-    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
 }
