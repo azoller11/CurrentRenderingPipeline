@@ -332,7 +332,7 @@ public class BloomRenderer {
         currentGamma += (dynamicGamma - currentGamma) * smoothingFactor;
         
         // Fixed exposure for testing (comment out if you want auto-exposure)
-        currentExposure = 3.05f;
+        currentExposure = 3.0f;
         
         
         
@@ -371,7 +371,9 @@ public class BloomRenderer {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, combineTexture);
         
-        fxaaShader.setUniform1f("fxaaQuality", 0.0f); // Adjust between 0.0 (sharp) and 1.0 (smooth)
+        fxaaShader.setUniform1f("fxaaQuality", 1.0f); // Adjust between 0.0 (sharp) and 1.0 (smooth)
+        
+     
 
         
         fxaaShader.setUniformSampler("sceneTexture", 0);

@@ -125,6 +125,11 @@ public class SkyboxRenderer {
 
         ambience = computeAmbience(sun, sunHeightFactor);
 
+        shader.setUniform1f("density", 0.000020f * 1.0f);
+        shader.setUniform1f("gradient", 0.215f * 1.0f);
+        shader.setUniform3f("fogColor", new Vector3f(0.4f, 0.4f, 0.4f));
+        
+        
         // --- SKYBOX VIEW MATRIX (no translation, with optional scale) ---
         Matrix4f skyboxView = new Matrix4f(viewMatrix).scale(scale);
         skyboxView.m30(0);
@@ -167,7 +172,7 @@ public class SkyboxRenderer {
         
         
         
-        shader.setUniform1f("skyboxTextureBrightness", ambience * (skyboxTextureBrightness * 0.5f));
+        shader.setUniform1f("skyboxTextureBrightness", ambience * (skyboxTextureBrightness * 0.4f));
 
 
         if (hasSkybox) {

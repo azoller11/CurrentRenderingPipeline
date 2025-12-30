@@ -452,10 +452,24 @@ public class PhysicsManager {
         return addStaticCollisionMesh(entity, shape);
     }
 
-
+    private float physicsAccumulator = 2000000f;
+    private static final float FIXED_TIME_STEP = 1f / 60;
+    private static final int MAX_SUB_STEPS = 1;
 
     public void updateEntitiesFromCollisionShapes(float deltaTime, List<Entity> entities) {
     	
+    	  deltaTime = Math.min(deltaTime, 0.05f);
+
+    	    physicsAccumulator += deltaTime;
+
+    	    int steps = 0;
+    	    while (physicsAccumulator >= FIXED_TIME_STEP && steps < MAX_SUB_STEPS) {
+    	        dynamicsWorld.stepSimulation(FIXED_TIME_STEP, 0);
+    	        physicsAccumulator -= FIXED_TIME_STEP;
+    	        steps++;
+    	    }
+           
+           
         for (Entity entity : entities) {
             //RigidBody body = entityRigidBodyMap.get(entity);
         	RigidBody body = entity.getCollisionBody();
@@ -474,17 +488,19 @@ public class PhysicsManager {
                 //System.out.println("Updating: " + pos);
 
                 // Update the entity's rotation if applicable.
+                
                 Quat4f rotationQuat = new Quat4f();
                 transform.getRotation(rotationQuat);
                 Vector3f eulerRotation = quaternionToEuler(rotationQuat);
                 entity.setRotation(new org.joml.Vector3f(eulerRotation.x, eulerRotation.y, eulerRotation.z));
+                
             }
         }
-        dynamicsWorld.stepSimulation(deltaTime);
+     
         
     }
 
-    
+    //For the mouse picker.
     public void setBodyKinematic(RigidBody body) {
         body.setCollisionFlags(body.getCollisionFlags() | CF_KINEMATIC_OBJECT);
         body.setActivationState(RigidBody.ACTIVE_TAG);
@@ -504,7 +520,9 @@ public class PhysicsManager {
         float mass = 1.0f; // You can hardcode or store your dynamic object's default
         body.getCollisionShape().calculateLocalInertia(mass, inertia);
         body.setMassProps(mass, inertia);
-        body.setActivationState(RigidBody.ACTIVE_TAG);
+        body.setSleepingThresholds(0.8f, 1.0f); //
+        body.activate(true);
+        //body.setActivationState(RigidBody.ACTIVE_TAG);
     }
 
 
@@ -661,15 +679,15 @@ public class PhysicsManager {
 	        org.joml.Vector3f cameraPos = camera.getPosition();
 	        
 	        // Start bullet slightly in front of camera to avoid self-collision
-	        org.joml.Vector3f bulletStart = new org.joml.Vector3f(cameraForward).mul(5.0f).add(cameraPos);
+	        org.joml.Vector3f bulletStart = new org.joml.Vector3f(cameraForward).mul(15.0f).add(cameraPos);
 	        bulletStart.y += 2.0f; // Slightly above camera
 	        
 	        float error = 20.0f;
 	        
-	        //Randomness
-	        bulletStart.x += random.nextFloat(error);
-	        bulletStart.y += random.nextFloat(error);
-	        bulletStart.z += random.nextFloat(error);
+	        // Randomness for bullet spread
+	        bulletStart.x += random.nextFloat(error) - (error / 2.0);
+	        bulletStart.y += random.nextFloat(error) - (error / 2.0);
+	        bulletStart.z += random.nextFloat(error) - (error / 2.0);
 	        
 	        org.joml.Vector3f bulletEnd = new org.joml.Vector3f(cameraForward).mul(maxDistance).add(bulletStart);
 	        
@@ -678,6 +696,30 @@ public class PhysicsManager {
 	        
 	        if (!rayResult.hit) {
 	            return new HitResult();
+	        }
+	        
+	        // Apply reaction force to dynamic object if hit
+	        if (rayResult.hitBody != null ) {
+	            // Calculate ray direction
+	            org.joml.Vector3f rayDirection = new org.joml.Vector3f(
+	                bulletEnd.x - bulletStart.x,
+	                bulletEnd.y - bulletStart.y,
+	                bulletEnd.z - bulletStart.z
+	            ).normalize();
+	            
+	            // Calculate hit point (if not already provided)
+	            org.joml.Vector3f hitPoint = new org.joml.Vector3f(rayResult.hitPoint);
+	            
+	            // Apply impulse at the hit point
+	           
+	            float bulletForce = 10.5f;
+	            org.joml.Vector3f impulse = new org.joml.Vector3f(rayDirection).mul(bulletForce);
+	            
+	            // Apply the impulse to the body at the hit point
+	            rayResult.hitBody.applyImpulse(new javax.vecmath.Vector3f(impulse.x, impulse.y, impulse.z), 
+	            		new javax.vecmath.Vector3f(hitPoint.x, hitPoint.y, hitPoint.z));
+	            
+	    
 	        }
 	        
 	        // Calculate distance from start to hit point
@@ -690,10 +732,6 @@ public class PhysicsManager {
 	            bulletEnd.z - bulletStart.z
 	        ).normalize();
 	        
-	        // DEBUG: Check if vectors are normalized
-	        System.out.println("Ray direction length: " + rayDirection.length());
-	        System.out.println("Hit normal length: " + rayResult.hitNormal.length());
-	        
 	        // Make sure hit normal is normalized (defensive programming)
 	        org.joml.Vector3f normalizedHitNormal = new org.joml.Vector3f(rayResult.hitNormal);
 	        if (Math.abs(normalizedHitNormal.lengthSquared() - 1.0f) > 0.001f) {
@@ -703,42 +741,21 @@ public class PhysicsManager {
 	        
 	        // Clamp dot product to avoid NaN from floating-point errors
 	        float dot = rayDirection.dot(normalizedHitNormal);
-	        
-	        // DEBUG
-	        System.out.println("Dot before abs: " + dot);
-	        
-	        // For angle between vectors, we want the absolute value of cosine
 	        dot = Math.abs(dot);
 	        
-	        // DEBUG
-	        System.out.println("Dot after abs: " + dot);
-	        
-	        // Clamp to valid range for acos [-1, 1] with a small epsilon
 	        if (dot > 1.0f) {
-	            System.err.println("Clamping dot from " + dot + " to 1.0");
 	            dot = 1.0f;
-	        } else if (dot < -1.0f) {
-	            System.err.println("Clamping dot from " + dot + " to -1.0");
-	            dot = -1.0f;
 	        } else if (dot < 0) {
-	            // This shouldn't happen after Math.abs, but just in case
 	            dot = 0;
 	        }
 	        
-	        // DEBUG
-	        System.out.println("Final dot for acos: " + dot);
-	        
-	        // Check for NaN before acos
 	        if (Float.isNaN(dot)) {
-	            System.err.println("ERROR: dot is NaN!");
 	            dot = 0.0f;
 	        }
 	        
 	        float angle = (float) Math.toDegrees(Math.acos(dot));
 	        
-	        // Check for NaN result
 	        if (Float.isNaN(angle)) {
-	            System.err.println("ERROR: angle is NaN!");
 	            angle = 0.0f;
 	        }
 	        
@@ -812,6 +829,7 @@ public class PhysicsManager {
     }
     
     public static Quat4f eulerToQuaternion(double roll, double pitch, double yaw) {
+        // Convert degrees to radians
         roll = Math.toRadians(roll);
         pitch = Math.toRadians(pitch);
         yaw = Math.toRadians(yaw);
@@ -828,7 +846,7 @@ public class PhysicsManager {
         double y = cr * sp * cy + sr * cp * sy;
         double z = cr * cp * sy - sr * sp * cy;
 
-        return new Quat4f((float) x, (float) y, (float) z, (float) w);
+        return new Quat4f((float)x, (float)y, (float)z, (float)w);
     }
 
     

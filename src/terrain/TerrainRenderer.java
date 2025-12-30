@@ -79,11 +79,19 @@ public class TerrainRenderer {
         
         
         
-        shader.setUniform1f("shadowStrength", 0.65f * outsideAmbience);
-        shader.setUniform1f("terrainShadowStrength", 1.35f * outsideAmbience);
+        shader.setUniform1f("shadowStrength", 0.5f * outsideAmbience);
+        shader.setUniform1f("terrainShadowStrength", 1.55f * outsideAmbience);
         float terrainAmbience = outsideAmbience * 0.4f ;
         if (terrainAmbience < 0.1f) terrainAmbience = 0.1f;
         shader.setUniform1f("ambientStrength", terrainAmbience);  // almost no ambient
+        
+        
+        //Fog
+        shader.setUniform1f("density", 0.0000f * 1.0f);
+        shader.setUniform1f("gradient", 0.00001f * 1.0f);
+        shader.setUniform3f("fogColor", new Vector3f(0.25f, 0.25f, 0.25f));
+        
+        
         //System.out.println("outsideAmbience: " + outsideAmbience * 0.15f);
        // shader.setUniform1f("outsideAmbience", );
 

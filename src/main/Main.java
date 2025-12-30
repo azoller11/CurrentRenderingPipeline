@@ -1,10 +1,15 @@
 package main;
 
 import org.lwjgl.*;
+import org.lwjgl.assimp.AIAnimation;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.*;
 import org.lwjgl.system.*;
 
+import com.bulletphysics.dynamics.RigidBody;
+
+import animatedModel.AnimatedModel;
+import animatedModel.AnimationLoader;
 import debugRenderer.DebugRenderer;
 import decals.Decal;
 import decals.DecalManager;
@@ -14,6 +19,7 @@ import entities.Entity;
 import entities.Player;
 import entityManager.EntityManager;
 import entities.Light;
+import gui.GuiTexture;
 import gui.TextureRenderer;
 import guiManager.GuiManager;
 import grass.GrassRenderer;
@@ -254,7 +260,7 @@ public class Main {
         terrainRenderer = new TerrainRenderer();
         
         float terrainSize = 3000;
-        float terrainTileScale = 50;
+        float terrainTileScale = 35;
         float terrainHeight = 180;
         
         
@@ -357,8 +363,14 @@ public class Main {
         
       
 
-     
+        //Animations??
+        AnimationLoader animationLoader = new AnimationLoader();
         
+        AnimatedModel tubeDude = animationLoader.loadObject(animationLoader.loadScene("tubeDude.fbx"));
+        for (AIAnimation aa : tubeDude.getAnimations()) {
+        	//System.out.println("animation: " + aa.toString());
+        }
+     
         
         Entity cube7 = new Entity(entityManager.texturedModels.get("rock_plane"), new Vector3f(15, 25, 15), new Vector3f(0,0,0), 10f);
 
@@ -384,9 +396,22 @@ public class Main {
 
         entityManager.addEntity(cube11, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
-        Entity cube12 = new Entity(entityManager.texturedModels.get("tank2"), new Vector3f(15, 25, 15), new Vector3f(0,0,0), 1f);
+        Entity cube12 = new Entity(entityManager.texturedModels.get("tank2"), new Vector3f(-205, 25, -105), new Vector3f(0,0,0), 1f);
 
         entityManager.addEntity(cube12, EntityManager.CollisionType.STATIC_ACCURATE, 0);
+        
+        
+        Entity cube13 = new Entity(entityManager.texturedModels.get("MK2"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 1f);
+
+        //entityManager.addEntity(cube13, EntityManager.CollisionType.DYNAMIC_ACCURATE, 3);
+        
+        
+        Entity tubeMan = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 20f);
+        entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
+        
+        
+        Entity tubeMan2 = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(50, 45, 0), new Vector3f(0,0,0), 20f);
+        entityManager.addEntity(tubeMan2, EntityManager.CollisionType.NONE, 3);
         
         
         for (int i = 0; i < 30; i++) {
@@ -536,10 +561,12 @@ public class Main {
         	}
         	
         	if (treeNum == 10) {
-        		tree = new Entity(entityManager.texturedModels.get("pine_tree_2"),
+        		tree = new Entity(entityManager.texturedModels.get("pine_tree_4"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
+        		// entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
+        		//pine_tree_2 CAUSES LAGGGG
         		
         	}
         	
@@ -617,7 +644,7 @@ public class Main {
         	
         	
             
-            entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 250);
+            entityManager.addEntity(tree, EntityManager.CollisionType.DYNAMIC_ACCURATE, 250);
 
             
         }
@@ -694,8 +721,9 @@ public class Main {
       
       
       
-   	    
-   	
+   	    float crossHairSize = 25f;
+   		textureRenderer.addTexture(new GuiTexture(TextureLoader.loadExplicitTexture("crossHair.png"),
+   				(width/2.0f) - crossHairSize/2.0f, (height/2.0f) - crossHairSize/2.0f, crossHairSize,crossHairSize));
 
 	     picker = new MousePicker(width, height, camera, masterRenderer.getProjectionMatrix(), entityManager.getEntitiesList(), lights);
 	        
@@ -792,7 +820,9 @@ public class Main {
             
             player.updatePlayer(window, deltaTime, terrain);
             
-            entityManager.getPhysicsManager().updateEntitiesFromCollisionShapes(deltaTime * 100000, entityManager.getEntitiesList());
+            entityManager.getPhysicsManager().updateEntitiesFromCollisionShapes(deltaTime, entityManager.getEntitiesList());
+            entityManager.updateAnimations(deltaTime);
+            
             
             
             ParticleMaster.createParticle(
@@ -911,7 +941,7 @@ public class Main {
                     camera.getPosition(),
                     outsideAmbience
             );
-            ParticleMaster.renderParticles(camera);
+            
 
      
 
@@ -919,7 +949,7 @@ public class Main {
             		shadowTextureID, lights, lightSpaceMatrix);
             
             
-        
+            ParticleMaster.renderParticles(camera);
             
            // debugRenderer.addCollisionMesh(player.getPhysicsBody(), new Vector3f(1,1,1));
             
@@ -927,11 +957,68 @@ public class Main {
             bloomRenderer.unbindSceneFBO(width, height);
             
             //postRenderer.renderPostProcess();
-            bloomRenderer.renderBloom(width, height,2.0f, 0.6f);
+            bloomRenderer.renderBloom(width, height,1.0f, 0.2f);
+            
+            if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS) {
+
+                Entity cube13 = new Entity(
+                    entityManager.texturedModels.get("MK2"),
+                    new Vector3f(
+                        camera.getPosition().x(),
+                        camera.getPosition().y() + 5f,
+                        camera.getPosition().z()
+                    ),
+                    new Vector3f(0, 0, 0),
+                    1f
+                );
+
+                float throwStrength = 350f;
+
+                // ---- PITCH-BASED ARC ----
+                float pitch = camera.getPitch();
+                float clampedPitch = Math.max(-60f, Math.min(60f, pitch));
+                float pitchFactor = clampedPitch / 60f;
+
+                float baseArc = 0.15f;
+                float arcScale = 0.85f;
+                float arc = baseArc + (pitchFactor * arcScale);
+
+                Vector3f velocity = new Vector3f(camera.getForward());
+
+                velocity.y += arc;        // pitch-driven arc
+                velocity.normalize();
+                velocity.mul(throwStrength);
+
+                Entity g = entityManager.addEntity(
+                    cube13,
+                    EntityManager.CollisionType.DYNAMIC_NOT_ACCURATE,
+                    1
+                );
+
+                RigidBody body = entityManager.getEntityRigidBody(g);
+
+                body.setActivationState(RigidBody.ACTIVE_TAG);
+                body.setDamping(0.05f, 0.85f);
+                body.setRestitution(0.4f);
+                body.setFriction(0.8f);
+
+                body.setAngularVelocity(new javax.vecmath.Vector3f(0, 0, 0));
+                body.setLinearVelocity(new javax.vecmath.Vector3f(
+                    velocity.x,
+                    velocity.y,
+                    velocity.z
+                ));
+
+                // Optional realism spin
+             
+            }
+
+            
+            
             
 
             if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
-                System.out.println("Shoot!");
+                //System.out.println("Shoot!");
                 HitResult hit = PhysicsManager.shoot(camera, entityManager.getPhysicsManager(), 10000);
 
                 if (hit.hit) {

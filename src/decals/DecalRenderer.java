@@ -120,6 +120,7 @@ public class DecalRenderer {
         glDisable(GL_BLEND);
         glDepthMask(true);
         glDepthFunc(GL_LESS);
+        glEnable(GL_CULL_FACE);
         
         shader.unbind();
     }

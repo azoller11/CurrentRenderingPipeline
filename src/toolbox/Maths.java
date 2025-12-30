@@ -35,10 +35,10 @@ public class Maths {
 	        return res;
 	    }
 
-	public static Vector3f convertVector(AIVector3D mValue) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+	  public static org.joml.Vector3f convertVector(AIVector3D assimp)
+	    {
+	        return new org.joml.Vector3f(assimp.x(), assimp.y(), assimp.z());
+	    }
 
 	 public static org.joml.Vector3f sum(org.joml.Vector3f... sequence)
 	    {

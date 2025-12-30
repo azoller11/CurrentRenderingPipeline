@@ -24,31 +24,9 @@ public class AnimationLoader
     
     public AnimationLoader() {
 
-        player_constant = loadConstant(player_scene);
     }
     
-    public AnimatedModel loadPlayer() {
-        int player_vao;
-        int player_indices_length;
-        Bone[] player_bones;
-        AIAnimation[] player_animations;
-        AINode player_root;
-        
-        AnimatedModel player_model;
-        
-        player_bones = load(player_scene).getBones();
-        player_vao = player_constant.getVao();
-        player_indices_length = player_constant.getIndicesLength();
-        player_animations = player_constant.getAnimations();
-        player_root = player_constant.getRootNode();
-        
-        player_model = new AnimatedModel(player_vao, player_indices_length);
-        player_model.setBones(player_bones);
-        player_model.setAnimations(player_animations);
-        player_model.setRoot(player_root);
-        return player_model;
-    }
-    
+  
     public AnimatedModel loadObject(AIScene obj_scene) {
         int player_vao;
         int player_indices_length;
@@ -57,9 +35,9 @@ public class AnimationLoader
         AINode player_root;
         
         AnimatedModel player_model;
-        AnimatedModelData  obj_constant = loadConstant(obj_scene);
+        AnimatedModelData  obj_constant = loadConstant( obj_scene);
         
-        player_bones = load(obj_scene).getBones();
+        player_bones = load( obj_scene).getBones();
         player_vao = obj_constant.getVao();
         player_indices_length = obj_constant.getIndicesLength();
         player_animations = obj_constant.getAnimations();
@@ -83,30 +61,42 @@ public class AnimationLoader
         return scene;   
     }
     
-   public AnimatedModelData loadConstant(AIScene scene) {
+  public AnimatedModelData loadConstant(AIScene scene) {
     assert scene != null;
     assert scene.mNumMeshes() == 1;
     assert scene.mNumAnimations() > 0;
     AIMesh mesh = AIMesh.create(scene.mMeshes().get(0));
 
-    final int vertexSize = 19; // 19 floats per vertex (3+2+3+3+4+4)
+    // NEW: Use separate arrays for bone IDs (ints) and weights (floats)
+    final int vertexSizeFloats = 14; // 3+2+3+3+3 (position+tex+normal+tangent+bitangent)
     final int floatSize = 4;    // Size of a float in bytes
+    final int intSize = 4;      // Size of an int in bytes
 
     int numVertices = mesh.mNumVertices();
-    float[] vertices = new float[numVertices * vertexSize];
-    System.out.println("Number of vertices: " + numVertices);
-    System.out.println("Vertices array length: " + vertices.length);
+    float[] vertices = new float[numVertices * vertexSizeFloats];
+    
+    // NEW: Separate arrays for bone data
+    int[] boneIdsArray = new int[numVertices * 4]; // 4 bone IDs per vertex
+    float[] boneWeightsArray = new float[numVertices * 4]; // 4 weights per vertex
+    
+    //System.out.println("Number of vertices: " + numVertices);
+    //System.out.println("Vertices array length: " + vertices.length);
 
     int i = 0;
     for (int v = 0; v < numVertices; v++) {
-        if (i + 19 > vertices.length) {
+        if (i + 14 > vertices.length) {
             throw new RuntimeException("Attempting to write beyond the vertices array at vertex index: " + v);
         }
 
         AIVector3D position = mesh.mVertices().get(v);
         AIVector3D tex = mesh.mTextureCoords(0).get(v);
         AIVector3D normal = mesh.mNormals().get(v);
-        AIVector3D tangent = mesh.mTangents().get(v); // Fetch tangent
+        AIVector3D tangent = mesh.mTangents().get(v);
+        
+        // Calculate bitangent (normal × tangent)
+        org.joml.Vector3f normalVec = new org.joml.Vector3f(normal.x(), normal.y(), normal.z());
+        org.joml.Vector3f tangentVec = new org.joml.Vector3f(tangent.x(), tangent.y(), tangent.z());
+        org.joml.Vector3f bitangent = normalVec.cross(tangentVec);
 
         // Populate position
         vertices[i++] = position.x();
@@ -127,29 +117,19 @@ public class AnimationLoader
         vertices[i++] = tangent.y();
         vertices[i++] = tangent.z();
 
-        // Initialize weights to 0
-        for (int j = 0; j < 4; j++) { // Weights
-            vertices[i++] = 0.0f;
-        }
-
-        // Initialize bone IDs to 0
-        for (int j = 0; j < 4; j++) { // Bone IDs
-            vertices[i++] = 0.0f;
-        }
+        // Populate bitangent
+        vertices[i++] = bitangent.x();
+        vertices[i++] = bitangent.y();
+        vertices[i++] = bitangent.z();
     }
 
-    // Ensure 'i' does not exceed 'vertices.length'
-    if (i != vertices.length) {
-        throw new RuntimeException("Mismatch in vertices array population. Expected " + vertices.length + " but got " + i);
-    }
-
-    int[] indices = new int[mesh.mNumFaces() * 3];
-    i = 0;
-    for (int f = 0; f < mesh.mNumFaces(); f++) {
-        AIFace face = mesh.mFaces().get(f);
-        indices[i++] = face.mIndices().get(0);
-        indices[i++] = face.mIndices().get(1);
-        indices[i++] = face.mIndices().get(2);
+    // Initialize bone weights and IDs to defaults
+    for (int v = 0; v < numVertices; v++) {
+        int baseIdx = v * 4;
+        for (int j = 0; j < 4; j++) {
+            boneIdsArray[baseIdx + j] = 0;
+            boneWeightsArray[baseIdx + j] = 0.0f;
+        }
     }
 
     // Bone assignments
@@ -165,22 +145,86 @@ public class AnimationLoader
             }
 
             // Find the first empty weight slot
-            for (int j = 0; j < 4; j++) { // Support up to 4 bones per vertex
-                int weightIndex = vertexId * vertexSize + 11 + j;  // Weights start at float 11
-                int boneIndex = vertexId * vertexSize + 15 + j;    // Bone IDs start at float 15
-
-                if (weightIndex >= vertices.length || boneIndex >= vertices.length) {
-                    throw new RuntimeException("Weight or Bone Index out of bounds for vertex ID: " + vertexId);
-                }
-
-                if (vertices[weightIndex] == 0.0f) {
-                    vertices[weightIndex] = weightValue;
-                    vertices[boneIndex] = (float) b;
+            int baseIdx = vertexId * 4;
+            for (int j = 0; j < 4; j++) {
+                if (boneWeightsArray[baseIdx + j] == 0.0f) {
+                    boneIdsArray[baseIdx + j] = b;
+                    boneWeightsArray[baseIdx + j] = weightValue;
                     break;
                 }
             }
         }
     }
+    
+ // Bone assignments
+    for (int b = 0; b < mesh.mNumBones(); b++) {
+        AIBone bone = AIBone.create(mesh.mBones().get(b));
+        //System.out.println("Bone " + b + ": " + bone.mName().dataString() + " - " + bone.mNumWeights() + " weights");
+        
+        // Debug: Print weight distribution
+        int weightCounts = 0;
+        for (int w = 0; w < bone.mNumWeights(); w++) {
+            AIVertexWeight vw = bone.mWeights().get(w);
+            if (vw.mWeight() > 0.1f) { // Only count significant weights
+                weightCounts++;
+            }
+        }
+       // System.out.println("  Significant weights (>0.1): " + weightCounts);
+        
+        for (int w = 0; w < bone.mNumWeights(); w++) {
+            AIVertexWeight vw = bone.mWeights().get(w);
+            int vertexId = vw.mVertexId();
+            float weightValue = vw.mWeight();
+
+            if (vertexId < 0 || vertexId >= numVertices) {
+                throw new RuntimeException("Invalid vertex ID: " + vertexId);
+            }
+
+            // Find the first empty weight slot
+            int baseIdx = vertexId * 4;
+            for (int j = 0; j < 4; j++) {
+                if (boneWeightsArray[baseIdx + j] == 0.0f) {
+                    boneIdsArray[baseIdx + j] = b;
+                    boneWeightsArray[baseIdx + j] = weightValue;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Debug: Check vertex weight distribution
+    int verticesWithWeights = 0;
+    int maxWeightsPerVertex = 0;
+    for (int v = 0; v < numVertices; v++) {
+        int baseIdx = v * 4;
+        int weightCount = 0;
+        float totalWeight = 0.0f;
+        for (int j = 0; j < 4; j++) {
+            if (boneWeightsArray[baseIdx + j] > 0.0f) {
+                weightCount++;
+                totalWeight += boneWeightsArray[baseIdx + j];
+            }
+        }
+        if (weightCount > 0) {
+            verticesWithWeights++;
+            if (weightCount > maxWeightsPerVertex) maxWeightsPerVertex = weightCount;
+            
+            // Debug first few vertices with weights
+            if (v < 10 && weightCount > 0) {
+               /*
+            	System.out.println("Vertex " + v + " - Bones: [" + 
+                    boneIdsArray[baseIdx] + "," + boneIdsArray[baseIdx+1] + "," + 
+                    boneIdsArray[baseIdx+2] + "," + boneIdsArray[baseIdx+3] + 
+                    "], Weights: [" + 
+                    boneWeightsArray[baseIdx] + "," + boneWeightsArray[baseIdx+1] + "," + 
+                    boneWeightsArray[baseIdx+2] + "," + boneWeightsArray[baseIdx+3] + 
+                    "], Total: " + totalWeight);
+                    */
+            }
+        }
+    }
+    //System.out.println("Vertices with weights: " + verticesWithWeights + "/" + numVertices);
+    //System.out.println("Max weights per vertex: " + maxWeightsPerVertex);
 
     AIAnimation[] animations = new AIAnimation[scene.mNumAnimations()];
     for (int a = 0; a < animations.length; a++) {
@@ -191,31 +235,65 @@ public class AnimationLoader
     vaos.add(vao);
     glBindVertexArray(vao);
 
+    // VBO for float vertex data (positions, normals, etc.)
     int vbo = glGenBuffers();
     vbos.add(vbo);
-
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 
-    // Enable vertex attributes
+    // NEW: VBO for bone IDs (integers)
+    int boneIdVBO = glGenBuffers();
+    vbos.add(boneIdVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, boneIdVBO);
+    glBufferData(GL_ARRAY_BUFFER, boneIdsArray, GL_STATIC_DRAW);
+
+    // NEW: VBO for bone weights (floats)
+    int boneWeightVBO = glGenBuffers();
+    vbos.add(boneWeightVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, boneWeightVBO);
+    glBufferData(GL_ARRAY_BUFFER, boneWeightsArray, GL_STATIC_DRAW);
+
+    // Set up vertex attributes for the first VBO
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    
+    int stride = vertexSizeFloats * floatSize; // 14 * 4 = 56 bytes
+
+    // Define vertex attribute pointers for float data
     glEnableVertexAttribArray(0); // position
+    glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0);
+    
     glEnableVertexAttribArray(1); // textureCoordinates
+    glVertexAttribPointer(1, 2, GL_FLOAT, false, stride, 3 * floatSize);
+    
     glEnableVertexAttribArray(2); // normal
+    glVertexAttribPointer(2, 3, GL_FLOAT, false, stride, 5 * floatSize);
+    
     glEnableVertexAttribArray(3); // tangent
-    glEnableVertexAttribArray(4); // weight
-    glEnableVertexAttribArray(5); // bone_id
+    glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 8 * floatSize);
+    
+    glEnableVertexAttribArray(4); // bitangent
+    glVertexAttribPointer(4, 3, GL_FLOAT, false, stride, 11 * floatSize);
 
-    int stride = vertexSize * floatSize; // 19 * 4 = 76 bytes
+    // Set up vertex attributes for bone IDs (integers)
+    glBindBuffer(GL_ARRAY_BUFFER, boneIdVBO);
+    glEnableVertexAttribArray(5); // bone IDs
+    glVertexAttribIPointer(5, 4, GL_INT, 0, 0); // Note: glVertexAttribIPointer for integers
 
-    // Define vertex attribute pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0);                     // position
-    glVertexAttribPointer(1, 2, GL_FLOAT, false, stride, 3 * floatSize);        // textureCoordinates
-    glVertexAttribPointer(2, 3, GL_FLOAT, false, stride, 5 * floatSize);        // normal
-    glVertexAttribPointer(3, 3, GL_FLOAT, false, stride, 8 * floatSize);        // tangent
-    glVertexAttribPointer(4, 4, GL_FLOAT, false, stride, 11 * floatSize);       // weight
-    glVertexAttribPointer(5, 4, GL_FLOAT, false, stride, 15 * floatSize);       // bone_id
+    // Set up vertex attributes for bone weights
+    glBindBuffer(GL_ARRAY_BUFFER, boneWeightVBO);
+    glEnableVertexAttribArray(6); // bone weights
+    glVertexAttribPointer(6, 4, GL_FLOAT, false, 0, 0);
 
-    // Element Buffer Object
+    // Element Buffer Object for indices
+    int[] indices = new int[mesh.mNumFaces() * 3];
+    i = 0;
+    for (int f = 0; f < mesh.mNumFaces(); f++) {
+        AIFace face = mesh.mFaces().get(f);
+        indices[i++] = face.mIndices().get(0);
+        indices[i++] = face.mIndices().get(1);
+        indices[i++] = face.mIndices().get(2);
+    }
+
     int ibo = glGenBuffers();
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
@@ -224,7 +302,6 @@ public class AnimationLoader
 
     return new AnimatedModelData(vao, indices.length, animations, scene.mRootNode());
 }
-
     public Bones load(AIScene scene)
     {
 

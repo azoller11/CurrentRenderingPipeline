@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.joml.Vector3f;
 
+import animatedModel.AnimationLoader;
 import entities.TexturedModel;
 
 public class TexturedModels {
@@ -18,7 +19,8 @@ public class TexturedModels {
 	}
 	
 	public void init(Map<String, TexturedModel> texturedModels) {
-		
+		 AnimationLoader animationLoader = new AnimationLoader();
+		 
 		//CUBE 
 		TexturedModel cube = new TexturedModel();
 		cube.setMesh(ObjLoader.loadObj("crate"));
@@ -93,10 +95,23 @@ public class TexturedModels {
         //tank
         //https://www.cgtrader.com/
         
+        //tubeDude
+		TexturedModel tubeDude = new TexturedModel();
+		tubeDude.setAnimatedModel( animationLoader.loadObject(animationLoader.loadScene("lpm11102024.fbx")));
+		tubeDude.setTextureId(TextureLoader.loadTexture("camo3_2k.png"));
+		tubeDude.setNormalMapId(TextureLoader.loadTexture("rust_nor_2k.png"));
+		//tubeDude.setHeighMapId(TextureLoader.loadTexture("rust_disp_2k.png"));
+		tubeDude.setMetallicMap(TextureLoader.loadTexture("rust_metal_2k.png"));
+		tubeDude.setRoughnessMap(TextureLoader.loadTexture("rust_rough_2k.png"));
+		tubeDude.setAoMap(TextureLoader.loadTexture("rust_ao_2k.png"));
+		//tubeDude.setParallaxScale(new Vector3f(0.01f, 20, 60));
+		tubeDude.setCastShadows(true);
+        texturedModels.put("tubeDude", tubeDude);
+        
         //tank
 		TexturedModel tank = new TexturedModel();
 		tank.setMesh(ObjLoader.loadObj("tank"));
-		tank.setTextureId(TextureLoader.loadTexture("camo_2k.png"));
+		tank.setTextureId(TextureLoader.loadTexture("camo3_2k.png"));
 		tank.setNormalMapId(TextureLoader.loadTexture("rust_nor_2k.png"));
 		tank.setHeighMapId(TextureLoader.loadTexture("rust_disp_2k.png"));
 		tank.setMetallicMap(TextureLoader.loadTexture("rust_metal_2k.png"));
@@ -109,7 +124,7 @@ public class TexturedModels {
         //tank2
 		TexturedModel tank2 = new TexturedModel();
 		tank2.setMesh(ObjLoader.loadObj("tank2"));
-		tank2.setTextureId(TextureLoader.loadTexture("camo_2k.png"));
+		tank2.setTextureId(TextureLoader.loadTexture("camo3_2k.png"));
 		tank2.setNormalMapId(TextureLoader.loadTexture("rust_nor_2k.png"));
 		tank2.setHeighMapId(TextureLoader.loadTexture("rust_disp_2k.png"));
 		tank2.setMetallicMap(TextureLoader.loadTexture("rust_metal_2k.png"));
@@ -119,6 +134,18 @@ public class TexturedModels {
 		tank2.setCastShadows(true);
         texturedModels.put("tank2", tank2);
         
+        
+        //MK2
+		TexturedModel MK2 = new TexturedModel();
+		MK2.setMesh(ObjLoader.loadObj("MK2"));
+		MK2.setTextureId(TextureLoader.loadTexture("MK2_diff_2k.png"));
+		MK2.setNormalMapId(TextureLoader.loadTexture("MK2_nor_2k.png"));
+		MK2.setHeighMapId(TextureLoader.loadTexture("MK2_disp_2k.png"));
+		MK2.setMetallicMap(TextureLoader.loadTexture("MK2_metallic_2k.png"));
+		MK2.setRoughnessMap(TextureLoader.loadTexture("MK2_rough_2k.png"));
+		MK2.setAoMap(TextureLoader.loadTexture("MK2_ao_2k.png"));
+		MK2.setCastShadows(true);
+		texturedModels.put("MK2", MK2);
         
 		
 		//Brick Plane
@@ -180,6 +207,7 @@ public class TexturedModels {
         TexturedModel Tree9 = new TexturedModel();
         Tree9.setMesh(ObjLoader.loadObj("tree9"));
         Tree9.setTextureId(TextureLoader.loadTexture("treeTextures5.png"));
+        //Tree9.setNormalMapId(TextureLoader.loadTexture("treeTextures5Normal.png"));
         //Tree9.setNormalMapId(TextureLoader.loadTexture("up_normal_2k.png"));
         Tree9.setHasTransparency(true);
         Tree9.setHasOpaque(false);
@@ -192,6 +220,7 @@ public class TexturedModels {
         TexturedModel Tree8 = new TexturedModel();
         Tree8.setMesh(ObjLoader.loadObj("tree8"));
         Tree8.setTextureId(TextureLoader.loadTexture("treeTextures5.png"));
+        //Tree8.setNormalMapId(TextureLoader.loadTexture("treeTextures5Normal.png"));
         //Tree8.setNormalMapId(TextureLoader.loadTexture("up_normal_2k.png"));
         Tree8.setHasTransparency(true);
         Tree8.setHasOpaque(false);
@@ -204,6 +233,11 @@ public class TexturedModels {
         TexturedModel Tree3 = new TexturedModel();
         Tree3.setMesh(ObjLoader.loadObj("tree3"));
         Tree3.setTextureId(TextureLoader.loadTexture("treeTextures4.png"));
+       // Tree3.setNormalMapId(TextureLoader.loadTexture("treeTextures4Normal.png"));
+        //Tree3.setRoughnessMap(TextureLoader.loadTexture("treeTextures4Rough.png"));
+        //Tree3.setMetallicMap(TextureLoader.loadTexture("treeTextures4Rough.png"));
+        //Tree3.setHeighMapId(TextureLoader.loadTexture("treeTextures4Disp.png"));
+        Tree3.setAoMap(TextureLoader.loadTexture("treeTextures4AO.png"));
         Tree3.setHasTransparency(true);
         Tree3.setHasOpaque(false);
         Tree3.setCastShadows(true);
@@ -214,6 +248,7 @@ public class TexturedModels {
         TexturedModel SpruceTree = new TexturedModel();
         SpruceTree.setMesh(ObjLoader.loadObj("spruceTree"));
         SpruceTree.setTextureId(TextureLoader.loadTexture("treeTextures2.png"));
+        SpruceTree.setNormalMapId(TextureLoader.loadTexture("treeTextures2Normal.png"));
         SpruceTree.setHasTransparency(true);
         SpruceTree.setHasOpaque(false);
         SpruceTree.setUseFakeLighting(true);
@@ -225,6 +260,7 @@ public class TexturedModels {
         TexturedModel cedarTree2 = new TexturedModel();
         cedarTree2.setMesh(ObjLoader.loadObj("cedarTree2"));
         cedarTree2.setTextureId(TextureLoader.loadTexture("pineTexture2.png"));
+       // cedarTree2.setNormalMapId(TextureLoader.loadTexture("pineTexture2Normal.png"));
         cedarTree2.setHasTransparency(true);
         cedarTree2.setHasOpaque(false);
         cedarTree2.setCastShadows(true);
@@ -235,6 +271,7 @@ public class TexturedModels {
         TexturedModel pineTree4 = new TexturedModel();
         pineTree4.setMesh(ObjLoader.loadObj("pineTree4"));
         pineTree4.setTextureId(TextureLoader.loadTexture("pineTexture3.png"));
+       // pineTree4.setNormalMapId(TextureLoader.loadTexture("pineTexture3Normal.png"));
         pineTree4.setHasTransparency(true);
         pineTree4.setHasOpaque(false);
         pineTree4.setCastShadows(true);
@@ -245,10 +282,11 @@ public class TexturedModels {
         TexturedModel pineTree2 = new TexturedModel();
         pineTree2.setMesh(ObjLoader.loadObj("tree2"));
         pineTree2.setTextureId(TextureLoader.loadTexture("pineTexture2.png"));
+     //   pineTree2.setNormalMapId(TextureLoader.loadTexture("pineTexture2Normal.png"));
         pineTree2.setHasTransparency(true);
         pineTree2.setHasOpaque(false);
         pineTree2.setCastShadows(true);
-        pineTree2.setUseFakeLighting(true);
+       pineTree2.setUseFakeLighting(true);
         texturedModels.put("pine_tree_2", pineTree2);
         
         

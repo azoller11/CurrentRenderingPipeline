@@ -1,12 +1,19 @@
 package entities;
 
-import org.joml.Vector3f;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.joml.Vector3f;
+import org.lwjgl.assimp.AIAnimation;
+
+import animatedModel.AnimatedModel;
+import animatedModel.AnimationElement;
 import toolbox.Mesh;
 
 public class TexturedModel {
 	
 	private Mesh mesh;
+	private AnimatedModel animatedModel;
 	 
 	private int textureId;
 	 
@@ -31,6 +38,7 @@ public class TexturedModel {
     private boolean isVegitation;
     private boolean useFakeLighting;
  
+    private List<AnimationElement> animationElements;
 
 
 	public TexturedModel(Mesh mesh, int textureId) {
@@ -38,12 +46,30 @@ public class TexturedModel {
 		this.mesh = mesh;
 		this.textureId = textureId;
 	}
+	
+	public TexturedModel(AnimatedModel animatedModel, int textureId) {
+		super();
+		this.animatedModel = animatedModel;
+		this.textureId = textureId;
+		//Load the animation elements
+		generateAnimations();
+	}
 
 
 	public TexturedModel() {
 		// TODO Auto-generated constructor stub
 	}
 
+	
+
+	public AnimatedModel getAnimatedModel() {
+		return animatedModel;
+	}
+
+	public void setAnimatedModel(AnimatedModel animatedModel) {
+		this.animatedModel = animatedModel;
+		generateAnimations();
+	}
 
 	public Mesh getMesh() {
 		return mesh;
@@ -175,10 +201,26 @@ public class TexturedModel {
 	}
 
 
-	
-    
+	public void generateAnimations() {
+		animationElements = new ArrayList<>();
+		 int index = 0;
+		 for (AIAnimation a : animatedModel.getAnimations()) {
+	        	animationElements.add(new AnimationElement(index, 0));
+	        	System.out.println("New ANIMATION!");
+	        	System.out.println("boneCount: " + animatedModel.getBones().length);
+	        	index++;
+	        }
+	}
     
 	   
+		public List<AnimationElement> getAnimationElements() {
+			return animationElements;
+		}
+
+	public void setAnimationElements(List<AnimationElement> animationElements) {
+		this.animationElements = animationElements;
+	}
+
 		public boolean isVegitation() {
 			return isVegitation;
 		}

@@ -15,7 +15,7 @@ vec3 computeNormal(vec3 worldNormal, vec3 worldTangent, vec2 uv, out mat3 TBN)
     }
     
     if (useFakeLighting == 1) {
-    	return vec3(0.0,0.75,0.0);
+    	return vec3(0.0,fakeLightingStrength,0.0);
     }
     
     return normalize(worldNormal);

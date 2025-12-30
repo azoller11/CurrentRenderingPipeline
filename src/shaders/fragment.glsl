@@ -73,11 +73,13 @@ uniform float exposure = 2.2;           // global brightness
 uniform float ambientBoost = 1.4;       // boosts sky ambient
 uniform float lightBoost = 3.0;         // boosts artificial lights
 uniform float shadowBrightness = 0.35;  // brightness in shadowed regions
+uniform float minBrightness = 0.12; 
 
 uniform float density  = 0.0000;         
 uniform float gradient  = 0.001;
 uniform vec3 fogColor = vec3(0.25f, 0.25f, 0.25f);
 
+uniform float fakeLightingStrength = 1.0f;
 
 // -----------------------------------------------------------------------------
 // Inputs and Outputs
@@ -372,7 +374,7 @@ void main()
     // We use it to smoothly move between a low and medium ambient, plus a small
     // base floor so shadows never go pure black.
     //
-    float baseAmbientFloor = 0.12; // was 0.03
+    float baseAmbientFloor = minBrightness; // was 0.03
 	float skyAmbientMin    = 0.08;
 	float skyAmbientMax    = 0.55; // MUCH brighter sky influence
 	
@@ -395,8 +397,6 @@ void main()
     // -------------------------------------------------------------------------
     // DIRECT LIGHTING LOOP
     // -------------------------------------------------------------------------
-    // Amount of light allowed even in deepest shadow (0 = full black)
-    float minShadowLight = 0.25;  // tweak this: higher = softer shadows
 
     for (int i = 0; i < numLights; i++) {
         // Skip lights with negligible contribution.

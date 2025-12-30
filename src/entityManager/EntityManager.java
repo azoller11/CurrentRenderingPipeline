@@ -13,6 +13,8 @@ import entities.Player;
 import physics.PhysicsManager;
 import settings.EngineSettings;
 import terrain.Terrain;
+import com.bulletphysics.dynamics.RigidBody;
+
 
 public class EntityManager {
 	
@@ -23,6 +25,8 @@ public class EntityManager {
 	public Terrain terrain;
 	
 	public Map<String, TexturedModel> texturedModels;
+	
+	public Map<Entity, RigidBody> entityRigidBodyMap = new HashMap<>();
 	
 	public Map<Integer, Entity> entities;
 	public Map<Integer, Light> lights;
@@ -54,16 +58,26 @@ public class EntityManager {
 
 	
 	public Entity addEntity(Entity newEntity, CollisionType collisionType, float mass) {
-		if (collisionType.equals(CollisionType.STATIC_NOT_ACCURATE))
-			this.physicsManager.addStaticNotSoAccurateCollision(newEntity);
-		if (collisionType.equals(CollisionType.STATIC_ACCURATE))
-			this.physicsManager.addStaticAccurateCollision(newEntity);
-		if (collisionType.equals(CollisionType.DYNAMIC_NOT_ACCURATE))
-			this.physicsManager.addMovableNotSoAccurateCollision(newEntity, mass);
-		if (collisionType.equals(CollisionType.DYNAMIC_ACCURATE))
-			this.physicsManager.addMovableAccurateCollision(newEntity, mass);
-		if (collisionType.equals(CollisionType.ADD_BODY))
-			this.physicsManager.addRigidBody(newEntity);
+		if (collisionType.equals(CollisionType.STATIC_NOT_ACCURATE)) {
+			entityRigidBodyMap.put(newEntity, this.physicsManager.addStaticNotSoAccurateCollision(newEntity));
+		}
+			
+		if (collisionType.equals(CollisionType.STATIC_ACCURATE)) {
+			entityRigidBodyMap.put(newEntity, this.physicsManager.addStaticAccurateCollision(newEntity));
+		}
+			
+		if (collisionType.equals(CollisionType.DYNAMIC_NOT_ACCURATE)) {
+			entityRigidBodyMap.put(newEntity, this.physicsManager.addMovableNotSoAccurateCollision(newEntity, mass));
+		}
+			
+		if (collisionType.equals(CollisionType.DYNAMIC_ACCURATE)) {
+			entityRigidBodyMap.put(newEntity, this.physicsManager.addMovableAccurateCollision(newEntity, mass));
+		}
+			
+		if (collisionType.equals(CollisionType.ADD_BODY)) {
+			entityRigidBodyMap.put(newEntity, this.physicsManager.addRigidBody(newEntity));
+		}
+			
 		entities.put(newEntity.getId(), newEntity);
 		if (entities.containsKey(newEntity.getId())) {
 			//System.out.println("Successfully Created Entity: " + newEntity.getId());
@@ -74,7 +88,25 @@ public class EntityManager {
 	}
 	
 	
-	
+	public void updateAnimations(float deltaTime) {
+		for (int a : entities.keySet()) {
+			if (entities.get(a).getTexturedModel().getAnimatedModel() != null) {
+				Entity e = entities.get(a);
+				if (e.getTexturedModel().getAnimatedModel().getAnimations().length > 1) {
+					int animationIndex = 3;
+					e.getTexturedModel().getAnimationElements().get(animationIndex).incAnimationTime(deltaTime);
+		    		e.getTexturedModel().getAnimatedModel().updateAnimation(animationIndex, e.getTexturedModel().getAnimationElements().get(animationIndex).getAnimationTime());
+			    	continue;
+	        	}
+		    	
+				if (e.getTexturedModel().getAnimatedModel().getAnimations().length > 0) {
+		    		e.getTexturedModel().getAnimationElements().get(0).incAnimationTime(deltaTime);
+			    	e.getTexturedModel().getAnimatedModel().updateAnimation(0, e.getTexturedModel().getAnimationElements().get(0).getAnimationTime());
+	        	}
+			}
+		}
+			
+	}
 	
 	
 	public void addLight(Light newLight) {
@@ -190,7 +222,23 @@ public class EntityManager {
 	public void setPhysicsManager(PhysicsManager physicsManager) {
 		this.physicsManager = physicsManager;
 	}
+
+
+
+	public Map<Entity, RigidBody> getEntityRigidBodyMap() {
+		return entityRigidBodyMap;
+	}
+
+
+
+	public void setEntityRigidBodyMap(Map<Entity, RigidBody> entityRigidBodyMap) {
+		this.entityRigidBodyMap = entityRigidBodyMap;
+	}
 	
+	
+	public RigidBody getEntityRigidBody(Entity e) {
+		return (this.entityRigidBodyMap.containsKey(e) ? this.entityRigidBodyMap.get(e) : null);
+	}
 	
 
 	

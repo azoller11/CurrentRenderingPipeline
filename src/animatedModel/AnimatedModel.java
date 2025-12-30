@@ -6,6 +6,10 @@ import org.joml.Vector3f;
 import org.lwjgl.assimp.AIAnimation;
 import org.lwjgl.assimp.AINode;
 import org.lwjgl.assimp.AINodeAnim;
+import org.lwjgl.assimp.AIQuatKey;
+import org.lwjgl.assimp.AIQuaternion;
+import org.lwjgl.assimp.AIVector3D;
+import org.lwjgl.assimp.AIVectorKey;
 
 import toolbox.Maths;
 
@@ -76,55 +80,110 @@ public class AnimatedModel
         processNode(target, animationTime, root, identity);
     }
     
-    private void processNode(AIAnimation target, AIAnimation target2, float animationTime, float animationTime2, AINode node, 
-            Matrix4f parentTransform, float blend)
+   private void processNode(AIAnimation target, AIAnimation target2, float animationTime, float animationTime2, AINode node, 
+    Matrix4f parentTransform, float blend)
+{
+    String nodeName = node.mName().dataString();
+    System.out.println("Processing node: " + nodeName);
+
+    Matrix4f nodeTransform = Maths.convertMatrix(node.mTransformation());
+
+    AINodeAnim boneAnimation = findBoneAnimation(target, nodeName);
+    AINodeAnim boneAnimation2 = findBoneAnimation(target2, nodeName);
+    
+    System.out.println("  Found boneAnimation: " + (boneAnimation != null) + 
+                      ", boneAnimation2: " + (boneAnimation2 != null));
+
+    // If this node refers bone (contains animation), Do interpolate transforms.
+    if (boneAnimation != null || boneAnimation2 != null)
     {
-        String nodeName = node.mName().dataString();
-
-        Matrix4f nodeTransform = Maths.convertMatrix(node.mTransformation());
-
-        AINodeAnim boneAnimation = findBoneAnimation(target, nodeName);
-        AINodeAnim boneAnimation2 = findBoneAnimation(target2, nodeName);
-
-        // If this node refers bone (contains animation), Do interpolate transforms.
-        if (boneAnimation != null)
+        System.out.println("  Animating node: " + nodeName);
+        
+        // Handle scaling
+        Vector3f blendedScale;
+        if (boneAnimation != null && boneAnimation2 != null)
         {
+            System.out.println("    Both animations have this bone, blending");
             Vector3f interpolatedScale = calcInterpolatedScale(animationTime, boneAnimation);
             Vector3f interpolatedScale2 = calcInterpolatedScale(animationTime2, boneAnimation2);
-            Vector3f blendedScale = new Vector3f();
+            blendedScale = new Vector3f();
             interpolatedScale.lerp(interpolatedScale2, blend, blendedScale);
-            Matrix4f scaleMatrix = new Matrix4f().scale(blendedScale);
+        }
+        else if (boneAnimation != null)
+        {
+            System.out.println("    Only first animation has this bone");
+            blendedScale = calcInterpolatedScale(animationTime, boneAnimation);
+        }
+        else
+        {
+            System.out.println("    Only second animation has this bone");
+            blendedScale = calcInterpolatedScale(animationTime2, boneAnimation2);
+        }
+        System.out.println("    Final scale: " + blendedScale);
+        Matrix4f scaleMatrix = new Matrix4f().scale(blendedScale);
 
+        // Handle rotation
+        Quaternionf blendedRotation;
+        if (boneAnimation != null && boneAnimation2 != null)
+        {
             Quaternionf interpolatedRotation = calcInterpolatedRotation(animationTime, boneAnimation);
             Quaternionf interpolatedRotation2 = calcInterpolatedRotation(animationTime2, boneAnimation2);
-            Quaternionf blendedRotation = new Quaternionf();
+            blendedRotation = new Quaternionf();
             interpolatedRotation.slerp(interpolatedRotation2, blend, blendedRotation);
-            Matrix4f rotationMatrix = new Matrix4f().rotate(blendedRotation);
+        }
+        else if (boneAnimation != null)
+        {
+            blendedRotation = calcInterpolatedRotation(animationTime, boneAnimation);
+        }
+        else
+        {
+            blendedRotation = calcInterpolatedRotation(animationTime2, boneAnimation2);
+        }
+        Matrix4f rotationMatrix = new Matrix4f().rotate(blendedRotation);
 
+        // Handle position
+        Vector3f blendedPosition;
+        if (boneAnimation != null && boneAnimation2 != null)
+        {
             Vector3f interpolatedPosition = calcInterpolatedPosition(animationTime, boneAnimation);
             Vector3f interpolatedPosition2 = calcInterpolatedPosition(animationTime2, boneAnimation2);
-            Vector3f blendedPosition = new Vector3f();
+            blendedPosition = new Vector3f();
             interpolatedPosition.lerp(interpolatedPosition2, blend, blendedPosition);
-            Matrix4f translationMatrix = new Matrix4f().translate(blendedPosition);
-
-            nodeTransform = Maths.mul(translationMatrix, rotationMatrix, scaleMatrix);
         }
-
-        Matrix4f toGlobalSpace = Maths.mul(parentTransform, nodeTransform);
-
-        Bone bone = findBone(nodeName);
-
-        if (bone != null)
-            bone.setTransformation(Maths.mul(toGlobalSpace, bone.getOffsetMatrix()));
-
-        // Recursively process the child nodes
-        for (int i = 0; i < node.mNumChildren(); i++)
+        else if (boneAnimation != null)
         {
-            AINode childNode = AINode.create(node.mChildren().get(i));
-            processNode(target, target2, animationTime, animationTime2, childNode, toGlobalSpace, blend);
+            blendedPosition = calcInterpolatedPosition(animationTime, boneAnimation);
         }
+        else
+        {
+            blendedPosition = calcInterpolatedPosition(animationTime2, boneAnimation2);
+        }
+        Matrix4f translationMatrix = new Matrix4f().translate(blendedPosition);
+
+        nodeTransform = Maths.mul(translationMatrix, rotationMatrix, scaleMatrix);
     }
 
+    Matrix4f toGlobalSpace = Maths.mul(parentTransform, nodeTransform);
+
+    Bone bone = findBone(nodeName);
+
+    if (bone != null) {
+        //System.out.println("  Found bone, setting transformation");
+        bone.setTransformation(Maths.mul(toGlobalSpace, bone.getOffsetMatrix()));
+    } else {
+        //System.out.println("  No bone found for node: " + nodeName);
+    }
+
+    // Recursively process the child nodes
+    //System.out.println("  Processing " + node.mNumChildren() + " children");
+    for (int i = 0; i < node.mNumChildren(); i++)
+    {
+        AINode childNode = AINode.create(node.mChildren().get(i));
+        processNode(target, target2, animationTime, animationTime2, childNode, toGlobalSpace, blend);
+    }
+}
+    
+    
     private void processNode(AIAnimation target, float animationTime, AINode node, Matrix4f parentTransform)
     {
         String nodeName = node.mName().dataString();
@@ -177,24 +236,107 @@ public class AnimatedModel
     }
 
     private org.joml.Vector3f calcInterpolatedScale(float timeAt, AINodeAnim boneAnimation)
-    {
-        if (boneAnimation.mNumScalingKeys() == 1)
-            return Maths.convertVector(boneAnimation.mScalingKeys().get(0).mValue());
-
-        int index0 = findScaleIndex(timeAt, boneAnimation);
-        int index1 = index0 + 1;
-        float time0 = (float) boneAnimation.mScalingKeys().get(index0).mTime();
-        float time1 = (float) boneAnimation.mScalingKeys().get(index1).mTime();
-        float deltaTime = time1 - time0;
-        float percentage = (timeAt - time0) / deltaTime;
-
-        org.joml.Vector3f start = Maths.convertVector(boneAnimation.mScalingKeys().get(index0).mValue());
-        org.joml.Vector3f end = Maths.convertVector(boneAnimation.mScalingKeys().get(index1).mValue());
-        org.joml.Vector3f delta = Maths.sub(end, start);
-
-        return Maths.sum(start, delta.mul(percentage));
+{
+    // Debug: Print bone animation info
+   // System.out.println("calcInterpolatedScale called with boneAnimation: " + 
+        //(boneAnimation == null ? "null" : boneAnimation.mNodeName().dataString()));
+    
+    if (boneAnimation == null) {
+        //System.out.println("  boneAnimation is null, returning default scale");
+        return new org.joml.Vector3f(1, 1, 1); // Default scale
+    }
+    
+    //System.out.println("  Number of scaling keys: " + boneAnimation.mNumScalingKeys());
+    
+    // Check if there are any scaling keys at all
+    if (boneAnimation.mNumScalingKeys() == 0) {
+        //System.out.println("  No scaling keys, returning default scale");
+        return new org.joml.Vector3f(1, 1, 1); // Default scale
+    }
+    
+    if (boneAnimation.mNumScalingKeys() == 1) {
+        AIVectorKey key = boneAnimation.mScalingKeys().get(0);
+        //System.out.println("  Single key, value: " + 
+          //  (key == null ? "null key" : 
+          //   (key.mValue() == null ? "null value" : "has value")));
+        
+        if (key == null || key.mValue() == null) {
+           // System.out.println("  Key or value is null, returning default scale");
+            return new org.joml.Vector3f(1, 1, 1); // Default scale
+        }
+        
+        try {
+            org.joml.Vector3f result = Maths.convertVector(key.mValue());
+           // System.out.println("  Returning single key value: " + result);
+            return result;
+        } catch (Exception e) {
+           // System.out.println("  Error converting vector: " + e.getMessage());
+            return new org.joml.Vector3f(1, 1, 1); // Default scale
+        }
     }
 
+    int index0 = findScaleIndex(timeAt, boneAnimation);
+    int index1 = index0 + 1;
+    
+   // System.out.println("  Found indices: " + index0 + ", " + index1);
+    
+    // Check if indices are valid
+    if (index0 < 0 || index0 >= boneAnimation.mNumScalingKeys() || 
+        index1 < 0 || index1 >= boneAnimation.mNumScalingKeys()) {
+      //  System.out.println("  Invalid indices, returning default scale");
+        return new org.joml.Vector3f(1, 1, 1); // Default scale
+    }
+    
+    AIVectorKey key0 = boneAnimation.mScalingKeys().get(index0);
+    AIVectorKey key1 = boneAnimation.mScalingKeys().get(index1);
+    
+   // System.out.println("  Key0: " + (key0 == null ? "null" : "not null") + 
+     //                  ", Key1: " + (key1 == null ? "null" : "not null"));
+    //
+    // Check if keys or their values are null
+    if (key0 == null || key0.mValue() == null || key1 == null || key1.mValue() == null) {
+      //  System.out.println("  Keys or values are null, returning default scale");
+        return new org.joml.Vector3f(1, 1, 1); // Default scale
+    }
+    
+    try {
+        float time0 = (float) key0.mTime();
+        float time1 = (float) key1.mTime();
+        float deltaTime = time1 - time0;
+        float percentage = (timeAt - time0) / deltaTime;
+        
+       // System.out.println("  Times: " + time0 + " -> " + time1 + ", percentage: " + percentage);
+
+        org.joml.Vector3f start = Maths.convertVector(key0.mValue());
+        org.joml.Vector3f end = Maths.convertVector(key1.mValue());
+        
+       // System.out.println("  Start: " + start + ", End: " + end);
+        
+        // Check if conversion returned null
+        if (start == null || end == null) {
+           // System.out.println("  Start or end is null after conversion");
+            return new org.joml.Vector3f(1, 1, 1); // Default scale
+        }
+        
+        org.joml.Vector3f delta = Maths.sub(end, start);
+        
+        //System.out.println("  Delta: " + delta);
+        
+        // Check if subtraction returned null
+        if (delta == null) {
+            //System.out.println("  Delta is null");
+            return new org.joml.Vector3f(1, 1, 1); // Default scale
+        }
+
+        org.joml.Vector3f result = Maths.sum(start, delta.mul(percentage));
+        //System.out.println("  Result: " + result);
+        return result != null ? result : new org.joml.Vector3f(1, 1, 1);
+    } catch (Exception e) {
+        System.out.println("  Exception during interpolation: " + e.getMessage());
+        e.printStackTrace();
+        return new org.joml.Vector3f(1, 1, 1); // Default scale
+    }
+}
     private int findScaleIndex(float timeAt, AINodeAnim boneAnimation)
     {
         assert boneAnimation.mNumScalingKeys() > 0;
@@ -208,24 +350,71 @@ public class AnimatedModel
         return 0;
     }
 
-    private Quaternionf calcInterpolatedRotation(float timeAt, AINodeAnim boneAnimation)
-    {
-        if (boneAnimation.mNumRotationKeys() == 1)
-            return Maths.convertQuaternion(boneAnimation.mRotationKeys().get(0).mValue());
-
-        int index0 = findRotationIndex(timeAt, boneAnimation);
-        int index1 = index0 + 1;
-        float time0 = (float) boneAnimation.mRotationKeys().get(index0).mTime();
-        float time1 = (float) boneAnimation.mRotationKeys().get(index1).mTime();
-        float deltaTime = time1 - time0;
-        float percentage = (timeAt - time0) / deltaTime;
-
-        Quaternionf start = Maths.convertQuaternion(boneAnimation.mRotationKeys().get(index0).mValue());
-        Quaternionf end = Maths.convertQuaternion(boneAnimation.mRotationKeys().get(index1).mValue());
-
-        return Maths.slerp(start, end, percentage);
+   private Quaternionf calcInterpolatedRotation(float timeAt, AINodeAnim boneAnimation)
+{
+   // System.out.println("  calcInterpolatedRotation called for: " + boneAnimation.mNodeName().dataString());
+   // System.out.println("    Number of rotation keys: " + boneAnimation.mNumRotationKeys());
+    
+    if (boneAnimation == null) {
+        return new Quaternionf();
+    }
+    
+    if (boneAnimation.mNumRotationKeys() == 0) {
+      //  System.out.println("    No rotation keys");
+        return new Quaternionf();
+    }
+    
+    if (boneAnimation.mNumRotationKeys() == 1) {
+        AIQuatKey key = boneAnimation.mRotationKeys().get(0);
+        if (key == null || key.mValue() == null) {
+            return new Quaternionf();
+        }
+        AIQuaternion value = key.mValue();
+       // System.out.println("    Single rotation key: (" + value.x() + ", " + value.y() + ", " + value.z() + ", " + value.w() + ")");
+        return new Quaternionf(value.x(), value.y(), value.z(), value.w());
     }
 
+    int index0 = findRotationIndex(timeAt, boneAnimation);
+    int index1 = index0 + 1;
+    
+    //System.out.println("    Found rotation indices: " + index0 + ", " + index1);
+    
+    if (index0 < 0 || index0 >= boneAnimation.mNumRotationKeys() || 
+        index1 < 0 || index1 >= boneAnimation.mNumRotationKeys()) {
+       // System.out.println("    Invalid rotation indices");
+        return new Quaternionf();
+    }
+    
+    AIQuatKey key0 = boneAnimation.mRotationKeys().get(index0);
+    AIQuatKey key1 = boneAnimation.mRotationKeys().get(index1);
+    
+    if (key0 == null || key0.mValue() == null || key1 == null || key1.mValue() == null) {
+        //System.out.println("    Rotation keys or values are null");
+        return new Quaternionf();
+    }
+    
+    AIQuaternion value0 = key0.mValue();
+    AIQuaternion value1 = key1.mValue();
+    
+    float time0 = (float) key0.mTime();
+    float time1 = (float) key1.mTime();
+    float deltaTime = time1 - time0;
+    float percentage = (timeAt - time0) / deltaTime;
+    
+   // System.out.println("    Rotation times: " + time0 + " -> " + time1 + ", percentage: " + percentage);
+   // System.out.println("    Start rotation: (" + value0.x() + ", " + value0.y() + ", " + value0.z() + ", " + value0.w() + ")");
+    //System.out.println("    End rotation: (" + value1.x() + ", " + value1.y() + ", " + value1.z() + ", " + value1.w() + ")");
+
+    Quaternionf start = new Quaternionf(value0.x(), value0.y(), value0.z(), value0.w());
+    Quaternionf end = new Quaternionf(value1.x(), value1.y(), value1.z(), value1.w());
+    
+    Quaternionf result = new Quaternionf();
+    start.slerp(end, percentage, result);
+    
+    //System.out.println("    Result rotation: " + result);
+    
+    return result;
+}
     private int findRotationIndex(float timeAt, AINodeAnim boneAnimation)
     {
         assert boneAnimation.mNumRotationKeys() > 0;
@@ -241,21 +430,68 @@ public class AnimatedModel
 
     private Vector3f calcInterpolatedPosition(float timeAt, AINodeAnim boneAnimation)
     {
-        if (boneAnimation.mNumPositionKeys() == 1)
-            return Maths.convertVector(boneAnimation.mPositionKeys().get(0).mValue());
+        //System.out.println("  calcInterpolatedPosition called for: " + boneAnimation.mNodeName().dataString());
+        //System.out.println("    Number of position keys: " + boneAnimation.mNumPositionKeys());
+        
+        if (boneAnimation == null) {
+           // System.out.println("    boneAnimation is null, returning zero");
+            return new Vector3f(0, 0, 0);
+        }
+        
+        if (boneAnimation.mNumPositionKeys() == 0) {
+            //System.out.println("    No position keys, returning zero");
+            return new Vector3f(0, 0, 0);
+        }
+        
+        if (boneAnimation.mNumPositionKeys() == 1) {
+            AIVectorKey key = boneAnimation.mPositionKeys().get(0);
+            if (key == null || key.mValue() == null) {
+                return new Vector3f(0, 0, 0);
+            }
+            AIVector3D value = key.mValue();
+            //System.out.println("    Single position key: (" + value.x() + ", " + value.y() + ", " + value.z() + ")");
+            return new Vector3f(value.x(), value.y(), value.z());
+        }
 
         int index0 = findPositionIndex(timeAt, boneAnimation);
         int index1 = index0 + 1;
-        float time0 = (float) boneAnimation.mPositionKeys().get(index0).mTime();
-        float time1 = (float) boneAnimation.mPositionKeys().get(index1).mTime();
+        
+        //System.out.println("    Found position indices: " + index0 + ", " + index1);
+        
+        if (index0 < 0 || index0 >= boneAnimation.mNumPositionKeys() || 
+            index1 < 0 || index1 >= boneAnimation.mNumPositionKeys()) {
+            //System.out.println("    Invalid position indices");
+            return new Vector3f(0, 0, 0);
+        }
+        
+        AIVectorKey key0 = boneAnimation.mPositionKeys().get(index0);
+        AIVectorKey key1 = boneAnimation.mPositionKeys().get(index1);
+        
+        if (key0 == null || key0.mValue() == null || key1 == null || key1.mValue() == null) {
+           // System.out.println("    Position keys or values are null");
+            return new Vector3f(0, 0, 0);
+        }
+        
+        AIVector3D value0 = key0.mValue();
+        AIVector3D value1 = key1.mValue();
+        
+        float time0 = (float) key0.mTime();
+        float time1 = (float) key1.mTime();
         float deltaTime = time1 - time0;
         float percentage = (timeAt - time0) / deltaTime;
+        
+       // System.out.println("    Position times: " + time0 + " -> " + time1 + ", percentage: " + percentage);
+       /// System.out.println("    Start position: (" + value0.x() + ", " + value0.y() + ", " + value0.z() + ")");
+       // System.out.println("    End position: (" + value1.x() + ", " + value1.y() + ", " + value1.z() + ")");
 
-        Vector3f start = Maths.convertVector(boneAnimation.mPositionKeys().get(index0).mValue());
-        Vector3f end = Maths.convertVector(boneAnimation.mPositionKeys().get(index1).mValue());
+        Vector3f start = new Vector3f(value0.x(), value0.y(), value0.z());
+        Vector3f end = new Vector3f(value1.x(), value1.y(), value1.z());
         Vector3f delta = end.sub(start);
-
-        return Maths.sum(start, delta.mul(percentage));
+        
+        Vector3f result = start.add(delta.mul(percentage));
+        //System.out.println("    Result position: " + result);
+        
+        return result;
     }
 
     private int findPositionIndex(float timeAt, AINodeAnim boneAnimation)

@@ -5,6 +5,10 @@ import dataStructures.AnimationData;
 import dataStructures.MeshData;
 import dataStructures.SkeletonData;
 import dataStructures.SkinningData;
+import colladaLoader.SkinLoader;
+import colladaLoader.SkeletonLoader;
+import colladaLoader.GeometryLoader;
+
 // Hypothetical FBXParser package
 
 
@@ -19,7 +23,8 @@ public class FBXLoader {
      */
     public static AnimatedModelData loadFBXModel(String fbxFile, int maxWeights) {
         FBXNode root = FBXParser.loadFBXFile(fbxFile);
-/*
+
+        /*
         SkinLoader skinLoader = new SkinLoader(root.getChild("Controllers"), maxWeights);
         SkinningData skinningData = skinLoader.extractSkinData();
 
@@ -28,7 +33,8 @@ public class FBXLoader {
 
         GeometryLoader geometryLoader = new GeometryLoader(root.getChild("Geometry"), skinningData.verticesSkinData);
         MeshData meshData = geometryLoader.extractModelData();
-*/
+
+         	*/
         //return new AnimatedModelData(meshData, jointsData);
         return null;
     }

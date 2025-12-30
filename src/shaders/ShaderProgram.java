@@ -478,6 +478,40 @@ public class ShaderProgram {
 	        }
 		
 	}
+	
+	public void setUniformMat4ArrayBones(String name, FloatBuffer fb, int count) {
+	    // First, get the uniform location for "bones[0]"
+	    int location = getUniformLocation(name + "[0]");
+	    
+	    if (location == -1) {
+	        // Try without [0] as fallback
+	        location = getUniformLocation(name);
+	        if (location == -1) {
+	            System.err.println("Uniform not found: " + name + " or " + name + "[0]");
+	            return;
+	        }
+	    }
+	    
+	    if (fb == null) {
+	        System.err.println("ERROR: FloatBuffer is null for uniform: " + name);
+	        return;
+	    }
+	    
+	    // Make sure the buffer has enough data
+	    if (fb.remaining() < count * 16) {
+	        System.err.println("ERROR: FloatBuffer doesn't have enough data for uniform: " + name);
+	        System.err.println("Expected at least " + (count * 16) + " floats, but buffer has " + fb.remaining() + " floats remaining");
+	        System.err.println("Buffer capacity: " + fb.capacity() + ", position: " + fb.position() + ", limit: " + fb.limit());
+	        return;
+	    }
+	    
+	    // Debug: Print some buffer info
+	    //System.out.println("Setting uniform array '" + name + "', location: " + location);
+	    //System.out.println("Count: " + count + ", Buffer remaining: " + fb.remaining());
+	    
+	    // Set the uniform array
+	    glUniformMatrix4fv(location, false, fb);
+	}
 
 	public void cleanUp() {
 		// TODO Auto-generated method stub

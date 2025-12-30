@@ -8,11 +8,13 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL30.*;
 
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.util.List;
 
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
+import renderer.MasterRenderer;
 import shaders.ShaderProgram;
 import toolbox.Frustum;
 
@@ -126,14 +128,91 @@ public class ShadowRenderer {
         frustum.calculateFrustum(projectionMatrix, viewMatrix);
 
         for (Entity entity : entities) {
+        	
+        	float scale = 100;
+        	if (entity.getTexturedModel().getMesh() == null)
+        		scale = 100;
+        	else 
+        		scale = entity.getTexturedModel().getMesh().getFurthestPoint() * entity.getScale();
+        	
             if ((Boolean.valueOf(entity.getTexturedModel().isCastShadows())) &&
                 frustum.contains(
                     entity.getPosition(),
-                    entity.getTexturedModel().getMesh().getFurthestPoint() * entity.getScale()
+                    scale
                 )) {
 
                 Matrix4f modelMatrix = entity.getModelMatrix();
                 shadowShader.setUniformMat4("model", modelMatrix);
+                
+                
+                // Set bone matrices if the model is animated
+                if (entity.getTexturedModel().getAnimatedModel() != null) {
+                    shadowShader.setUniform1i("useBones", 1);
+                    
+                    var bones = entity.getTexturedModel().getAnimatedModel().getBones();
+                    int boneCount = Math.min(bones.length, MasterRenderer.MAX_BONES);
+                    
+                    // Create bone matrix array
+                    float[] boneArray = new float[16 * MasterRenderer.MAX_BONES];
+                    int arrayIndex = 0;
+                    
+                    // Fill with bone matrices
+                    for (int i = 0; i < boneCount; i++) {
+                        Matrix4f m = bones[i].getTransformation();
+                        
+                        boneArray[arrayIndex++] = m.m00();
+                        boneArray[arrayIndex++] = m.m01();
+                        boneArray[arrayIndex++] = m.m02();
+                        boneArray[arrayIndex++] = m.m03();
+                        
+                        boneArray[arrayIndex++] = m.m10();
+                        boneArray[arrayIndex++] = m.m11();
+                        boneArray[arrayIndex++] = m.m12();
+                        boneArray[arrayIndex++] = m.m13();
+                        
+                        boneArray[arrayIndex++] = m.m20();
+                        boneArray[arrayIndex++] = m.m21();
+                        boneArray[arrayIndex++] = m.m22();
+                        boneArray[arrayIndex++] = m.m23();
+                        
+                        boneArray[arrayIndex++] = m.m30();
+                        boneArray[arrayIndex++] = m.m31();
+                        boneArray[arrayIndex++] = m.m32();
+                        boneArray[arrayIndex++] = m.m33();
+                    }
+                    
+                    // Fill remaining with identity matrices
+                    for (int i = boneCount; i < MasterRenderer.MAX_BONES; i++) {
+                        // Identity matrix
+                        boneArray[arrayIndex++] = 1.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 1.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 1.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 0.0f;
+                        boneArray[arrayIndex++] = 1.0f;
+                    }
+                    
+                    // Create FloatBuffer and send to shader
+                    FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(16 * MasterRenderer.MAX_BONES);
+                    fb.put(boneArray);
+                    fb.flip();
+                    shadowShader.setUniformMat4ArrayBones("bones", fb, MasterRenderer.MAX_BONES);
+                } else {
+                    shadowShader.setUniform1i("useBones", 0);
+                }
 
                 // Bind diffuse for alpha-tested shadow caster
                 shadowShader.setUniform1i("diffuseMap", 0);
@@ -146,9 +225,20 @@ public class ShadowRenderer {
                     shadowShader.setUniform1i("useTexture", 0);
                 }
 
-                int vaoID = entity.getTexturedModel().getMesh().getVaoId();
+                int vaoID = 0;
+                int vertexCount = 0;
+                if (entity.getTexturedModel().getMesh() != null) {
+                	vaoID = entity.getTexturedModel().getMesh().getVaoId();
+                	vertexCount = entity.getTexturedModel().getMesh().getVertexCount();
+                }
+                if (entity.getTexturedModel().getAnimatedModel() != null) {
+                	vaoID = entity.getTexturedModel().getAnimatedModel().getVaoID();
+                	vertexCount = entity.getTexturedModel().getAnimatedModel().getCount();
+                }
+                
                 glBindVertexArray(vaoID);
-                glDrawArrays(GL_TRIANGLES, 0, entity.getTexturedModel().getMesh().getVertexCount());
+                
+                glDrawArrays(GL_TRIANGLES, 0, vertexCount);
                 glBindVertexArray(0);
             }
         }

@@ -54,5 +54,5 @@ float calculatePOMShadow(vec3 lightDirTangent, vec2 initialUV, float lightDistan
     }
     
     
-    return clamp(shadowFactor, 0.3, 1.0);
+    return clamp(shadowFactor, 0.0, 1.0);
 }
