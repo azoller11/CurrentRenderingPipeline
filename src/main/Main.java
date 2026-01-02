@@ -81,7 +81,7 @@ public class Main {
     private int frames = 0;
     private double timeCounter = 0.0;
     public static int currentFPS = 0; // optional: store current FPS
-    public static int MAX_FPS = 250;   // set to -1 for uncapped
+    public static int MAX_FPS = 70;   // set to -1 for uncapped
     
     float outsideAmbience = 0;
 
@@ -139,6 +139,7 @@ public class Main {
     private Camera camera;
     
     private Player player;
+    private Entity FPSAnimation;
 
     // Some example entities
     //private List<Entity> entities = new ArrayList<>();
@@ -406,12 +407,19 @@ public class Main {
         //entityManager.addEntity(cube13, EntityManager.CollisionType.DYNAMIC_ACCURATE, 3);
         
         
-        Entity tubeMan = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 20f);
-        entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
+        for (int i = 0; i < 3; i++) {
+        	 Entity tubeMan = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(0, 45 + (50 * i), 0), new Vector3f(0,0,0), 20f);
+             //entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
+        }
+        
+       
         
         
-        Entity tubeMan2 = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(50, 45, 0), new Vector3f(0,0,0), 20f);
-        entityManager.addEntity(tubeMan2, EntityManager.CollisionType.NONE, 3);
+        Entity pistol = new Entity(entityManager.texturedModels.get("pistol"), new Vector3f(1000, 0, 0), new Vector3f(0,90,0), 1f);
+        //entityManager.addEntity(pistol, EntityManager.CollisionType.NONE, 3);
+        
+        FPSAnimation = new Entity(entityManager.texturedModels.get("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 1f);
+        FPSAnimation = entityManager.addEntity(FPSAnimation, EntityManager.CollisionType.NONE, 3);
         
         
         for (int i = 0; i < 30; i++) {
@@ -819,9 +827,16 @@ public class Main {
             
             
             player.updatePlayer(window, deltaTime, terrain);
+            FPSAnimation.setPosition(camera.getPosition().x(), camera.getPosition().y() - 20, camera.getPosition().z());
+            FPSAnimation.setRotation(new Vector3f(0, camera.getYaw() / 360f,0f));
+            System.out.println(camera.getYaw());
             
             entityManager.getPhysicsManager().updateEntitiesFromCollisionShapes(deltaTime, entityManager.getEntitiesList());
-            entityManager.updateAnimations(deltaTime);
+            
+            if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
+            	entityManager.updateAnimations(deltaTime);
+            }
+            
             
             
             

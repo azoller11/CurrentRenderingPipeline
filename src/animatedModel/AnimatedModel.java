@@ -13,14 +13,39 @@ import org.lwjgl.assimp.AIVectorKey;
 
 import toolbox.Maths;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class AnimatedModel
 {
     private final int vaoID;
     private int count;
+    
+    private org.joml.Matrix4f localTransform;
 
     Bone[] bones;
     AIAnimation[] animations;
     AINode root;
+    
+    private String meshNodeName;
+    
+    private String attachedBoneName;
+    
+    private boolean isMultiMeshPart = false;
+    private int meshIndex = -1;
+    
+    private boolean skinned;
+    
+    private Matrix4f globalInverseTransform;
+    
+    private Matrix4f bindPoseNodeGlobal = new Matrix4f().identity();
+    private Matrix4f bindPoseNodeGlobalInverse = new Matrix4f().identity();
+    
+    
+    private final Map<String, Matrix4f> animatedNodeTransforms = new HashMap<>();
+    
+    private Map<String, Matrix4f> bindPoseGlobalByNode = new HashMap<>();
+
     
     public AnimatedModel(int vaoID, int count)
     {
@@ -38,6 +63,72 @@ public class AnimatedModel
         return count;
     }
     
+    public boolean isMultiMeshPart() {
+        return isMultiMeshPart;
+    }
+    
+    public void setMultiMeshPart(boolean isMultiMeshPart) {
+        this.isMultiMeshPart = isMultiMeshPart;
+    }
+    
+    public int getMeshIndex() {
+        return meshIndex;
+    }
+    
+    public void setMeshIndex(int meshIndex) {
+        this.meshIndex = meshIndex;
+    }
+    
+    public Matrix4f getAnimatedNodeTransform(String nodeName) {
+        return animatedNodeTransforms.get(nodeName);
+    }
+    
+    public void setMeshNodeName(String name) {
+        this.meshNodeName = name;
+    }
+
+    public String getMeshNodeName() {
+        return meshNodeName;
+    }
+    
+    public void setSkinned(boolean skinned) {
+        this.skinned = skinned;
+    }
+
+    public boolean isSkinned() {
+        return skinned;
+    }
+    
+    public void setGlobalInverseTransform(Matrix4f m) {
+        this.globalInverseTransform = m;
+    }
+    
+    public Matrix4f getGlobalInverseTransform() {
+        return globalInverseTransform;
+    }
+    
+    public void setBindPoseNodeGlobal(Matrix4f m) {
+        this.bindPoseNodeGlobal.set(m);
+        this.bindPoseNodeGlobalInverse.set(m).invert();
+    }
+
+    public Matrix4f getBindPoseNodeGlobal() {
+        return new Matrix4f(bindPoseNodeGlobal);
+    }
+
+    public Matrix4f getBindPoseNodeGlobalInverse() {
+        return new Matrix4f(bindPoseNodeGlobalInverse);
+    }
+    
+    public void setBindPoseGlobalByNode(Map<String, Matrix4f> map) {
+        this.bindPoseGlobalByNode = map;
+    }
+
+    private Matrix4f getBindPoseGlobalForNode(String nodeName) {
+        Matrix4f m = bindPoseGlobalByNode.get(nodeName);
+        return (m != null) ? m : new Matrix4f().identity();
+    }
+    
     public void updateAnimationBlended(int animationIndex, int animationIndex2, float time, float time2, float blend)
     {
         assert animationIndex >= 0 && animationIndex < animations.length;
@@ -51,7 +142,8 @@ public class AnimatedModel
     }
     
     private void updateBoneTransformationBlended(float timeInSeconds, float timeInSeconds2, int animationIndex, int animationIndex2, float blend) {
-        Matrix4f identity = new Matrix4f();
+        animatedNodeTransforms.clear();
+    	Matrix4f identity = new Matrix4f();
 
         AIAnimation target = animations[animationIndex];
         AIAnimation target2 = animations[animationIndex2];
@@ -69,6 +161,8 @@ public class AnimatedModel
 
     private void updateBoneTransformation(float timeInSeconds, int animationIndex)
     {
+        animatedNodeTransforms.clear();
+        
         Matrix4f identity = new Matrix4f();
 
         AIAnimation target = animations[animationIndex];
@@ -163,64 +257,194 @@ public class AnimatedModel
         nodeTransform = Maths.mul(translationMatrix, rotationMatrix, scaleMatrix);
     }
 
-    Matrix4f toGlobalSpace = Maths.mul(parentTransform, nodeTransform);
+ // 1️⃣ Global node transform (bind + animation)
+    Matrix4f nodeGlobal =
+            Maths.mul(parentTransform, nodeTransform);
 
+    // 2️⃣ Store GLOBAL NODE transform (used by rigid meshes)
+    //animatedNodeTransforms.put(nodeName, new Matrix4f(nodeGlobal));
+    
+    Matrix4f bindGlobal = getBindPoseGlobalForNode(nodeName);
+    Matrix4f bindInv = new Matrix4f(bindGlobal).invert();
+
+    // ✅ delta = currentGlobal * inverse(bindPoseGlobalForThatSameNode)
+    Matrix4f delta = new Matrix4f(nodeGlobal).mul(bindInv);
+
+    animatedNodeTransforms.put(nodeName, delta);
+
+    // 3️⃣ If this node is a bone, compute bone matrix
     Bone bone = findBone(nodeName);
-
     if (bone != null) {
-        //System.out.println("  Found bone, setting transformation");
-        bone.setTransformation(Maths.mul(toGlobalSpace, bone.getOffsetMatrix()));
-    } else {
-        //System.out.println("  No bone found for node: " + nodeName);
+        Matrix4f boneFinal =
+                new Matrix4f(globalInverseTransform)
+                        .mul(nodeGlobal)
+                        .mul(bone.getOffsetMatrix());
+
+        bone.setTransformation(boneFinal);
     }
+
 
     // Recursively process the child nodes
     //System.out.println("  Processing " + node.mNumChildren() + " children");
     for (int i = 0; i < node.mNumChildren(); i++)
     {
         AINode childNode = AINode.create(node.mChildren().get(i));
-        processNode(target, target2, animationTime, animationTime2, childNode, toGlobalSpace, blend);
+        processNode(target, target2, animationTime, animationTime2, childNode, nodeGlobal, blend);
     }
 }
     
     
     private void processNode(AIAnimation target, float animationTime, AINode node, Matrix4f parentTransform)
+{
+    String nodeName = node.mName().dataString();
+
+    Matrix4f nodeTransform = Maths.convertMatrix(node.mTransformation());
+
+    AINodeAnim boneAnimation = findBoneAnimation(target, nodeName);
+
+    // If this node refers bone (contains animation), Do interpolate transforms.
+    if (boneAnimation != null)
     {
-        String nodeName = node.mName().dataString();
+        //System.out.println("DEBUG: Animating node: " + nodeName); // Add this
+        
+        Vector3f interpolatedScale = calcInterpolatedScale(animationTime, boneAnimation);
+        Matrix4f scaleMatrix = new Matrix4f().scale(interpolatedScale);
 
-        Matrix4f nodeTransform = Maths.convertMatrix(node.mTransformation());
+        Quaternionf interpolatedRotation = calcInterpolatedRotation(animationTime, boneAnimation);
+        Matrix4f rotationMatrix = new Matrix4f().rotate(interpolatedRotation);
 
-        AINodeAnim boneAnimation = findBoneAnimation(target, nodeName);
+        Vector3f interpolatedPosition = calcInterpolatedPosition(animationTime, boneAnimation);
+        Matrix4f translationMatrix = new Matrix4f().translate(interpolatedPosition);
 
-        // If this node refers bone (contains animation), Do interpolate transforms.
-        if (boneAnimation != null)
-        {
-            Vector3f interpolatedScale = calcInterpolatedScale(animationTime, boneAnimation);
-            Matrix4f scaleMatrix = new Matrix4f().scale(interpolatedScale);
+        nodeTransform = Maths.mul(translationMatrix, rotationMatrix, scaleMatrix);
+    }
 
-            Quaternionf interpolatedRotation = calcInterpolatedRotation(animationTime, boneAnimation);
-            Matrix4f rotationMatrix = new Matrix4f().rotate(interpolatedRotation);
+ // 1️⃣ Global node transform (bind + animation)
+    Matrix4f nodeGlobal =
+            Maths.mul(parentTransform, nodeTransform);
 
-            Vector3f interpolatedPosition = calcInterpolatedPosition(animationTime, boneAnimation);
-            Matrix4f translationMatrix = new Matrix4f().translate(interpolatedPosition);
+    // 2️⃣ Store GLOBAL NODE transform (used by rigid meshes)
+    //animatedNodeTransforms.put(nodeName, new Matrix4f(nodeGlobal));
+    Matrix4f bindGlobal = getBindPoseGlobalForNode(nodeName);
+    Matrix4f bindInv = new Matrix4f(bindGlobal).invert();
 
-            nodeTransform = Maths.mul(translationMatrix, rotationMatrix, scaleMatrix);
-        }
+    // ✅ delta = currentGlobal * inverse(bindPoseGlobalForThatSameNode)
+    Matrix4f delta = new Matrix4f(nodeGlobal).mul(bindInv);
 
-        Matrix4f toGlobalSpace = Maths.mul(parentTransform, nodeTransform);
+    animatedNodeTransforms.put(nodeName, delta);
 
-        Bone bone = findBone(nodeName);
+    // 3️⃣ If this node is a bone, compute bone matrix
+    Bone bone = findBone(nodeName);
+    if (bone != null) {
+        Matrix4f boneFinal =
+                new Matrix4f(globalInverseTransform)
+                        .mul(nodeGlobal)
+                        .mul(bone.getOffsetMatrix());
 
-        if (bone != null)
-            bone.setTransformation(Maths.mul(toGlobalSpace, bone.getOffsetMatrix()));
-        // Recursively process the child nodes
-        for (int i = 0; i < node.mNumChildren(); i++)
-        {
-            AINode childNode = AINode.create(node.mChildren().get(i));
-            processNode(target, animationTime, childNode, toGlobalSpace);
+        bone.setTransformation(boneFinal);
+    }
+
+
+    // Recursively process the child nodes
+    //System.out.println("DEBUG: Processing " + node.mNumChildren() + " children of " + nodeName); // Add this
+    for (int i = 0; i < node.mNumChildren(); i++)
+    {
+        AINode childNode = AINode.create(node.mChildren().get(i));
+        processNode(target, animationTime, childNode, nodeGlobal);
+    }
+}
+ 
+    
+ // In your AnimatedModel class, add a method to handle node animations:
+    public void updateNodeAnimation(int animationIndex, float time, String nodeName) {
+        assert animationIndex >= 0 && animationIndex < animations.length;
+        
+        // Find the specific node in the hierarchy
+        AINode targetNode = findNodeByName(root, nodeName);
+        if (targetNode != null) {
+            updateNodeTransformation(animations[animationIndex], time, targetNode);
         }
     }
 
+    AINode findNodeByName(AINode currentNode, String name) {
+        if (currentNode.mName().dataString().equals(name)) {
+            return currentNode;
+        }
+        
+        for (int i = 0; i < currentNode.mNumChildren(); i++) {
+            AINode child = AINode.create(currentNode.mChildren().get(i));
+            AINode result = findNodeByName(child, name);
+            if (result != null) {
+                return result;
+            }
+        }
+        
+        return null;
+    }
+
+    private void updateNodeTransformation(AIAnimation animation, float time, AINode node) {
+        // This should compute the animated transformation for this specific node
+        // Similar to your bone animation code but applied to the node's local transform
+        String nodeName = node.mName().dataString();
+        AINodeAnim nodeAnimation = findBoneAnimation(animation, nodeName);
+        
+        if (nodeAnimation != null) {
+            // Compute animated transformation
+            Vector3f scale = calcInterpolatedScale(time, nodeAnimation);
+            Quaternionf rotation = calcInterpolatedRotation(time, nodeAnimation);
+            Vector3f position = calcInterpolatedPosition(time, nodeAnimation);
+            
+            // Create transformation matrix
+            Matrix4f translationMatrix = new Matrix4f().translate(position);
+            Matrix4f rotationMatrix = new Matrix4f().rotate(rotation);
+            Matrix4f scaleMatrix = new Matrix4f().scale(scale);
+            
+            Matrix4f animatedTransform = Maths.mul(translationMatrix, rotationMatrix, scaleMatrix);
+            
+            // Store this as the node's local transform
+            this.localTransform = animatedTransform;
+        }
+    }
+    
+ // Add this to your AnimatedModel class:
+    public void initializeAllBoneTransformations() {
+        if (bones == null || root == null) return;
+        
+        System.out.println("Initializing transformations for all " + bones.length + " bones");
+        
+        // Reset all bones to identity first
+        for (Bone bone : bones) {
+            bone.setTransformation(new Matrix4f().identity());
+        }
+        
+        // Then compute transformations from the root
+        computeTransformationsRecursive(root, new Matrix4f().identity());
+        
+        
+    }
+
+    private void computeTransformationsRecursive(AINode node, Matrix4f parentTransform) {
+        String nodeName = node.mName().dataString();
+        Matrix4f nodeTransform = Maths.convertMatrix(node.mTransformation());
+        Matrix4f toGlobalSpace = Maths.mul(parentTransform, nodeTransform);
+
+        Bone bone = findBone(nodeName);
+        if (bone != null) {
+        	bone.setTransformation(
+        		    new Matrix4f(globalInverseTransform)
+        		        .mul(toGlobalSpace)
+        		        .mul(bone.getOffsetMatrix())
+        		);
+        }
+
+        for (int i = 0; i < node.mNumChildren(); i++) {
+            AINode childNode = AINode.create(node.mChildren().get(i));
+            computeTransformationsRecursive(childNode, toGlobalSpace);
+        }
+    }
+    
+    
+    
     // Each node has a name. If that node is bone, the node name equals to bone name.
     private AINodeAnim findBoneAnimation(AIAnimation target, String nodeName)
     {
@@ -538,7 +762,21 @@ public class AnimatedModel
 	}
     
     
+    public org.joml.Matrix4f getLocalTransform() {
+        return localTransform;
+    }
     
+    public void setLocalTransform(org.joml.Matrix4f localTransform) {
+        this.localTransform = localTransform;
+    }
+
+    public String getAttachedBoneName() {
+        return attachedBoneName;
+    }
+    
+    public void setAttachedBoneName(String attachedBoneName) {
+        this.attachedBoneName = attachedBoneName;
+    }
     
     
     

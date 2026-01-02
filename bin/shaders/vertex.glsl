@@ -26,6 +26,8 @@ uniform int useBones;
 #define MAX_BONES 100
 uniform mat4 bones[MAX_BONES];
 
+
+
 void main() {
     vec4 localPos = vec4(inPosition, 1.0);
     vec3 localNorm = inNormal;

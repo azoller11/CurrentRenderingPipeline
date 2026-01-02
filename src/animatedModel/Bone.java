@@ -12,6 +12,7 @@ public class Bone
     {
         this.name = name;
         this.offsetMatrix = offsetMatrix;
+        this.transformation = new Matrix4f().identity(); // CRITICAL: Initialize to identity
     }
 
     public String getName()

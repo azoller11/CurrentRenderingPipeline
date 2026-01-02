@@ -6,6 +6,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.system.MemoryStack;
 
+import animatedModel.AnimatedModel;
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
@@ -157,15 +158,6 @@ public class MasterRenderer {
         float lightBoost       = lightBoostBase       * Equations.lerp(1.0f,  1.1f,  dayFactor);
         float shadowBrightness = shadowBrightnessBase * Equations.lerp(0.6f,  0.85f, dayFactor);
 
-        //shader.setUniform1f("exposure", exposure);
-        //shader.setUniform1f("ambientBoost", ambientBoost);
-        //shader.setUniform1f("lightBoost", lightBoost);
-        //shader.setUniform1f("shadowBrightness", shadowBrightness);
-        
-       
-        
-        //System.out.println(dayFactor);
-        
         shader.setUniform1f("exposure", 1.0f * dayFactor);
         shader.setUniform1f("ambientBoost", 0 * dayFactor);
         shader.setUniform1f("lightBoost", 1.195f * dayFactor);
@@ -200,15 +192,9 @@ public class MasterRenderer {
         
         
         //Fog
-        //uniform float density  = 0.0000;         
-        //uniform float gradient  = 0.001;
-        //uniform vec3 fogColor = vec3(0.25f, 0.25f, 0.25f);
         shader.setUniform1f("density", 0.0000f * 1.0f);
         shader.setUniform1f("gradient", 0.00001f * 1.0f);
         shader.setUniform3f("fogColor", new Vector3f(0.25f, 0.25f, 0.25f));
-        
-        
-        
         
         
         // Recalc frustum
@@ -224,21 +210,19 @@ public class MasterRenderer {
                 continue;
             }
             TexturedModel model = entity.getTexturedModel();
-            // Frustum cull early if you want:
+            
+            // Frustum cull early
             float scale = 0;
             if (entity.getTexturedModel().getMesh() != null) {
             	scale = entity.getTexturedModel().getMesh().getFurthestPoint() * entity.getScale();
             }
             
-            if (entity.getTexturedModel().getAnimatedModel() != null) {
-            	//scale = entity.getTexturedModel().getAnimatedModel().getFurthestPoint() * entity.getScale();
-            	scale = 100;
+            if (entity.getTexturedModel().getAnimatedModel() != null || 
+                entity.getTexturedModel().getAnimatedModels() != null) {
+            	scale = 100 * entity.getScale(); // Use a reasonable bounding sphere for animated models
             }
             
-            
-            if (!frustum.contains(
-                    entity.getPosition(),
-                    scale)) {
+            if (!frustum.contains(entity.getPosition(), scale)) {
                 continue;
             }
             batches.computeIfAbsent(model, k -> new ArrayList<>()).add(entity);
@@ -253,48 +237,110 @@ public class MasterRenderer {
 
             if (batch.isEmpty()) continue;
 
-            prepareTexturedModel(model, shadowMap, dayFactor);
-
-            Mesh mesh = model.getMesh();
-            
-            int vaoId = 0;
-            int vertexCount = 0;
-            if (mesh != null) {
-            	 vaoId = mesh.getVaoId();
-            	 vertexCount = mesh.getVertexCount();
+            // Check if this model has multiple animated meshes
+            if (model.getAnimatedModels() != null) {
+                renderMultiMeshAnimatedModel(model, batch, shadowMap, dayFactor);
+            } else {
+                renderSingleMesh(model, batch, shadowMap, dayFactor);
             }
-            if (model.getAnimatedModel() != null) {
-            	vaoId = model.getAnimatedModel().getVaoID();
-            	vertexCount =  model.getAnimatedModel().getCount();
-            }
-           
-            
-            glBindVertexArray(vaoId);
-            glPatchParameteri(GL_PATCH_VERTICES, 3);
-
-            for (Entity entity : batch) {
-                // Per-entity model matrix
-                loadModelMatrix(entity);
-                // If you ever add per-entity overrides, do them here
-                if (model.getAnimatedModel() != null) {
-                    // ANIMATED MODELS: Use indexed drawing
-                    glDrawElements(GL_PATCHES, vertexCount, GL_UNSIGNED_INT, 0);
-                } else {
-                    // STATIC MODELS: Use array drawing
-                    glDrawArrays(GL_PATCHES, 0, vertexCount);
-                }
-            }
-
-            glBindVertexArray(0);
         }
 
         shader.unbind();
     }
 
     // ---------------------------------------------------------------------
-    // Helpers
+    // Simple methods for rendering single vs multi-mesh models
     // ---------------------------------------------------------------------
+    
+    private void renderSingleMesh(TexturedModel model, List<Entity> batch, int shadowMap, float outsideAmbience) {
+        prepareTexturedModel(model, shadowMap, outsideAmbience);
+        
+        Mesh mesh = model.getMesh();
+        
+        int vaoId = 0;
+        int vertexCount = 0;
+        boolean isAnimated = model.getAnimatedModel() != null;
+        
+        if (mesh != null) {
+            vaoId = mesh.getVaoId();
+            vertexCount = mesh.getVertexCount();
+        } else if (isAnimated) {
+            vaoId = model.getAnimatedModel().getVaoID();
+            vertexCount = model.getAnimatedModel().getCount();
+        }
+        
+        if (vaoId == 0) return; // Safety check
+        
+        glBindVertexArray(vaoId);
+        glPatchParameteri(GL_PATCH_VERTICES, 3);
+
+        for (Entity entity : batch) {
+            loadModelMatrix(entity);
+            
+            if (isAnimated) {
+                glDrawElements(GL_PATCHES, vertexCount, GL_UNSIGNED_INT, 0);
+            } else {
+                glDrawArrays(GL_PATCHES, 0, vertexCount);
+            }
+        }
+
+        glBindVertexArray(0);
+    }
+    
+    private void renderMultiMeshAnimatedModel(TexturedModel model, List<Entity> batch, int shadowMap, float outsideAmbience) {
+        List<animatedModel.AnimatedModel> animatedModels = model.getAnimatedModels();
+        if (animatedModels == null || animatedModels.isEmpty()) return;
+        for (Entity entity : batch) {
+
+            Matrix4f entityMatrix = entity.getModelMatrix();
+
+            for (AnimatedModel part : animatedModels) {
+            	
+            	String nodeName = part.getMeshNodeName();
+            	Matrix4f animatedGlobal = part.getAnimatedNodeTransform(nodeName);
+            	Matrix4f bindGlobal     = part.getBindPoseNodeGlobal();
+
+            
+
+                prepareAnimatedModelComponent(part, model, shadowMap, outsideAmbience);
+
+                Matrix4f finalModelMatrix = new Matrix4f(entityMatrix);
+                if (part.isSkinned()) {
+                    shader.setUniform1i("useBones", 1);
+                    // ❌ DO NOT APPLY node transforms
+                } else {
+                    shader.setUniform1i("useBones", 0);
+
+                    Matrix4f nodeGlobal = part.getAnimatedNodeTransform(part.getMeshNodeName());
+                    if (nodeGlobal != null) {
+                        finalModelMatrix.mul(nodeGlobal);
+                    }
+                }
+
+                
+
+                loadModelMatrix(finalModelMatrix);
+
+                glBindVertexArray(part.getVaoID());
+                glPatchParameteri(GL_PATCH_VERTICES, 3);
+                glDrawElements(GL_PATCHES, part.getCount(), GL_UNSIGNED_INT, 0);
+                glBindVertexArray(0);
+            }
+        }
+
+    }
+    
+    // ---------------------------------------------------------------------
+    // Animation helper methods
+    // ---------------------------------------------------------------------
+    
     private void prepareTexturedModel(TexturedModel model, int shadowMap, float outsideAmbience) {
+        // If this model has multiple animated meshes, we handle it differently
+        if (model.getAnimatedModels() != null) {
+            // We'll handle this in renderMultiMeshAnimatedModel
+            return;
+        }
+        
         // Base texture
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, model.getTextureId());
@@ -363,135 +409,194 @@ public class MasterRenderer {
         
         shader.setUniform1i("useFakeLighting", model.isUseFakeLighting() ? 1 : 0);
         
-        
-        //shader.setUniform1i("useFakeMetallic",  model.isUseFakeMetallic()  ? 1 : 0);
-        //shader.setUniform1i("useFakeRoghness",  model.isUseFakeRoghness()  ? 1 : 0);
-        //shader.setUniform1i("useFakeAO",  model.isUseFakeAO()  ? 1 : 0);
-        //shader.setUniform1i("useFakeHeight",  model.isUseFakeHeight()  ? 1 : 0);
-        //shader.setUniform1i("useFakeNormals",  model.isUseFakeNormals()  ? 1 : 0);
-        
         shader.setUniform1i("isVegitation", model.isVegitation() ? 1 : 0);
         
-        
-        //Animation
+        // Animation - use the new prepareAnimationBones method
         shader.setUniform1i("useBones", 0);
-     // Animation
         if (model.getAnimatedModel() != null) {
-            shader.setUniform1i("useBones", 1);
-            
-            var bones = model.getAnimatedModel().getBones();
-            int boneCount = Math.min(bones.length, MAX_BONES);
-            
-            //System.out.println("=== Bone Matrices Debug ===");
-            //System.out.println("Number of bones: " + bones.length);
-            //System.out.println("Time: " + System.currentTimeMillis() % 10000); // Track time
-            
-            boolean anyNonIdentity = false;
-            for (int i = 0; i < Math.min(5, bones.length); i++) { // Check first 5 bones
-                Matrix4f m = bones[i].getTransformation();
-                
-                // Check if matrix is not identity
-                Matrix4f identity = new Matrix4f().identity();
-                if (!m.equals(identity, 0.001f)) { // Allow small floating point differences
-                    anyNonIdentity = true;
-                    //System.out.println("Bone " + i + " (" + bones[i].getName() + ") is NOT identity!");
-                    //System.out.println("  Translation: " + m.m30() + ", " + m.m31() + ", " + m.m32());
-                }
-            }
-            
-            if (!anyNonIdentity) {
-               // System.out.println("WARNING: All bone matrices appear to be identity!");
-            }
-            
-            // Use direct float array instead of MemoryStack
-            float[] boneArray = new float[16 * MAX_BONES];
-            int arrayIndex = 0;
-            
-            // Fill with bone matrices
-            for (int i = 0; i < boneCount; i++) {
-                Matrix4f m = bones[i].getTransformation();
-                
-                // Manually extract each element
-                boneArray[arrayIndex++] = m.m00();
-                boneArray[arrayIndex++] = m.m01();
-                boneArray[arrayIndex++] = m.m02();
-                boneArray[arrayIndex++] = m.m03();
-                
-                boneArray[arrayIndex++] = m.m10();
-                boneArray[arrayIndex++] = m.m11();
-                boneArray[arrayIndex++] = m.m12();
-                boneArray[arrayIndex++] = m.m13();
-                
-                boneArray[arrayIndex++] = m.m20();
-                boneArray[arrayIndex++] = m.m21();
-                boneArray[arrayIndex++] = m.m22();
-                boneArray[arrayIndex++] = m.m23();
-                
-                boneArray[arrayIndex++] = m.m30();
-                boneArray[arrayIndex++] = m.m31();
-                boneArray[arrayIndex++] = m.m32();
-                boneArray[arrayIndex++] = m.m33();
-            }
-            
-            // Fill remaining with identity matrices
-            for (int i = boneCount; i < MAX_BONES; i++) {
-                // Identity matrix
-                boneArray[arrayIndex++] = 1.0f; // m00
-                boneArray[arrayIndex++] = 0.0f; // m01
-                boneArray[arrayIndex++] = 0.0f; // m02
-                boneArray[arrayIndex++] = 0.0f; // m03
-                
-                boneArray[arrayIndex++] = 0.0f; // m10
-                boneArray[arrayIndex++] = 1.0f; // m11
-                boneArray[arrayIndex++] = 0.0f; // m12
-                boneArray[arrayIndex++] = 0.0f; // m13
-                
-                boneArray[arrayIndex++] = 0.0f; // m20
-                boneArray[arrayIndex++] = 0.0f; // m21
-                boneArray[arrayIndex++] = 1.0f; // m22
-                boneArray[arrayIndex++] = 0.0f; // m23
-                
-                boneArray[arrayIndex++] = 0.0f; // m30
-                boneArray[arrayIndex++] = 0.0f; // m31
-                boneArray[arrayIndex++] = 0.0f; // m32
-                boneArray[arrayIndex++] = 1.0f; // m33
-            }
-            
-            // Create FloatBuffer from array
-            FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(16 * MAX_BONES);
-            fb.put(boneArray);
-            fb.flip();
-            /*
-            System.out.println("Buffer ready - Position: " + fb.position() + 
-                              ", Limit: " + fb.limit() + ", Remaining: " + fb.remaining());
-            */
-            shader.setUniformMat4ArrayBones("bones", fb, MAX_BONES);
+            prepareAnimationBones(model.getAnimatedModel());
         }
         
-
         // Transparency / culling per model
         if (model.isHasTransparency()) {
             glDisable(GL_CULL_FACE);
-            //glEnable(GL_BLEND);
-
             if (model.isVegitation()) {
-                glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // ✅ premultiplied
+                glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
             } else {
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             }
-        }
-        	else {
+        } else {
             GL11.glEnable(GL11.GL_CULL_FACE);
             GL11.glCullFace(GL11.GL_BACK);
-            //glDisable(GL_BLEND);
         }
 
-        // If you ever want per-model ambience tweaks:
+        shader.setUniform1f("outsideAmbience", outsideAmbience);
+    }
+    
+    /**
+     * NEW: Simple method to prepare bone matrices for animation
+     * Can be used for both single and multi-mesh models
+     */
+    private void prepareAnimationBones(animatedModel.AnimatedModel animatedModel) {
+        if (animatedModel == null) return;
+        
+        shader.setUniform1i("useBones", 1);
+        
+        
+        var bones = animatedModel.getBones();
+        if (bones == null) return;
+        
+        boolean hasNonIdentity = false;
+        for (int i = 0; i < Math.min(3, bones.length); i++) {
+            Matrix4f transform = bones[i].getTransformation();
+            Matrix4f identity = new Matrix4f().identity();
+            if (!transform.equals(identity, 0.001f)) {
+                hasNonIdentity = true;
+                /*System.out.println("DEBUG: Bone " + i + " (" + bones[i].getName() + 
+                    ") has non-identity transform");
+                System.out.println("  Translation: " + transform.m30() + ", " + 
+                    transform.m31() + ", " + transform.m32());
+                    */
+            }
+        }
+        
+        if (!hasNonIdentity) {
+           // System.out.println("WARNING: All bone matrices are identity!");
+        }
+        
+        int boneCount = Math.min(bones.length, MAX_BONES);
+        
+        // Use direct float array for bone matrices
+        float[] boneArray = new float[16 * MAX_BONES];
+        int arrayIndex = 0;
+        
+        // Fill with bone matrices
+        for (int i = 0; i < boneCount; i++) {
+            Matrix4f m = bones[i].getTransformation();
+            
+            // Manually extract each element
+            boneArray[arrayIndex++] = m.m00();
+            boneArray[arrayIndex++] = m.m01();
+            boneArray[arrayIndex++] = m.m02();
+            boneArray[arrayIndex++] = m.m03();
+            
+            boneArray[arrayIndex++] = m.m10();
+            boneArray[arrayIndex++] = m.m11();
+            boneArray[arrayIndex++] = m.m12();
+            boneArray[arrayIndex++] = m.m13();
+            
+            boneArray[arrayIndex++] = m.m20();
+            boneArray[arrayIndex++] = m.m21();
+            boneArray[arrayIndex++] = m.m22();
+            boneArray[arrayIndex++] = m.m23();
+            
+            boneArray[arrayIndex++] = m.m30();
+            boneArray[arrayIndex++] = m.m31();
+            boneArray[arrayIndex++] = m.m32();
+            boneArray[arrayIndex++] = m.m33();
+        }
+        
+        // Fill remaining with identity matrices
+        for (int i = boneCount; i < MAX_BONES; i++) {
+            // Identity matrix
+            boneArray[arrayIndex++] = 1.0f; // m00
+            boneArray[arrayIndex++] = 0.0f; // m01
+            boneArray[arrayIndex++] = 0.0f; // m02
+            boneArray[arrayIndex++] = 0.0f; // m03
+            
+            boneArray[arrayIndex++] = 0.0f; // m10
+            boneArray[arrayIndex++] = 1.0f; // m11
+            boneArray[arrayIndex++] = 0.0f; // m12
+            boneArray[arrayIndex++] = 0.0f; // m13
+            
+            boneArray[arrayIndex++] = 0.0f; // m20
+            boneArray[arrayIndex++] = 0.0f; // m21
+            boneArray[arrayIndex++] = 1.0f; // m22
+            boneArray[arrayIndex++] = 0.0f; // m23
+            
+            boneArray[arrayIndex++] = 0.0f; // m30
+            boneArray[arrayIndex++] = 0.0f; // m31
+            boneArray[arrayIndex++] = 0.0f; // m32
+            boneArray[arrayIndex++] = 1.0f; // m33
+        }
+        
+        // Create FloatBuffer and send to shader
+        FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(16 * MAX_BONES);
+        fb.put(boneArray);
+        fb.flip();
+        shader.setUniformMat4ArrayBones("bones", fb, MAX_BONES);
+    }
+    
+    /**
+     * NEW: Prepare a specific animated model component (for multi-mesh models)
+     */
+    private void prepareAnimatedModelComponent(animatedModel.AnimatedModel animatedModel, 
+                                              TexturedModel texturedModel, 
+                                              int shadowMap, float outsideAmbience) {
+        // Setup textures and materials from the parent TexturedModel
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texturedModel.getTextureId());
+        shader.setUniform1i("diffuseTexture", 0);
+        
+        // Setup other textures (simplified - you can copy from prepareTexturedModel if needed)
+        boolean hasNormalMap = (texturedModel.getNormalMapId() != 0);
+        boolean hasHeightMap = (texturedModel.getHeighMapId() != 0);
+        
+        if (hasNormalMap) {
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, texturedModel.getNormalMapId());
+            shader.setUniform1i("normalMap", 1);
+        }
+        
+        if (hasHeightMap) {
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, texturedModel.getHeighMapId());
+            shader.setUniform1i("heightMap", 2);
+        }
+        
+        // Shadow map
+        glActiveTexture(GL_TEXTURE6);
+        glBindTexture(GL_TEXTURE_2D, shadowMap);
+        shader.setUniform1i("shadowMap", 6);
+        
+        shader.setUniform1i("hasNormal", hasNormalMap ? 1 : 0);
+        shader.setUniform1i("hasHeight", hasHeightMap ? 1 : 0);
+        
+        shader.setUniform1f("shineDamper", texturedModel.getShineDamper());
+        shader.setUniform1f("reflectivity", texturedModel.getReflectivity());
+        shader.setUniform1i("isVegitation", texturedModel.isVegitation() ? 1 : 0);
+        shader.setUniform1i("useFakeLighting", texturedModel.isUseFakeLighting() ? 1 : 0);
+        
+        // Setup bone matrices for this animated model
+        prepareAnimationBones(animatedModel);
+        
+        // Transparency / culling
+        if (texturedModel.isHasTransparency()) {
+            glDisable(GL_CULL_FACE);
+            if (texturedModel.isVegitation()) {
+                glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+            } else {
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            }
+        } else {
+            GL11.glEnable(GL11.GL_CULL_FACE);
+            GL11.glCullFace(GL11.GL_BACK);
+        }
+        
         shader.setUniform1f("outsideAmbience", outsideAmbience);
     }
 
     private void loadModelMatrix(Entity entity) {
         Matrix4f model = entity.getModelMatrix();
+        
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer fb = stack.mallocFloat(16);
+            model.get(fb);
+            shader.setUniformMat4("model", false, fb);
+        }
+    }
+    
+    private void loadModelMatrix(Matrix4f model) {
         
         try (MemoryStack stack = MemoryStack.stackPush()) {
             FloatBuffer fb = stack.mallocFloat(16);
@@ -548,5 +653,4 @@ public class MasterRenderer {
     public void cleanup() {
         shader.destroy();
     }
-
 }

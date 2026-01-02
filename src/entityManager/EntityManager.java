@@ -3,6 +3,9 @@ package entityManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import org.joml.Matrix4f;
+
 import java.util.HashMap;
 
 import entities.Camera;
@@ -14,6 +17,10 @@ import physics.PhysicsManager;
 import settings.EngineSettings;
 import terrain.Terrain;
 import com.bulletphysics.dynamics.RigidBody;
+
+import animatedModel.AnimatedModel;
+import animatedModel.AnimationElement;
+import animatedModel.Bone;
 
 
 public class EntityManager {
@@ -87,27 +94,60 @@ public class EntityManager {
 		return newEntity;
 	}
 	
-	
 	public void updateAnimations(float deltaTime) {
-		for (int a : entities.keySet()) {
-			if (entities.get(a).getTexturedModel().getAnimatedModel() != null) {
-				Entity e = entities.get(a);
-				if (e.getTexturedModel().getAnimatedModel().getAnimations().length > 1) {
-					int animationIndex = 3;
-					e.getTexturedModel().getAnimationElements().get(animationIndex).incAnimationTime(deltaTime);
-		    		e.getTexturedModel().getAnimatedModel().updateAnimation(animationIndex, e.getTexturedModel().getAnimationElements().get(animationIndex).getAnimationTime());
-			    	continue;
-	        	}
-		    	
-				if (e.getTexturedModel().getAnimatedModel().getAnimations().length > 0) {
-		    		e.getTexturedModel().getAnimationElements().get(0).incAnimationTime(deltaTime);
-			    	e.getTexturedModel().getAnimatedModel().updateAnimation(0, e.getTexturedModel().getAnimationElements().get(0).getAnimationTime());
-	        	}
-			}
-		}
-			
-	}
-	
+    for (int a : entities.keySet()) {
+        Entity e = entities.get(a);
+        TexturedModel texturedModel = e.getTexturedModel();
+        
+        if (texturedModel == null) continue;
+        
+        // Get animation elements for this entity
+        List<AnimationElement> animationElements = texturedModel.getAnimationElements();
+        if (animationElements == null || animationElements.isEmpty()) {
+            // No animation elements? Add a default one
+            if (texturedModel.getAnimatedModel() != null || 
+                texturedModel.getAnimatedModels() != null) {
+                texturedModel.addAnimationElement(new AnimationElement(0, 0));
+                animationElements = texturedModel.getAnimationElements();
+            }
+        }
+        
+        if (animationElements == null || animationElements.isEmpty()) continue;
+        
+        // Update each animation element
+        for (AnimationElement element : animationElements) {
+            element.incAnimationTime(deltaTime);
+            float animationTime = element.getAnimationTime();
+            int animIndex = 0;//element.getAnimationIndex();
+            
+            // Handle single model
+            if (texturedModel.getAnimatedModel() != null) {
+                AnimatedModel animatedModel = texturedModel.getAnimatedModel();
+                if (animatedModel.getAnimations() != null && 
+                    animIndex < animatedModel.getAnimations().length) {
+                    animatedModel.updateAnimation(animIndex, animationTime);
+                }
+            }
+            // Handle multiple models - ONLY UPDATE THE FIRST MODEL!
+            else // In your updateAnimations method, add debug for multiple bones:
+            	if (texturedModel.getAnimatedModels() != null) {
+            	    List<AnimatedModel> animatedModels = texturedModel.getAnimatedModels();
+            	    
+            	    if (!animatedModels.isEmpty()) {
+            	    	for (AnimatedModel firstModel : animatedModels) {
+            	    		//AnimatedModel firstModel = animatedModels.get(0);
+                	        if (firstModel.getAnimations() != null && 
+                	            animIndex < firstModel.getAnimations().length) {
+                	            firstModel.updateAnimation(animIndex, animationTime);
+                	        }
+            	    	}
+            	        
+            	     
+            	    }
+            	}
+        }
+    }
+}
 	
 	public void addLight(Light newLight) {
 		lights.put(newLight.getId(), newLight);

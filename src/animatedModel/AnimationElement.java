@@ -5,7 +5,7 @@ public class AnimationElement {
     private int animationIndex;
     private float animationTime;
     private float blendedTime;
-    private float animationSpeed = 30.0f; // Add speed multiplier
+    private float animationSpeed = 60.01f; // Add speed multiplier
     
     public AnimationElement(int animationIndex, float animationTime) {
         super();

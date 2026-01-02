@@ -24,8 +24,47 @@ public class Maths {
 	                assimp.a4(), assimp.b4(), assimp.c4(), assimp.d4()
 	        );
 	    }
+	 
+	 public static Matrix4f sub(Matrix4f... sequence) {
+		    assert sequence.length > 0;
 
-	 public static org.joml.Matrix4f mul(org.joml.Matrix4f... sequence)
+		    Matrix4f res = new Matrix4f(sequence[0]);
+
+		    for (int i = 1; i < sequence.length; i++) {
+		        Matrix4f m = sequence[i];
+
+		        res.m00(res.m00() - m.m00());
+		        res.m01(res.m01() - m.m01());
+		        res.m02(res.m02() - m.m02());
+		        res.m03(res.m03() - m.m03());
+
+		        res.m10(res.m10() - m.m10());
+		        res.m11(res.m11() - m.m11());
+		        res.m12(res.m12() - m.m12());
+		        res.m13(res.m13() - m.m13());
+
+		        res.m20(res.m20() - m.m20());
+		        res.m21(res.m21() - m.m21());
+		        res.m22(res.m22() - m.m22());
+		        res.m23(res.m23() - m.m23());
+
+		        res.m30(res.m30() - m.m30());
+		        res.m31(res.m31() - m.m31());
+		        res.m32(res.m32() - m.m32());
+		        res.m33(res.m33() - m.m33());
+		    }
+
+		    return res;
+		}
+
+	 
+	    public static org.joml.Matrix4f invert(org.joml.Matrix4f original)
+	    {
+	        return new org.joml.Matrix4f(original).invert();
+	    }
+
+
+	   public static org.joml.Matrix4f mul(org.joml.Matrix4f... sequence)
 	    {
 	    	org.joml.Matrix4f res = new org.joml.Matrix4f();
 
@@ -98,6 +137,16 @@ public class Maths {
 	        a.slerp(b, alpha);
 
 	        return a;
+	    }
+
+	    public static void convertMatrix(AIMatrix4x4 assimp, Matrix4f dest)
+	    {
+	        dest.set(
+	            assimp.a1(), assimp.b1(), assimp.c1(), assimp.d1(),
+	            assimp.a2(), assimp.b2(), assimp.c2(), assimp.d2(),
+	            assimp.a3(), assimp.b3(), assimp.c3(), assimp.d3(),
+	            assimp.a4(), assimp.b4(), assimp.c4(), assimp.d4()
+	        );
 	    }
 	
 

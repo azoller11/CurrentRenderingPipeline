@@ -108,6 +108,33 @@ public class TexturedModels {
 		tubeDude.setCastShadows(true);
         texturedModels.put("tubeDude", tubeDude);
         
+        //https://sketchfab.com/3d-models/animated-pistol-bd896167e7ca44f19597d3afe6a8d83f
+        //1912_pistol
+		TexturedModel pistol = new TexturedModel();
+		pistol.setAnimatedModels( animationLoader.loadMultiMeshObject(animationLoader.loadScene("arms.fbx")));
+		pistol.setTextureId(TextureLoader.loadTexture("camo3_2k.png"));
+		pistol.setNormalMapId(TextureLoader.loadTexture("rust_nor_2k.png"));
+		//tubeDude.setHeighMapId(TextureLoader.loadTexture("rust_disp_2k.png"));
+		pistol.setMetallicMap(TextureLoader.loadTexture("rust_metal_2k.png"));
+		pistol.setRoughnessMap(TextureLoader.loadTexture("rust_rough_2k.png"));
+		pistol.setAoMap(TextureLoader.loadTexture("rust_ao_2k.png"));
+		//tubeDude.setParallaxScale(new Vector3f(0.01f, 20, 60));
+		pistol.setCastShadows(true);
+        texturedModels.put("pistol", pistol);
+        
+        
+        TexturedModel FPSAnimation = new TexturedModel();
+        FPSAnimation.setAnimatedModels( animationLoader.loadMultiMeshObject(animationLoader.loadScene("shotgunAnimated.fbx")));
+        FPSAnimation.setTextureId(TextureLoader.loadTexture("camo3_2k.png"));
+        FPSAnimation.setNormalMapId(TextureLoader.loadTexture("rust_nor_2k.png"));
+		//tubeDude.setHeighMapId(TextureLoader.loadTexture("rust_disp_2k.png"));
+        FPSAnimation.setMetallicMap(TextureLoader.loadTexture("rust_metal_2k.png"));
+        FPSAnimation.setRoughnessMap(TextureLoader.loadTexture("rust_rough_2k.png"));
+        FPSAnimation.setAoMap(TextureLoader.loadTexture("rust_ao_2k.png"));
+		//tubeDude.setParallaxScale(new Vector3f(0.01f, 20, 60));
+        FPSAnimation.setCastShadows(true);
+        texturedModels.put("FPSAnimation", FPSAnimation);
+        
         //tank
 		TexturedModel tank = new TexturedModel();
 		tank.setMesh(ObjLoader.loadObj("tank"));

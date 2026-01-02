@@ -14,6 +14,7 @@ public class TexturedModel {
 	
 	private Mesh mesh;
 	private AnimatedModel animatedModel;
+	private List<AnimatedModel> animatedModels;
 	 
 	private int textureId;
 	 
@@ -54,6 +55,14 @@ public class TexturedModel {
 		//Load the animation elements
 		generateAnimations();
 	}
+	
+	public TexturedModel(List<AnimatedModel> animatedModels, int textureId) {
+		super();
+		this.animatedModels = animatedModels;
+		this.textureId = textureId;
+		//Load the animation elements
+		generateAnimations();
+	}
 
 
 	public TexturedModel() {
@@ -61,6 +70,15 @@ public class TexturedModel {
 	}
 
 	
+
+	public List<AnimatedModel> getAnimatedModels() {
+		return animatedModels;
+	}
+
+	public void setAnimatedModels(List<AnimatedModel> animatedModels) {
+		this.animatedModels = animatedModels;
+		generateAnimations();
+	}
 
 	public AnimatedModel getAnimatedModel() {
 		return animatedModel;
@@ -203,13 +221,31 @@ public class TexturedModel {
 
 	public void generateAnimations() {
 		animationElements = new ArrayList<>();
-		 int index = 0;
-		 for (AIAnimation a : animatedModel.getAnimations()) {
-	        	animationElements.add(new AnimationElement(index, 0));
-	        	System.out.println("New ANIMATION!");
-	        	System.out.println("boneCount: " + animatedModel.getBones().length);
-	        	index++;
-	        }
+		
+		if (animatedModel != null) {
+			int index = 0;
+			 for (AIAnimation a : animatedModel.getAnimations()) {
+		        	animationElements.add(new AnimationElement(index, 0));
+		        	System.out.println("New ANIMATION!");
+		        	System.out.println("boneCount: " + animatedModel.getBones().length);
+		        	index++;
+		        }
+		}
+		
+		if (animatedModels != null) {
+			int index = 0;
+			for (AnimatedModel model : animatedModels) {
+				 for (AIAnimation a : model.getAnimations()) {
+			        	animationElements.add(new AnimationElement(index, 0));
+			        	System.out.println("New ANIMATION!");
+			        	System.out.println("boneCount: " + model.getBones().length);
+			        	index++;
+			        }
+			}
+			
+		}
+		
+		 
 	}
     
 	   
@@ -238,6 +274,11 @@ public class TexturedModel {
 
 		public void setUseFakeLighting(boolean useFakeLighting) {
 			this.useFakeLighting = useFakeLighting;
+		}
+
+		public void addAnimationElement(AnimationElement animationElement) {
+			this.animationElements.add(animationElement);
+			
 		}
     
 
