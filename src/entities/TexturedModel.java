@@ -15,7 +15,11 @@ public class TexturedModel {
 	private Mesh mesh;
 	private AnimatedModel animatedModel;
 	private List<AnimatedModel> animatedModels;
+	
+	private int activeAnimation = -1; 
 	 
+
+
 	private int textureId;
 	 
 	private Vector3f parallaxScale ;
@@ -220,38 +224,95 @@ public class TexturedModel {
 
 
 	public void generateAnimations() {
-		animationElements = new ArrayList<>();
-		
-		if (animatedModel != null) {
-			int index = 0;
-			 for (AIAnimation a : animatedModel.getAnimations()) {
-		        	animationElements.add(new AnimationElement(index, 0));
-		        	System.out.println("New ANIMATION!");
-		        	System.out.println("boneCount: " + animatedModel.getBones().length);
-		        	index++;
-		        }
-		}
-		
-		if (animatedModels != null) {
-			int index = 0;
-			for (AnimatedModel model : animatedModels) {
-				 for (AIAnimation a : model.getAnimations()) {
-			        	animationElements.add(new AnimationElement(index, 0));
-			        	System.out.println("New ANIMATION!");
-			        	System.out.println("boneCount: " + model.getBones().length);
-			        	index++;
-			        }
-			}
-			
-		}
-		
-		 
+	    animationElements = new ArrayList<>();
+
+	    if (animatedModel != null) {
+	        int index = 0;
+	        for (AIAnimation a : animatedModel.getAnimations()) {
+
+	            String name = a.mName().dataString();
+	            float tps = a.mTicksPerSecond() != 0
+	                    ? (float) a.mTicksPerSecond()
+	                    : 60.0f;
+
+	            float lengthSeconds = (float) a.mDuration();// / tps;
+
+	            animationElements.add(
+	                new AnimationElement(index, name, lengthSeconds)
+	            );
+
+	            System.out.println(
+	                "New ANIMATION["+index+"]:" + name + " lengthSeconds=" + lengthSeconds
+	            );
+
+	            index++;
+	        }
+	    }
+
+	    if (animatedModels != null) {
+	        int index = 0;
+	        for (AIAnimation a : animatedModels.get(0).getAnimations()) {
+
+                String name = a.mName().dataString();
+                float tps = a.mTicksPerSecond() != 0
+                        ? (float) a.mTicksPerSecond()
+                        : 60.0f;
+
+                float lengthSeconds = (float) a.mDuration();// / tps;
+
+                animationElements.add(
+                    new AnimationElement(index, name, lengthSeconds)
+                );
+
+                System.out.println(
+    	                "New ANIMATION["+index+"]:" + name + " lengthSeconds=" + lengthSeconds
+                );
+
+                index++;
+            }
+	        for (AnimatedModel model : animatedModels) {
+	           
+	        }
+	    }
 	}
-    
+
+	public AnimationElement getActiveAnimation() {
+	    if (animationElements == null || animationElements.isEmpty()) return null;
+	    if (activeAnimation < 0 || activeAnimation >= animationElements.size()) return null;
+	    return animationElements.get(activeAnimation);
+	}
+	
+	public int getActiveAnimationIndex() {
+		return activeAnimation;
+	}
+
+
+	public void playAnimation(int index, boolean loop) {
+
+	    // Stop animation explicitly
+	    if (index < 0) {
+	        activeAnimation = -1;
+	        return;
+	    }
+
+	    if (animationElements == null || index >= animationElements.size()) return;
+
+	    // Do not restart same animation
+	    if (activeAnimation == index) return;
+
+	    activeAnimation = index;
+
+	    AnimationElement anim = animationElements.get(index);
+	    anim.reset();
+	    anim.setLoop(loop);
+	}
+
+
+	
 	   
-		public List<AnimationElement> getAnimationElements() {
-			return animationElements;
-		}
+	public List<AnimationElement> getAnimationElements() {
+		return animationElements;
+	}
 
 	public void setAnimationElements(List<AnimationElement> animationElements) {
 		this.animationElements = animationElements;
@@ -279,6 +340,10 @@ public class TexturedModel {
 		public void addAnimationElement(AnimationElement animationElement) {
 			this.animationElements.add(animationElement);
 			
+		}
+		
+		public void setActiveAnimation(int activeAnimation) {
+			this.activeAnimation = activeAnimation;
 		}
     
 

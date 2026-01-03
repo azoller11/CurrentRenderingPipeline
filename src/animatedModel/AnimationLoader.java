@@ -31,10 +31,14 @@ public class AnimationLoader
         // IMPORTANT: Create ONE shared bone array for ALL meshes
         Bone[] sharedBones = loadSharedBones(obj_scene);
         
+        System.out.println("Assimp scene animations: " + obj_scene.mNumAnimations());
+
+        
         // Get animations and root (shared across all meshes)
         AIAnimation[] animations = new AIAnimation[obj_scene.mNumAnimations()];
         for (int a = 0; a < animations.length; a++) {
             animations[a] = AIAnimation.create(obj_scene.mAnimations().get(a));
+            System.out.println("Animation: " + a + " "  +  animations[a].mName().dataString());
         }
         AINode root = obj_scene.mRootNode();
         
@@ -42,7 +46,7 @@ public class AnimationLoader
         	    new Matrix4f(Maths.convertMatrix(root.mTransformation()))
         	        .invert();
         
-        System.out.println("DEBUG: Creating multi-mesh model with " + sharedBones.length + " shared bones");
+        //System.out.println("DEBUG: Creating multi-mesh model with " + sharedBones.length + " shared bones");
         
         // First, collect all mesh transforms from the scene hierarchy
         List<MeshTransformInfo> meshTransforms = new ArrayList<>();
@@ -91,12 +95,12 @@ public class AnimationLoader
                 model.setMeshNodeName(foundInfo.nodeName);
             }
             
-            System.out.println("\n[BONE ↔ NODE MATCH CHECK]");
+            //System.out.println("\n[BONE ↔ NODE MATCH CHECK]");
             for (Bone b : sharedBones) {
                 boolean nodeExists = model.findNodeByName(obj_scene.mRootNode(), b.getName()) != null;
-                System.out.println(
-                    "Bone '" + b.getName() + "' → node exists: " + nodeExists
-                );
+               // System.out.println(
+               //     "Bone '" + b.getName() + "' → node exists: " + nodeExists
+               // );
             }
 
             
@@ -122,19 +126,20 @@ public class AnimationLoader
             for (int i = 1; i < models.size(); i++) {
                 models.get(i).setBones(firstBones);
             }
-            System.out.println("DEBUG: All " + models.size() + " meshes now share the same bone array");
+            //System.out.println("DEBUG: All " + models.size() + " meshes now share the same bone array");
         }
         
         for (AnimatedModel model : models) {
             model.initializeAllBoneTransformations();
         }
         
-        System.out.println("\n=== NODE HIERARCHY ===");
-        dumpHierarchy(obj_scene.mRootNode(), 0);
+        //System.out.println("\n=== NODE HIERARCHY ===");
+        //dumpHierarchy(obj_scene.mRootNode(), 0);
         
         return models;
     }
-     private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<MeshTransformInfo> meshTransforms) {
+     
+private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<MeshTransformInfo> meshTransforms) {
          // Get this node's transform
          Matrix4f nodeTransform = Maths.convertMatrix(node.mTransformation());
          Matrix4f globalTransform = new Matrix4f(parentTransform).mul(nodeTransform);
@@ -148,7 +153,7 @@ public class AnimationLoader
              meshTransforms.add(
             		    new MeshTransformInfo(meshIndex, nodeName, new Matrix4f(globalTransform))
             		);
-             System.out.println("Node '" + nodeName + "' contains mesh index: " + meshIndex);
+             //System.out.println("Node '" + nodeName + "' contains mesh index: " + meshIndex);
          }
          
          // Process children
@@ -194,7 +199,7 @@ public class AnimationLoader
                 meshTransform.transformPosition(transformedPos);
                
                 // Transform normals and tangents (without translation)
-                Vector3f transformedNormal = new Vector3f(normalVec);
+                Vector3f transformedNormal =  new Vector3f(normalVec);
                 Matrix4f normalMatrix = new Matrix4f(meshTransform);
                 normalMatrix.setTranslation(0, 0, 0); // Remove translation for normals
                 normalMatrix.transformDirection(transformedNormal);
@@ -392,7 +397,7 @@ public class AnimationLoader
          glBindVertexArray(0);
          
          // After processing bone weights, add debug output:
-         System.out.println("DEBUG: Mesh '" + mesh.mName().dataString() + "' bone usage:");
+         //System.out.println("DEBUG: Mesh '" + mesh.mName().dataString() + "' bone usage:");
          
          // Count which bones are used by this mesh
          Map<Integer, Integer> boneUsage = new HashMap<>();
@@ -406,12 +411,7 @@ public class AnimationLoader
                  }
              }
          }
-         
-         System.out.print("  Uses bones: ");
-         for (Map.Entry<Integer, Integer> entry : boneUsage.entrySet()) {
-             System.out.print(entry.getKey() + "(" + entry.getValue() + " verts) ");
-         }
-         System.out.println();
+    
          
          return new MeshData(vao, indices.length);
      }
@@ -435,19 +435,14 @@ public class AnimationLoader
                      boneList.add(newBone);
                      boneNameToIndex.put(boneName, boneList.size() - 1);
                  }
-                 System.out.println(
-                		    "[BONE LOAD] name='" + boneName + "'" +
-                		    " offsetMatrix=\n" + Maths.convertMatrix(bone.mOffsetMatrix())
-                		);
+               
              }
          }
          
          // Convert to array
          Bone[] bones = new Bone[boneList.size()];
          bones = boneList.toArray(bones);
-         
-         System.out.println("Loaded " + bones.length + " shared bones for multi-mesh model");
-         
+       
          
          return bones;
      }
@@ -787,9 +782,9 @@ public class AnimationLoader
 				AINode child = AINode.create(node.mChildren().get(i));
 				collectBindPoseGlobals(child, global, outBindPoseGlobalByNode);
 				}
-				System.out.println(
-					    "[BIND POSE] node='" + nodeName + "'\n" + global
-					);
+				//System.out.println(
+			//		    "[BIND POSE] node='" + nodeName + "'\n" + global
+			//		);
 	}
 
     private void dumpHierarchy(AINode node, int depth) {

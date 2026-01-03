@@ -2,62 +2,68 @@ package animatedModel;
 
 public class AnimationElement {
 
-    private int animationIndex;
-    private float animationTime;
-    private float blendedTime;
-    private float animationSpeed = 60.01f; // Add speed multiplier
-    
-    public AnimationElement(int animationIndex, float animationTime) {
-        super();
+    private final int animationIndex;
+    private final String name;
+    private final float durationSeconds;
+
+    private float timeSeconds = 0.0f;
+    private float speed = 60.0f; // 1.0 = normal speed
+    private boolean loop = true;
+    private boolean finished = false;
+
+    public AnimationElement(int animationIndex, String name, float durationSeconds) {
         this.animationIndex = animationIndex;
-        this.animationTime = animationTime;
+        this.name = name;
+        this.durationSeconds = durationSeconds;
     }
-    
-    public void incAnimationTime(float deltaTime) { // Change to accept deltaTime
-        animationTime += deltaTime * animationSpeed;
+
+    public void update(float deltaTime) {
+        if (finished) return;
+
+        timeSeconds += deltaTime * speed;
+
+        if (timeSeconds >= durationSeconds) {
+            if (loop) {
+                timeSeconds %= durationSeconds;
+            } else {
+                timeSeconds = durationSeconds;
+                finished = true;
+            }
+        }
     }
-    
-    public void incBlendedTime(float deltaTime) { // Change to accept deltaTime
-        blendedTime += deltaTime;
+
+    public void reset() {
+        timeSeconds = 0.0f;
+        finished = false;
     }
-    
-    public void incBlendedTime(float deltaTime, int inc) {
-        blendedTime += deltaTime * inc;
-    }
-    
-    public void resetAnimationTime() {
-        animationTime = 0;
-    }
-    
+
+    // ---------------- Getters ----------------
+
     public int getAnimationIndex() {
         return animationIndex;
     }
-    
-    public void setAnimationIndex(int animationIndex) {
-        this.animationIndex = animationIndex;
+
+    public String getName() {
+        return name;
     }
-    
-    public float getAnimationTime() {
-        return animationTime;
+
+    public float getTimeSeconds() {
+        return timeSeconds;
     }
-    
-    public void setAnimationTime(float animationTime) {
-        this.animationTime = animationTime;
+
+    public float getDurationSeconds() {
+        return durationSeconds;
     }
-    
-    public float getBlendedTime() {
-        return blendedTime;
+
+    public boolean isFinished() {
+        return finished;
     }
-    
-    public void setBlendedTime(float blendedTime) {
-        this.blendedTime = blendedTime;
+
+    public void setLoop(boolean loop) {
+        this.loop = loop;
     }
-    
-    public float getAnimationSpeed() {
-        return animationSpeed;
-    }
-    
-    public void setAnimationSpeed(float animationSpeed) {
-        this.animationSpeed = animationSpeed;
+
+    public void setSpeed(float speed) {
+        this.speed = speed;
     }
 }

@@ -778,6 +778,28 @@ public class AnimatedModel
         this.attachedBoneName = attachedBoneName;
     }
     
+    public String getAnimationName(int index) {
+        if (animations == null || index < 0 || index >= animations.length)
+            return "";
+
+        return animations[index].mName().dataString();
+    }
+    
+    public float getAnimationLengthSeconds(int index) {
+        if (animations == null || index < 0 || index >= animations.length)
+            return 0f;
+
+        AIAnimation anim = animations[index];
+
+        float ticksPerSecond =
+                anim.mTicksPerSecond() != 0
+                        ? (float) anim.mTicksPerSecond()
+                        : 60.0f;
+
+        return (float) anim.mDuration() / ticksPerSecond;
+    }
+
+
     
     
 }

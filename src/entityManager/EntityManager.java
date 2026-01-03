@@ -95,59 +95,45 @@ public class EntityManager {
 	}
 	
 	public void updateAnimations(float deltaTime) {
-    for (int a : entities.keySet()) {
-        Entity e = entities.get(a);
-        TexturedModel texturedModel = e.getTexturedModel();
-        
-        if (texturedModel == null) continue;
-        
-        // Get animation elements for this entity
-        List<AnimationElement> animationElements = texturedModel.getAnimationElements();
-        if (animationElements == null || animationElements.isEmpty()) {
-            // No animation elements? Add a default one
-            if (texturedModel.getAnimatedModel() != null || 
-                texturedModel.getAnimatedModels() != null) {
-                texturedModel.addAnimationElement(new AnimationElement(0, 0));
-                animationElements = texturedModel.getAnimationElements();
-            }
-        }
-        
-        if (animationElements == null || animationElements.isEmpty()) continue;
-        
-        // Update each animation element
-        for (AnimationElement element : animationElements) {
-            element.incAnimationTime(deltaTime);
-            float animationTime = element.getAnimationTime();
-            int animIndex = 0;//element.getAnimationIndex();
-            
-            // Handle single model
-            if (texturedModel.getAnimatedModel() != null) {
-                AnimatedModel animatedModel = texturedModel.getAnimatedModel();
-                if (animatedModel.getAnimations() != null && 
-                    animIndex < animatedModel.getAnimations().length) {
-                    animatedModel.updateAnimation(animIndex, animationTime);
-                }
-            }
-            // Handle multiple models - ONLY UPDATE THE FIRST MODEL!
-            else // In your updateAnimations method, add debug for multiple bones:
-            	if (texturedModel.getAnimatedModels() != null) {
-            	    List<AnimatedModel> animatedModels = texturedModel.getAnimatedModels();
-            	    
-            	    if (!animatedModels.isEmpty()) {
-            	    	for (AnimatedModel firstModel : animatedModels) {
-            	    		//AnimatedModel firstModel = animatedModels.get(0);
-                	        if (firstModel.getAnimations() != null && 
-                	            animIndex < firstModel.getAnimations().length) {
-                	            firstModel.updateAnimation(animIndex, animationTime);
-                	        }
-            	    	}
-            	        
-            	     
-            	    }
-            	}
-        }
-    }
-}
+
+	    for (Entity e : entities.values()) {
+
+	        TexturedModel texturedModel = e.getTexturedModel();
+	        if (texturedModel == null) continue;
+
+	        AnimationElement anim = texturedModel.getActiveAnimation();
+
+	        // ✅ Nothing playing → do nothing
+	        if (anim == null) continue;
+
+	        anim.update(deltaTime);
+
+	        // ✅ Animation finished and not looping → stop it
+	        if (anim.isFinished()) {
+	            texturedModel.playAnimation(-1, false);
+	            continue;
+	        }
+
+	        int animIndex = anim.getAnimationIndex();
+	        float timeSeconds = anim.getTimeSeconds();
+
+	        // ---- Single model ----
+	        if (texturedModel.getAnimatedModel() != null) {
+	            texturedModel.getAnimatedModel()
+	                         .updateAnimation(animIndex, timeSeconds);
+	        }
+	        // ---- Multi-mesh ----
+	        else if (texturedModel.getAnimatedModels() != null) {
+	            for (AnimatedModel model : texturedModel.getAnimatedModels()) {
+	                model.updateAnimation(animIndex, timeSeconds);
+	            }
+	        }
+	    }
+	}
+
+
+
+	
 	
 	public void addLight(Light newLight) {
 		lights.put(newLight.getId(), newLight);

@@ -10,6 +10,7 @@ import com.bulletphysics.dynamics.RigidBody;
 
 import animatedModel.AnimatedModel;
 import animatedModel.AnimationLoader;
+import animatedModel.AnimationScript;
 import debugRenderer.DebugRenderer;
 import decals.Decal;
 import decals.DecalManager;
@@ -52,6 +53,7 @@ import toolbox.Mesh;
 import toolbox.MousePicker;
 
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -140,6 +142,7 @@ public class Main {
     
     private Player player;
     private Entity FPSAnimation;
+    private AnimationScript reloadScript;
 
     // Some example entities
     //private List<Entity> entities = new ArrayList<>();
@@ -420,6 +423,14 @@ public class Main {
         
         FPSAnimation = new Entity(entityManager.texturedModels.get("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 1f);
         FPSAnimation = entityManager.addEntity(FPSAnimation, EntityManager.CollisionType.NONE, 3);
+       
+       reloadScript =
+        	    new AnimationScript(FPSAnimation.getTexturedModel())
+        	        .play(0, false) // Fire
+        	        .then(2, false); //PostFire
+        	        
+       
+
         
         
         for (int i = 0; i < 30; i++) {
@@ -747,6 +758,8 @@ public class Main {
     
 
     private void loop() {
+    	boolean wasMouseDown = false;
+
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
             double currentTime = glfwGetTime();
@@ -828,15 +841,44 @@ public class Main {
             
             player.updatePlayer(window, deltaTime, terrain);
             FPSAnimation.setPosition(camera.getPosition().x(), camera.getPosition().y() - 20, camera.getPosition().z());
-            FPSAnimation.setRotation(new Vector3f(0, camera.getYaw() / 360f,0f));
-            System.out.println(camera.getYaw());
+            
+            //FPSAnimation.setRotation(new Vector3f(org.joml.Math.toRadians(camera.getPitch()), -org.joml.Math.toRadians(camera.getYaw() - 90),0f));
+
+            float yawRad   = -org.joml.Math.toRadians(camera.getYaw() - 90f);
+            float pitchRad =  -org.joml.Math.toRadians(camera.getPitch());
+
+            Quaternionf q = new Quaternionf()
+                    .rotateY(yawRad)
+                    .rotateX(pitchRad);
+
+            // Extract Euler radians (XYZ order)
+            Vector3f euler = new Vector3f();
+            q.getEulerAnglesXYZ(euler);
+
+            FPSAnimation.setRotation(euler);
+
+            
             
             entityManager.getPhysicsManager().updateEntitiesFromCollisionShapes(deltaTime, entityManager.getEntitiesList());
-            
-            if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
-            	entityManager.updateAnimations(deltaTime);
-            }
-            
+            int ai = 4;
+            boolean mouseDown =
+            	    GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT)
+            	    == GLFW.GLFW_PRESS;
+
+            	if (mouseDown && !wasMouseDown) {
+            	    System.out.println(FPSAnimation.getTexturedModel().getActiveAnimationIndex());
+
+            	    if (!reloadScript.isRunning()) {
+            	        reloadScript.start();
+            	    }
+            	}
+
+            	wasMouseDown = mouseDown;
+
+            	// Update script every frame (safe even if not running)
+            	reloadScript.update(deltaTime);
+           
+            entityManager.updateAnimations(deltaTime);
             
             
             
