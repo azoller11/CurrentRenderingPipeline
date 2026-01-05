@@ -251,10 +251,10 @@ public class Player {
         // -------------------------------------------------
         // WRITE BACK
         // -------------------------------------------------
-        //this.x = origin.x;
-        //this.y = origin.y;
-        //this.z = origin.z;
-        //playerModel.setPosition(x, y, z);
+        this.x = origin.x;
+        this.y = origin.y;
+        this.z = origin.z;
+        playerModel.setPosition(x, y, z);
     }
 
     public RigidBody getPhysicsBody() {

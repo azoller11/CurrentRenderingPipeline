@@ -19,6 +19,7 @@ import entities.Camera;
 import entities.Entity;
 import entities.Player;
 import entityManager.EntityManager;
+import entityManager.PlayerFPS;
 import entities.Light;
 import gui.GuiTexture;
 import gui.TextureRenderer;
@@ -141,8 +142,7 @@ public class Main {
     private Camera camera;
     
     private Player player;
-    private Entity FPSAnimation;
-    private AnimationScript reloadScript;
+    private PlayerFPS playerFPS;
 
     // Some example entities
     //private List<Entity> entities = new ArrayList<>();
@@ -412,7 +412,7 @@ public class Main {
         
         for (int i = 0; i < 3; i++) {
         	 Entity tubeMan = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(0, 45 + (50 * i), 0), new Vector3f(0,0,0), 20f);
-             //entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
+             entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
         }
         
        
@@ -421,14 +421,14 @@ public class Main {
         Entity pistol = new Entity(entityManager.texturedModels.get("pistol"), new Vector3f(1000, 0, 0), new Vector3f(0,90,0), 1f);
         //entityManager.addEntity(pistol, EntityManager.CollisionType.NONE, 3);
         
-        FPSAnimation = new Entity(entityManager.texturedModels.get("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 1f);
-        FPSAnimation = entityManager.addEntity(FPSAnimation, EntityManager.CollisionType.NONE, 3);
-       
+       // FPSAnimation = new Entity(entityManager.texturedModels.get("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 0.5f);
+       // FPSAnimation = entityManager.addEntity(FPSAnimation, EntityManager.CollisionType.NONE, 3);
+       /*
        reloadScript =
         	    new AnimationScript(FPSAnimation.getTexturedModel())
         	        .play(0, false) // Fire
         	        .then(2, false); //PostFire
-        	        
+        */	        
        
 
         
@@ -680,6 +680,7 @@ public class Main {
 
         
         player = new Player(playerModel, entityManager.getPhysicsManager(), camera);
+        playerFPS = new PlayerFPS(entityManager);
         
         
         
@@ -714,26 +715,26 @@ public class Main {
       
         
     lights.add(new Light(
-         new Vector3f(2,0,0),
+         new Vector3f(2,30,0),
          new Vector3f(1.0f, 0.8f, 0.7f),
          new Vector3f(1, 0.62f, 0.000032f)
      ));
      
      lights.add(new Light(
-	         new Vector3f(-2,-10,0),
+	         new Vector3f(-2,30,0),
 	         new Vector3f(0.0f, 8f, 7f),
 	         new Vector3f(1, 0.0062f,  0.000232f)
 	     ));
   
      lights.add(new Light(
-	         new Vector3f(-20,0,20),
+	         new Vector3f(-20,30,20),
 	         new Vector3f(10.0f, 0.0f, 0.7f),
 	         new Vector3f(1, 0.0062f, 0.000232f)
 	     ));
      
      
      lights.add(new Light(
-	         new Vector3f(0,10,0),
+	         new Vector3f(0,30,0),
 	         new Vector3f(10.0f, 10.0f, 0.7f),
 	         new Vector3f(1, 0.0062f, 0.000232f)
 	     ));
@@ -758,8 +759,6 @@ public class Main {
     
 
     private void loop() {
-    	boolean wasMouseDown = false;
-
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
             double currentTime = glfwGetTime();
@@ -840,44 +839,13 @@ public class Main {
             
             
             player.updatePlayer(window, deltaTime, terrain);
-            FPSAnimation.setPosition(camera.getPosition().x(), camera.getPosition().y() - 20, camera.getPosition().z());
-            
-            //FPSAnimation.setRotation(new Vector3f(org.joml.Math.toRadians(camera.getPitch()), -org.joml.Math.toRadians(camera.getYaw() - 90),0f));
-
-            float yawRad   = -org.joml.Math.toRadians(camera.getYaw() - 90f);
-            float pitchRad =  -org.joml.Math.toRadians(camera.getPitch());
-
-            Quaternionf q = new Quaternionf()
-                    .rotateY(yawRad)
-                    .rotateX(pitchRad);
-
-            // Extract Euler radians (XYZ order)
-            Vector3f euler = new Vector3f();
-            q.getEulerAnglesXYZ(euler);
-
-            FPSAnimation.setRotation(euler);
+            playerFPS.updatePlayerFPS(player, camera, window, deltaTime);
 
             
             
             entityManager.getPhysicsManager().updateEntitiesFromCollisionShapes(deltaTime, entityManager.getEntitiesList());
-            int ai = 4;
-            boolean mouseDown =
-            	    GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT)
-            	    == GLFW.GLFW_PRESS;
-
-            	if (mouseDown && !wasMouseDown) {
-            	    System.out.println(FPSAnimation.getTexturedModel().getActiveAnimationIndex());
-
-            	    if (!reloadScript.isRunning()) {
-            	        reloadScript.start();
-            	    }
-            	}
-
-            	wasMouseDown = mouseDown;
-
-            	// Update script every frame (safe even if not running)
-            	reloadScript.update(deltaTime);
-           
+          
+         
             entityManager.updateAnimations(deltaTime);
             
             
@@ -1017,7 +985,7 @@ public class Main {
             bloomRenderer.renderBloom(width, height,1.0f, 0.2f);
             
             if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS) {
-
+            	/*
                 Entity cube13 = new Entity(
                     entityManager.texturedModels.get("MK2"),
                     new Vector3f(
@@ -1067,7 +1035,7 @@ public class Main {
                 ));
 
                 // Optional realism spin
-             
+             */
             }
 
             

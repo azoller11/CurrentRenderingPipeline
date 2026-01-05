@@ -253,31 +253,40 @@ public class MasterRenderer {
     // ---------------------------------------------------------------------
     
     private void renderSingleMesh(TexturedModel model, List<Entity> batch, int shadowMap, float outsideAmbience) {
+
+        // 1️⃣ MATERIAL FIRST
         prepareTexturedModel(model, shadowMap, outsideAmbience);
-        
+
+        // 2️⃣ ANIMATION STATE (THIS WAS MISSING)
+        if (model.getAnimatedModel() != null) {
+            shader.setUniform1i("useBones", 1);
+            prepareAnimationBones(model.getAnimatedModel());
+        } else {
+            shader.setUniform1i("useBones", 0);
+        }
+
         Mesh mesh = model.getMesh();
-        
+
         int vaoId = 0;
         int vertexCount = 0;
-        boolean isAnimated = model.getAnimatedModel() != null;
-        
+
         if (mesh != null) {
             vaoId = mesh.getVaoId();
             vertexCount = mesh.getVertexCount();
-        } else if (isAnimated) {
+        } else if (model.getAnimatedModel() != null) {
             vaoId = model.getAnimatedModel().getVaoID();
             vertexCount = model.getAnimatedModel().getCount();
         }
-        
-        if (vaoId == 0) return; // Safety check
-        
+
+        if (vaoId == 0) return;
+
         glBindVertexArray(vaoId);
         glPatchParameteri(GL_PATCH_VERTICES, 3);
 
         for (Entity entity : batch) {
             loadModelMatrix(entity);
-            
-            if (isAnimated) {
+
+            if (model.getAnimatedModel() != null) {
                 glDrawElements(GL_PATCHES, vertexCount, GL_UNSIGNED_INT, 0);
             } else {
                 glDrawArrays(GL_PATCHES, 0, vertexCount);
@@ -286,38 +295,49 @@ public class MasterRenderer {
 
         glBindVertexArray(0);
     }
+
     
     private void renderMultiMeshAnimatedModel(TexturedModel model, List<Entity> batch, int shadowMap, float outsideAmbience) {
-        List<animatedModel.AnimatedModel> animatedModels = model.getAnimatedModels();
-        if (animatedModels == null || animatedModels.isEmpty()) return;
-        for (Entity entity : batch) {
+        List<AnimatedModel> parts = model.getAnimatedModels();
+        if (parts == null || parts.isEmpty()) return;
 
+        for (Entity entity : batch) {
             Matrix4f entityMatrix = entity.getModelMatrix();
 
-            for (AnimatedModel part : animatedModels) {
-            	
-            	String nodeName = part.getMeshNodeName();
-            	Matrix4f animatedGlobal = part.getAnimatedNodeTransform(nodeName);
-            	Matrix4f bindGlobal     = part.getBindPoseNodeGlobal();
-
-            
-
+            for (AnimatedModel part : parts) {
                 prepareAnimatedModelComponent(part, model, shadowMap, outsideAmbience);
 
                 Matrix4f finalModelMatrix = new Matrix4f(entityMatrix);
-                if (part.isSkinned()) {
-                    shader.setUniform1i("useBones", 1);
-                    // ❌ DO NOT APPLY node transforms
-                } else {
-                    shader.setUniform1i("useBones", 0);
 
-                    Matrix4f nodeGlobal = part.getAnimatedNodeTransform(part.getMeshNodeName());
-                    if (nodeGlobal != null) {
-                        finalModelMatrix.mul(nodeGlobal);
+                // IMPORTANT:
+                // If your loader already applied mesh/node transforms to the vertex positions,
+                // DO NOT apply bindPoseNodeGlobal or animated nodeGlobal here.
+                //
+                // If you did NOT bake transforms in the loader, then:
+                //   - for non-skinned parts, apply node animation
+                //   - for skinned parts, do NOT apply node animation (bones handle it)
+                boolean verticesWereBakedToNodeSpace = true; // <-- set this to match your loader behavior
+
+                if (!verticesWereBakedToNodeSpace) {
+                    // If you didn't bake, apply bind pose node transform (static placement)
+                    finalModelMatrix.mul(part.getBindPoseNodeGlobal());
+
+                    // For non-skinned node-only meshes, also apply animated node transform
+                    if (!part.isSkinned()) {
+                        Matrix4f nodeGlobal = part.getAnimatedNodeTransform(part.getMeshNodeName());
+                        if (nodeGlobal != null) {
+                            finalModelMatrix.mul(nodeGlobal);
+                        }
+                    }
+                } else {
+                    // baked case: do nothing extra
+                    // (entityMatrix is enough; bones handle motion for skinned meshes)
+                    if (!part.isSkinned()) {
+                        // If you baked the static placement but still want per-node animation,
+                        // then your loader must NOT bake the animated part.
+                        // Usually: for node-animated non-skinned parts, don't bake and use the branch above.
                     }
                 }
-
-                
 
                 loadModelMatrix(finalModelMatrix);
 
@@ -327,8 +347,8 @@ public class MasterRenderer {
                 glBindVertexArray(0);
             }
         }
-
     }
+
     
     // ---------------------------------------------------------------------
     // Animation helper methods
@@ -338,7 +358,7 @@ public class MasterRenderer {
         // If this model has multiple animated meshes, we handle it differently
         if (model.getAnimatedModels() != null) {
             // We'll handle this in renderMultiMeshAnimatedModel
-            return;
+           // return;
         }
         
         // Base texture
@@ -412,10 +432,12 @@ public class MasterRenderer {
         shader.setUniform1i("isVegitation", model.isVegitation() ? 1 : 0);
         
         // Animation - use the new prepareAnimationBones method
+        /*
         shader.setUniform1i("useBones", 0);
         if (model.getAnimatedModel() != null) {
             prepareAnimationBones(model.getAnimatedModel());
         }
+        */
         
         // Transparency / culling per model
         if (model.isHasTransparency()) {
@@ -533,6 +555,21 @@ public class MasterRenderer {
     private void prepareAnimatedModelComponent(animatedModel.AnimatedModel animatedModel, 
                                               TexturedModel texturedModel, 
                                               int shadowMap, float outsideAmbience) {
+    	
+    	 
+        // Setup bone matrices for this animated model
+    	 // 1️⃣ Material & textures FIRST
+        prepareTexturedModel(texturedModel, shadowMap, outsideAmbience);
+
+        // 2️⃣ Animation LAST
+        if (animatedModel.isSkinned()) {
+            shader.setUniform1i("useBones", 1);
+            prepareAnimationBones(animatedModel);
+        } else {
+            shader.setUniform1i("useBones", 0);
+        }
+    	
+    	/*
         // Setup textures and materials from the parent TexturedModel
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texturedModel.getTextureId());
@@ -584,6 +621,7 @@ public class MasterRenderer {
         }
         
         shader.setUniform1f("outsideAmbience", outsideAmbience);
+        */
     }
 
     private void loadModelMatrix(Entity entity) {

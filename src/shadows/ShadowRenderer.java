@@ -14,6 +14,7 @@ import java.util.List;
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
+import entities.TexturedModel;
 import renderer.MasterRenderer;
 import shaders.ShaderProgram;
 import toolbox.Frustum;
@@ -98,158 +99,117 @@ public class ShadowRenderer {
      * @param entities         List of entities to render
      * @param lightSpaceMatrix The transformation matrix (from world to light space)
      */
-    public void renderShadowMap(
+  public void renderShadowMap(
         List<Entity> entities,
         Matrix4f lightSpaceMatrix,
         Matrix4f viewMatrix,
         Matrix4f projectionMatrix
-    ) {
-        // Bind shadow FBO + viewport
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-        glViewport(0, 0, shadowWidth, shadowHeight);
-        glClear(GL_DEPTH_BUFFER_BIT);
+) {
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glViewport(0, 0, shadowWidth, shadowHeight);
+    glClear(GL_DEPTH_BUFFER_BIT);
 
-        // --- IMPORTANT STATE FOR CLEAN SHADOWS ---
-        // 1) Render backfaces into shadow map to reduce acne at the source
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_FRONT);
+    // Shadow pass state
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT); // reduce acne
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(2.0f, 4.0f);
 
-        // 2) Apply slope-scaled rasterization bias in the SHADOW PASS (stable, no swimming)
-        glEnable(GL_POLYGON_OFFSET_FILL);
-        glPolygonOffset(0f, 0f);
+    shadowShader.bind();
+    shadowShader.setUniformMat4("lightSpaceMatrix", lightSpaceMatrix);
+    shadowShader.setUniform1f("alphaThreshold", 0.1f);
 
-        shadowShader.bind();
-        shadowShader.setUniformMat4("lightSpaceMatrix", lightSpaceMatrix);
+    frustum.calculateFrustum(projectionMatrix, viewMatrix);
 
-        // Alpha test threshold for masked textures (leaves your behavior intact)
-        shadowShader.setUniform1f("alphaThreshold", 0.1f);
+    for (Entity entity : entities) {
+        TexturedModel tm = entity.getTexturedModel();
+        if (tm == null || !tm.isCastShadows()) continue;
 
-        // Frustum cull (your existing logic)
-        frustum.calculateFrustum(projectionMatrix, viewMatrix);
+        float radius = 100f;
+        if (tm.getMesh() != null) {
+            radius = tm.getMesh().getFurthestPoint() * entity.getScale();
+        }
 
-        for (Entity entity : entities) {
-        	
-        	float scale = 100;
-        	if (entity.getTexturedModel().getMesh() == null)
-        		scale = 100;
-        	else 
-        		scale = entity.getTexturedModel().getMesh().getFurthestPoint() * entity.getScale();
-        	
-            if ((Boolean.valueOf(entity.getTexturedModel().isCastShadows())) &&
-                frustum.contains(
-                    entity.getPosition(),
-                    scale
-                )) {
+        if (!frustum.contains(entity.getPosition(), radius)) continue;
 
-                Matrix4f modelMatrix = entity.getModelMatrix();
-                shadowShader.setUniformMat4("model", modelMatrix);
-                
-                
-                // Set bone matrices if the model is animated
-                if (entity.getTexturedModel().getAnimatedModel() != null) {
-                    shadowShader.setUniform1i("useBones", 1);
-                    
-                    var bones = entity.getTexturedModel().getAnimatedModel().getBones();
-                    int boneCount = Math.min(bones.length, MasterRenderer.MAX_BONES);
-                    
-                    // Create bone matrix array
-                    float[] boneArray = new float[16 * MasterRenderer.MAX_BONES];
-                    int arrayIndex = 0;
-                    
-                    // Fill with bone matrices
-                    for (int i = 0; i < boneCount; i++) {
-                        Matrix4f m = bones[i].getTransformation();
-                        
-                        boneArray[arrayIndex++] = m.m00();
-                        boneArray[arrayIndex++] = m.m01();
-                        boneArray[arrayIndex++] = m.m02();
-                        boneArray[arrayIndex++] = m.m03();
-                        
-                        boneArray[arrayIndex++] = m.m10();
-                        boneArray[arrayIndex++] = m.m11();
-                        boneArray[arrayIndex++] = m.m12();
-                        boneArray[arrayIndex++] = m.m13();
-                        
-                        boneArray[arrayIndex++] = m.m20();
-                        boneArray[arrayIndex++] = m.m21();
-                        boneArray[arrayIndex++] = m.m22();
-                        boneArray[arrayIndex++] = m.m23();
-                        
-                        boneArray[arrayIndex++] = m.m30();
-                        boneArray[arrayIndex++] = m.m31();
-                        boneArray[arrayIndex++] = m.m32();
-                        boneArray[arrayIndex++] = m.m33();
+        // Alpha-tested shadow casters
+        shadowShader.setUniform1i("diffuseMap", 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, tm.getTextureId());
+
+        boolean useTexture = tm.isHasOpaque() || tm.isHasTransparency();
+        shadowShader.setUniform1i("useTexture", useTexture ? 1 : 0);
+
+        Matrix4f entityMatrix = entity.getModelMatrix();
+
+        // ============================================================
+        // MULTI-MESH ANIMATED MODEL
+        // ============================================================
+        if (tm.getAnimatedModels() != null && !tm.getAnimatedModels().isEmpty()) {
+
+            for (animatedModel.AnimatedModel part : tm.getAnimatedModels()) {
+
+                // MUST match main renderer logic
+                Matrix4f finalModel = new Matrix4f(entityMatrix);
+
+                boolean verticesWereBakedToNodeSpace = true; // ← MUST match loader
+                if (!verticesWereBakedToNodeSpace) {
+                    finalModel.mul(part.getBindPoseNodeGlobal());
+
+                    if (!part.isSkinned()) {
+                        Matrix4f nodeGlobal = part.getAnimatedNodeTransform(part.getMeshNodeName());
+                        if (nodeGlobal != null) finalModel.mul(nodeGlobal);
                     }
-                    
-                    // Fill remaining with identity matrices
-                    for (int i = boneCount; i < MasterRenderer.MAX_BONES; i++) {
-                        // Identity matrix
-                        boneArray[arrayIndex++] = 1.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 1.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 1.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 0.0f;
-                        boneArray[arrayIndex++] = 1.0f;
-                    }
-                    
-                    // Create FloatBuffer and send to shader
-                    FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(16 * MasterRenderer.MAX_BONES);
-                    fb.put(boneArray);
-                    fb.flip();
-                    shadowShader.setUniformMat4ArrayBones("bones", fb, MasterRenderer.MAX_BONES);
-                } else {
-                    shadowShader.setUniform1i("useBones", 0);
                 }
 
-                // Bind diffuse for alpha-tested shadow caster
-                shadowShader.setUniform1i("diffuseMap", 0);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, entity.getTexturedModel().getTextureId());
+                shadowShader.setUniformMat4("model", finalModel);
 
-                if (entity.getTexturedModel().isHasOpaque() || entity.getTexturedModel().isHasTransparency()) {
-                    shadowShader.setUniform1i("useTexture", 1);
-                } else {
-                    shadowShader.setUniform1i("useTexture", 0);
-                }
+                // Bones are per-part
+                setBonesForShadow(part);
 
-                int vaoID = 0;
-                int vertexCount = 0;
-                if (entity.getTexturedModel().getMesh() != null) {
-                	vaoID = entity.getTexturedModel().getMesh().getVaoId();
-                	vertexCount = entity.getTexturedModel().getMesh().getVertexCount();
-                }
-                if (entity.getTexturedModel().getAnimatedModel() != null) {
-                	vaoID = entity.getTexturedModel().getAnimatedModel().getVaoID();
-                	vertexCount = entity.getTexturedModel().getAnimatedModel().getCount();
-                }
-                
-                glBindVertexArray(vaoID);
-                
-                glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+                glBindVertexArray(part.getVaoID());
+                glDrawElements(GL_TRIANGLES, part.getCount(), GL_UNSIGNED_INT, 0);
+                glBindVertexArray(0);
+            }
+
+        }
+        // ============================================================
+        // SINGLE-MESH PATH
+        // ============================================================
+        else {
+            shadowShader.setUniformMat4("model", entityMatrix);
+
+            if (tm.getAnimatedModel() != null) {
+                setBonesForShadow(tm.getAnimatedModel());
+            } else {
+                shadowShader.setUniform1i("useBones", 0);
+            }
+
+            if (tm.getMesh() != null) {
+                glBindVertexArray(tm.getMesh().getVaoId());
+                glDrawArrays(GL_TRIANGLES, 0, tm.getMesh().getVertexCount());
+                glBindVertexArray(0);
+            }
+            else if (tm.getAnimatedModel() != null) {
+                glBindVertexArray(tm.getAnimatedModel().getVaoID());
+                glDrawElements(
+                        GL_TRIANGLES,
+                        tm.getAnimatedModel().getCount(),
+                        GL_UNSIGNED_INT,
+                        0
+                );
                 glBindVertexArray(0);
             }
         }
-
-        shadowShader.unbind();
-
-        // Restore state
-        glDisable(GL_POLYGON_OFFSET_FILL);
-        glCullFace(GL_BACK);         // restore default
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+    shadowShader.unbind();
+
+    // Restore state
+    glDisable(GL_POLYGON_OFFSET_FILL);
+    glCullFace(GL_BACK);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
 
     public static Matrix4f createLightSpaceMatrix(Light light, Camera camera) {
         float orthoSize = 400.0f * 15;
@@ -298,6 +258,42 @@ public class ShadowRenderer {
 
         return lightSpaceMatrix;
     }
+    
+    private void setBonesForShadow(animatedModel.AnimatedModel animatedModel) {
+        if (animatedModel != null && animatedModel.isSkinned()) {
+            shadowShader.setUniform1i("useBones", 1);
+
+            var bones = animatedModel.getBones();
+            int boneCount = (bones == null) ? 0 : Math.min(bones.length, MasterRenderer.MAX_BONES);
+
+            float[] boneArray = new float[16 * MasterRenderer.MAX_BONES];
+            int idx = 0;
+
+            for (int i = 0; i < boneCount; i++) {
+                Matrix4f m = bones[i].getTransformation();
+
+                boneArray[idx++] = m.m00(); boneArray[idx++] = m.m01(); boneArray[idx++] = m.m02(); boneArray[idx++] = m.m03();
+                boneArray[idx++] = m.m10(); boneArray[idx++] = m.m11(); boneArray[idx++] = m.m12(); boneArray[idx++] = m.m13();
+                boneArray[idx++] = m.m20(); boneArray[idx++] = m.m21(); boneArray[idx++] = m.m22(); boneArray[idx++] = m.m23();
+                boneArray[idx++] = m.m30(); boneArray[idx++] = m.m31(); boneArray[idx++] = m.m32(); boneArray[idx++] = m.m33();
+            }
+
+            // Fill remaining with identity
+            for (int i = boneCount; i < MasterRenderer.MAX_BONES; i++) {
+                boneArray[idx++] = 1; boneArray[idx++] = 0; boneArray[idx++] = 0; boneArray[idx++] = 0;
+                boneArray[idx++] = 0; boneArray[idx++] = 1; boneArray[idx++] = 0; boneArray[idx++] = 0;
+                boneArray[idx++] = 0; boneArray[idx++] = 0; boneArray[idx++] = 1; boneArray[idx++] = 0;
+                boneArray[idx++] = 0; boneArray[idx++] = 0; boneArray[idx++] = 0; boneArray[idx++] = 1;
+            }
+
+            FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(16 * MasterRenderer.MAX_BONES);
+            fb.put(boneArray).flip();
+            shadowShader.setUniformMat4ArrayBones("bones", fb, MasterRenderer.MAX_BONES);
+        } else {
+            shadowShader.setUniform1i("useBones", 0);
+        }
+    }
+
 
     /**
      * Returns the OpenGL texture ID for the depth map.

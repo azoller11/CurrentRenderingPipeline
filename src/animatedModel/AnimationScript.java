@@ -23,15 +23,15 @@ public class AnimationScript {
 
     private final TexturedModel model;
 
-    // 🔒 Immutable script definition
+    // Immutable script definition
     private final List<Step> steps = new ArrayList<>();
 
-    // ▶ Runtime execution state
+    // Runtime execution state
     private Queue<Step> runQueue;
     private Step currentStep;
     private boolean running = false;
-
-    private Runnable onComplete;
+    
+    private boolean stepBegan = false;
 
     public AnimationScript(TexturedModel model) {
         this.model = model;
@@ -53,17 +53,11 @@ public class AnimationScript {
         return this;
     }
 
-    public AnimationScript onComplete(Runnable callback) {
-        this.onComplete = callback;
-        return this;
-    }
-
     // ---------- Control ----------
 
     public void start() {
         if (steps.isEmpty()) return;
 
-        // 🔁 Reset execution state
         runQueue = new ArrayDeque<>(steps);
         currentStep = null;
         running = true;
@@ -75,6 +69,7 @@ public class AnimationScript {
         running = false;
         currentStep = null;
         runQueue = null;
+
         model.playAnimation(-1, false);
     }
 
@@ -87,27 +82,45 @@ public class AnimationScript {
     public void update(float deltaTime) {
         if (!running || currentStep == null) return;
 
-        var anim = model.getActiveAnimation();
+        AnimationElement anim = model.getActiveAnimation();
 
-        // Animation stopped externally
-        if (anim == null) {
-            finishSequence();
+        // ✅ If animation exists, run it normally
+        if (anim != null) {
+            stepBegan = true;                 // we have observed it playing
+            anim.incAnimationTime(deltaTime);
+
+            if (!anim.isFinished()) return;
+
+            // step finished
+            if (currentStep.callback != null) currentStep.callback.run();
+            if (currentStep.loop) return;     // looping steps intentionally never advance
+
+            // done?
+            if (runQueue == null || runQueue.isEmpty()) {
+                finishSequence();
+            } else {
+                advance();
+            }
             return;
         }
 
-        // Finished animation
-        if (anim.isFinished()) {
-
-            if (currentStep.callback != null) {
-                currentStep.callback.run();
-            }
-
-            // Looping step intentionally never advances
+        // ✅ anim == null
+        // If we already saw this step playing, and now it's gone, treat as finished.
+        if (stepBegan) {
+            if (currentStep.callback != null) currentStep.callback.run();
             if (currentStep.loop) return;
 
-            advance();
+            if (runQueue == null || runQueue.isEmpty()) {
+                finishSequence();
+            } else {
+                advance();
+            }
         }
+
+        // else: anim is null but step hasn't started yet → just wait
     }
+
+
 
     // ---------- Internal ----------
 
@@ -119,6 +132,7 @@ public class AnimationScript {
             return;
         }
 
+        stepBegan = false; // ✅ new step, haven't observed it playing yet
         model.playAnimation(currentStep.animationIndex, currentStep.loop);
     }
 
@@ -126,11 +140,16 @@ public class AnimationScript {
         running = false;
         currentStep = null;
         runQueue = null;
+        stepBegan = false;
 
         model.playAnimation(-1, false);
+    }
 
-        if (onComplete != null) {
-            onComplete.run();
-        }
+    private void finish() {
+        running = false;
+        currentStep = null;
+        runQueue = null;
+
+        model.playAnimation(-1, false);
     }
 }

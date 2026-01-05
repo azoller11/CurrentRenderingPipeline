@@ -7,7 +7,7 @@ public class AnimationElement {
     private final float durationSeconds;
 
     private float timeSeconds = 0.0f;
-    private float speed = 60.0f; // 1.0 = normal speed
+    private float speed = 30.0f; // 1.0 = normal speed
     private boolean loop = true;
     private boolean finished = false;
 
@@ -65,5 +65,9 @@ public class AnimationElement {
 
     public void setSpeed(float speed) {
         this.speed = speed;
+    }
+
+    public void incAnimationTime(float deltaTime) {
+        update(deltaTime);
     }
 }

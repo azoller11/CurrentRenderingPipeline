@@ -53,9 +53,9 @@ public class HitResult {
         // -------------------------------
         // Gunshot smoke configuration
         // -------------------------------
-        int smokeCount = 6;                 // tight puff
-        float baseSpeed = 3.5f;
-        float maxSpeed  = 5.0f;              // later particles go faster
+        int smokeCount = 5;                 // tight puff
+        float baseSpeed = 5.5f;
+        float maxSpeed  = 1.0f;              // later particles go faster
         float coneSpread = 0.6f;             // cone angle
         float gravity = 0.015f;
 
@@ -93,8 +93,8 @@ public class HitResult {
             // -----------------------------------------
             // Visual shaping
             // -----------------------------------------
-            float life = 0.25f + random.nextFloat() * 1.6f;   // quick dissipate
-            float scale = 16f + t * 12f + random.nextFloat() * 2f;
+            float life = 2.25f + random.nextFloat() * 1.6f;   // quick dissipate
+            float scale = 13 + t * 12f + random.nextFloat() * 2f;
 
             ParticleMaster.createParticle(
                 smokeTexture,
