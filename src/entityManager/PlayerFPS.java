@@ -27,7 +27,7 @@ public class PlayerFPS {
 	
 	
 	public PlayerFPS(EntityManager entityManager) {
-		FPSAnimation = new Entity(entityManager.texturedModels.get("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 0.5f);
+		FPSAnimation = new Entity(entityManager.texturedModels.get("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 0.25f);
         FPSAnimation = entityManager.addEntity(FPSAnimation, EntityManager.CollisionType.NONE, 3);
         
         shootScript =
@@ -47,10 +47,10 @@ public class PlayerFPS {
 	
 	public void updatePlayerFPS(Player player, Camera camera, Long window, float deltaTime) {
 		
-		if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS && !reloadScript.isRunning() ) {
-		    targetAimHeight = -5.0f;   // aimed
+		if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS && !reloadScript.isRunning() && camera.getPitch() < 37 && camera.getPitch() > -42) {
+		    targetAimHeight = -2.5f;   // aimed
 		} else {
-		    targetAimHeight = -10f;  // hip fire
+		    targetAimHeight = -5.5f;  // hip fire
 		}
 		float aimSpeed = 12.0f; // higher = snappier, lower = slower
 

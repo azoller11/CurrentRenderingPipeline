@@ -68,7 +68,7 @@ public class GuiManager {
 		   texture2.setVisible(true);
 	        textureRenderer.addTexture(texture2);
 	        
-	        gui.GuiTexture texture12 = new gui.GuiTexture(4, 60, 100, 50,50);
+	        gui.GuiTexture texture12 = new gui.GuiTexture(86, 60, 100, 50,50);
 	        texture12.setVisible(true);
 	        textureRenderer.addTexture(texture12);
 	        

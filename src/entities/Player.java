@@ -48,12 +48,12 @@ public class Player {
     private float bobTimer = 0f;
     private float bobOffset = 0f;
 
-    private float walkBobAmount = 0.6f;
-    private float runBobAmount  = 1.4f;
+    private float walkBobAmount = 0.14f;
+    private float runBobAmount  = 0.16f;
     private float crouchBobAmount = 0.25f;
 
-    private float walkBobSpeed = 8f;
-    private float runBobSpeed  = 14f;
+    private float walkBobSpeed = 5f;
+    private float runBobSpeed  = 11f;
 
     // Jump / land impulses
     private float verticalImpulse = 0f;

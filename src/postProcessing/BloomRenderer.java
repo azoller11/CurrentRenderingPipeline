@@ -31,9 +31,12 @@ public class BloomRenderer {
     // FBO for the original scene.
     private int sceneFBO;
     private int sceneTexture;
+    
+    private int sceneDepthCopyFBO;
+    private int sceneDepthCopyTex;
   
 
-	private int sceneDepthRBO;
+	private int sceneDepthTexture;
     
     // FBO for extracting bright areas.
     private int brightFBO;
@@ -66,6 +69,7 @@ public class BloomRenderer {
         this.width = width;
         this.height = height;
         initSceneFBO();
+        initSceneDepthCopy();
         initBrightFBO();
         initPingPongFBOs();
         initCombineFBO();
@@ -90,10 +94,33 @@ public class BloomRenderer {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneTexture, 0);
         
         // Create a renderbuffer object for depth.
-        sceneDepthRBO = glGenRenderbuffers();
-        glBindRenderbuffer(GL_RENDERBUFFER, sceneDepthRBO);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, sceneDepthRBO);
+        sceneDepthTexture = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, sceneDepthTexture);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_DEPTH_COMPONENT32F,
+            width,
+            height,
+            0,
+            GL_DEPTH_COMPONENT,
+            GL_FLOAT,
+            (java.nio.ByteBuffer) null
+        );
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_TEXTURE_2D,
+            sceneDepthTexture,
+            0
+        );
+
         
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             System.err.println("ERROR: Scene FBO is not complete!");
@@ -165,6 +192,52 @@ public class BloomRenderer {
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+    
+    private void initSceneDepthCopy() {
+        sceneDepthCopyFBO = glGenFramebuffers();
+        glBindFramebuffer(GL_FRAMEBUFFER, sceneDepthCopyFBO);
+
+        sceneDepthCopyTex = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, sceneDepthCopyTex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0,
+                     GL_DEPTH_COMPONENT, GL_FLOAT, (java.nio.ByteBuffer) null);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, sceneDepthCopyTex, 0);
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            System.err.println("ERROR: sceneDepthCopyFBO not complete!");
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    public void copySceneDepth() {
+        // READ from scene FBO
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, sceneFBO);
+
+        // DRAW into depth-copy FBO
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneDepthCopyFBO);
+
+        // Depth-only copy
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+
+        glBlitFramebuffer(
+            0, 0, width, height,
+            0, 0, width, height,
+            GL_DEPTH_BUFFER_BIT,
+            GL_NEAREST
+        );
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     
     // 4. Create a full-screen quad.
     private void initFullScreenQuad() {
@@ -398,6 +471,14 @@ public class BloomRenderer {
 
   	public void setSceneTexture(int sceneTexture) {
   		this.sceneTexture = sceneTexture;
+  	}
+  	
+  	public int getSceneDepthTexture() {
+  	    return sceneDepthTexture ;
+  	}
+  	
+  	public int getSceneDepthCopyTexture() {
+  	    return sceneDepthCopyTex;
   	}
   	
  // Define a smoothstep helper (or use your own math library)

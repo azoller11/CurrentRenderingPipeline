@@ -26,7 +26,7 @@ public class TerrainEditor {
 		
 		float terrainY = terrain.getHeightOfTerrain(mousePointX, mousePointZ);
 		float brushSize = EngineSettings.TerrainBrushSize;
-		float paintStrength = 1f;
+		float paintStrength = 0.5f;
 		
 		
 		//Edit the shape of the terrain

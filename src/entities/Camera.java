@@ -101,10 +101,10 @@ public class Camera {
             pitch += offsetY;
 
             // Constrain the pitch
-            if (pitch > 89f)
-                pitch = 89f;
-            if (pitch < -89f)
-                pitch = -89f;
+            if (pitch > 60f)
+                pitch = 60f;
+            if (pitch < -60f)
+                pitch = -60f;
 
             updateVectors();
         }

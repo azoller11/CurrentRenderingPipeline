@@ -28,7 +28,7 @@ public class SkyboxRenderer {
     private float orbitRotation = 0.25f; // Y-axis rotation (tilt)
 
     // Sun/moon parameters
-    private float maxSunBrightness = 3.85f;
+    private float maxSunBrightness = 3.55f;
     private float maxMoonBrightness = 1.00f;
 
     private float sunSize = 0.025f;
@@ -223,7 +223,7 @@ public class SkyboxRenderer {
         Vector3f noonCore = new Vector3f(1.0f, 0.9f, 0.7f);
         Vector3f noonHalo = new Vector3f(1.0f, 0.65f, 0.3f);
 
-        float brightness = maxSunBrightness * extinction;
+        float brightness = (maxSunBrightness - 0.8f) * extinction;
 
         sunCoreColor = new Vector3f(noonCore)
                 .lerp(horizonColor, sunWarmFactor)

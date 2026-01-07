@@ -8,6 +8,7 @@ import org.lwjgl.assimp.AIAnimation;
 
 import animatedModel.AnimatedModel;
 import animatedModel.AnimationElement;
+import materialLoader.Material;
 import toolbox.Mesh;
 
 public class TexturedModel {
@@ -15,11 +16,13 @@ public class TexturedModel {
 	private Mesh mesh;
 	private AnimatedModel animatedModel;
 	private List<AnimatedModel> animatedModels;
+	private Material material;
+	
 	
 	private int activeAnimation = -1; 
 	 
 
-
+	/*SOON TO REMOVE START*/
 	private int textureId;
 	 
 	private Vector3f parallaxScale ;
@@ -35,6 +38,10 @@ public class TexturedModel {
 	
 	private boolean hasTransparency;
     private boolean hasOpaque;
+    
+    /*SOON TO REMOVE END */
+    
+    
     
     private boolean castShadows;
     
@@ -344,6 +351,14 @@ public class TexturedModel {
 		
 		public void setActiveAnimation(int activeAnimation) {
 			this.activeAnimation = activeAnimation;
+		}
+
+		public Material getMaterial() {
+			return material;
+		}
+
+		public void setMaterial(Material material) {
+			this.material = material;
 		}
     
 

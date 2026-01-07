@@ -40,5 +40,6 @@
 	<classpathentry kind="lib" path="lib/jars/slick-util.jar"/>
 	<classpathentry kind="lib" path="lib/jars/slick-util3.jar"/>
 	<classpathentry kind="lib" path="lib/jars/vecmath.jar"/>
+	<classpathentry kind="lib" path="lib/jars/json.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

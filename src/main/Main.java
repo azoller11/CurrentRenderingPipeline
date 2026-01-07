@@ -20,6 +20,8 @@ import entities.Entity;
 import entities.Player;
 import entityManager.EntityManager;
 import entityManager.PlayerFPS;
+import fog.FogVolume;
+import fog.FogVolumeRenderer;
 import entities.Light;
 import gui.GuiTexture;
 import gui.TextureRenderer;
@@ -78,8 +80,8 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Main {
 
     private long window;
-    private final int width = 900;
-    private final int height = 600;
+    private final int width = 800;
+    private final int height = 500;
     
     private int frames = 0;
     private double timeCounter = 0.0;
@@ -109,6 +111,9 @@ public class Main {
     
     private TerrainEditor terrainEditor;
     
+    private FogVolumeRenderer fogRenderer;
+    private List<FogVolume> volumes;
+    
     
     //ENTITIES
     public static EntityManager entityManager;
@@ -116,6 +121,9 @@ public class Main {
     
     private DecalManager decalManager;
     private DecalRenderer decalRenderer;
+    
+  
+    
     
     //
     //private PhysicsManager physicsManager;
@@ -259,6 +267,8 @@ public class Main {
         
         bloomRenderer = new BloomRenderer(width, height);
         
+        
+        
         terrainEditor = new TerrainEditor();
         
         terrainRenderer = new TerrainRenderer();
@@ -365,7 +375,20 @@ public class Main {
      
         ParticleMaster.init(masterRenderer.getProjectionMatrix());
         
-      
+        fogRenderer = new FogVolumeRenderer(width, height);
+        volumes = new ArrayList<FogVolume>();
+        float fogScale = terrain.getSize();
+        Matrix4f m = new Matrix4f().translation(terrain.getX() + (fogScale/2),-500,terrain.getZ()+ (fogScale/2)).scale(fogScale);
+        FogVolume vol = new FogVolume(m, fogScale, TextureLoader.loadExplicitTexture("heightmap perlin.png")); // must match
+
+     // STRONG first-pass values
+     vol.setDensity(0.002f);        // << MUCH higher
+     vol.setNoiseScale(0.15f);
+     vol.setNoiseStrength(2.35f);  // << lower so it doesn’t erase density
+     vol.setBaseOpacity(5.75f);
+     vol.getFogColor().set(0.2f, 0.5f, 0.2f, 0.6f);
+
+        	volumes.add(vol);
 
         //Animations??
         AnimationLoader animationLoader = new AnimationLoader();
@@ -431,7 +454,6 @@ public class Main {
         */	        
        
 
-        
         
         for (int i = 0; i < 30; i++) {
         	float x = random.nextFloat(terrain.getSize()) + terrain.getX();
@@ -663,7 +685,7 @@ public class Main {
         	
         	
             
-            entityManager.addEntity(tree, EntityManager.CollisionType.DYNAMIC_ACCURATE, 250);
+            entityManager.addEntity(tree, EntityManager.CollisionType.DYNAMIC_ACCURATE, 50);
 
             
         }
@@ -727,7 +749,7 @@ public class Main {
 	     ));
   
      lights.add(new Light(
-	         new Vector3f(-20,30,20),
+	         new Vector3f(600,200,600),
 	         new Vector3f(10.0f, 0.0f, 0.7f),
 	         new Vector3f(1, 0.0062f, 0.000232f)
 	     ));
@@ -755,7 +777,6 @@ public class Main {
         textureRenderer.removeTexture(loadingScreen);
         lastTime = glfwGetTime();
     }
-    
     
 
     private void loop() {
@@ -966,21 +987,29 @@ public class Main {
                     camera.getPosition(),
                     outsideAmbience
             );
-            
+            //bloomRenderer.copySceneDepth();
+
 
      
-
             decalRenderer.render(decalManager.getDecals(), camera, masterRenderer.getProjectionMatrix(),
             		shadowTextureID, lights, lightSpaceMatrix);
             
             
+
+            
+            
             ParticleMaster.renderParticles(camera);
+            
+            
+            fogRenderer.render(volumes, camera, masterRenderer.getProjectionMatrix(), bloomRenderer.getSceneDepthTexture(), lights, deltaTime);
+
             
            // debugRenderer.addCollisionMesh(player.getPhysicsBody(), new Vector3f(1,1,1));
             
             //postRenderer.unbindFBO(width, height);
             bloomRenderer.unbindSceneFBO(width, height);
             
+    
             //postRenderer.renderPostProcess();
             bloomRenderer.renderBloom(width, height,1.0f, 0.2f);
             
@@ -1038,7 +1067,6 @@ public class Main {
              */
             }
 
-            
             
             
 
@@ -1133,7 +1161,6 @@ public class Main {
                 }
             }
 
-            
            
             
             //int c = Equations.combineTexturesFixed(3, 4, width, height);

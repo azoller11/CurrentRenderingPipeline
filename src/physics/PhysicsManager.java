@@ -46,6 +46,7 @@ import org.joml.Vector3fc;
 
 import javax.vecmath.Matrix3f;
 import javax.vecmath.Quat4f;
+import org.joml.Quaternionf;
 
 public class PhysicsManager {
 
@@ -492,7 +493,22 @@ public class PhysicsManager {
                 Quat4f rotationQuat = new Quat4f();
                 transform.getRotation(rotationQuat);
                 Vector3f eulerRotation = quaternionToEuler(rotationQuat);
-                entity.setRotation(new org.joml.Vector3f(eulerRotation.x, eulerRotation.y, eulerRotation.z));
+                
+                Quat4f rq = new Quat4f();
+                transform.getRotation(rq);
+
+                // Bullet → JOML quaternion
+                Quaternionf q = new Quaternionf(rq.x, rq.y, rq.z, rq.w).normalize();
+
+                // Extract Euler XYZ (radians)
+                org.joml.Vector3f eulerXYZ = new org.joml.Vector3f();
+                q.getEulerAnglesXYZ(eulerXYZ);
+
+                // Apply directly (radians)
+                entity.setRotation(eulerXYZ);
+                
+                
+                //entity.setRotation(new org.joml.Vector3f(eulerRotation.x, eulerRotation.y, eulerRotation.z));
                 
             }
         }
@@ -712,12 +728,26 @@ public class PhysicsManager {
 	            
 	            // Apply impulse at the hit point
 	           
-	            float bulletForce = 10.5f;
+	            float bulletForce = 1000.5f;
 	            org.joml.Vector3f impulse = new org.joml.Vector3f(rayDirection).mul(bulletForce);
 	            
 	            // Apply the impulse to the body at the hit point
-	            rayResult.hitBody.applyImpulse(new javax.vecmath.Vector3f(impulse.x, impulse.y, impulse.z), 
-	            		new javax.vecmath.Vector3f(hitPoint.x, hitPoint.y, hitPoint.z));
+	         // World-space center of mass
+	            Transform center = new Transform();
+	            rayResult.hitBody.getCenterOfMassTransform(center);
+
+	            javax.vecmath.Vector3f relPos = new javax.vecmath.Vector3f(
+	                hitPoint.x - center.origin.x,
+	                hitPoint.y - center.origin.y,
+	                hitPoint.z - center.origin.z
+	            );
+
+	            rayResult.hitBody.activate(true);
+	            rayResult.hitBody.applyImpulse(
+	                new javax.vecmath.Vector3f(impulse.x, impulse.y, impulse.z),
+	                relPos
+	            );
+
 	            
 	    
 	        }

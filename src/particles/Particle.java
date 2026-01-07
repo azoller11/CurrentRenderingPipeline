@@ -15,6 +15,9 @@ public class Particle {
 	private float lifeLength;
 	private float rotation;
 	private float scale;
+	
+	private float initialScale;
+	private float scaleGrowth = 0f; // units per second
 
 	private ParticleTexture texture;
 
@@ -44,17 +47,24 @@ public class Particle {
 			ParticleMaster.addParticle(this);
 	}
 
-	public void setActive(ParticleTexture texture, Vector3f position, Vector3f velocity, float gravityEffect,
-			float lifeLength, float rotation, float scale) {
-		alive = true;
-		this.position = position;
-		this.velocity = velocity;
-		this.gravityEffect = gravityEffect;
-		this.lifeLength = lifeLength;
-		this.rotation = rotation;
-		this.scale = scale;
-		this.texture = texture;
-		ParticleMaster.addParticle(this);
+	public void setActive(ParticleTexture texture, Vector3f position, Vector3f velocity,
+	        float gravityEffect, float lifeLength, float rotation, float scale) {
+
+	    alive = true;
+	    this.position = position;
+	    this.velocity = velocity;
+	    this.gravityEffect = gravityEffect;
+	    this.lifeLength = lifeLength;
+	    this.rotation = rotation;
+
+	    this.initialScale = scale;
+	    this.scale = scale;
+	    this.scaleGrowth = 0f;
+
+	    this.texture = texture;
+	    this.elapsedTime = 0f;
+
+	    ParticleMaster.addParticle(this);
 	}
 	
 	public void setInactive() {
@@ -96,18 +106,29 @@ public class Particle {
 	public float getScale() {
 		return scale;
 	}
+	
+	public void setScaleGrowth(float scaleGrowth) {
+	    this.scaleGrowth = scaleGrowth;
+	}
+	
 
 	protected boolean update(Camera camera, float delta) {
 	    velocity.y += -50 * gravityEffect * delta;
+
 	    reusableChange.set(velocity);
 	    reusableChange.scale(delta);
 	    Vector3f.add(reusableChange, position, position);
 
-	    // Calculate distance from the camera
-	    distance = org.lwjgl.util.vector.Vector3f.sub(new org.lwjgl.util.vector.Vector3f(camera.getPosition().x(),camera.getPosition().y(),camera.getPosition().z()), position, null).lengthSquared();
+	    // 🔥 SCALE GROWTH
+	    scale = initialScale + (elapsedTime * scaleGrowth);
 
-	    // Deactivate particle if it is too far
-	    if (distance > 500 * 500) { // Compare squared distance to avoid expensive sqrt
+	    distance = Vector3f.sub(
+	        new Vector3f(camera.getPosition().x(), camera.getPosition().y(), camera.getPosition().z()),
+	        position,
+	        null
+	    ).lengthSquared();
+
+	    if (distance > 500 * 500) {
 	        alive = false;
 	        return false;
 	    }
@@ -116,6 +137,7 @@ public class Particle {
 	    elapsedTime += delta;
 	    return elapsedTime < lifeLength;
 	}
+
 
 	private void updateTextureCoordInfo() {
 		float lifeFactor = elapsedTime / lifeLength;
