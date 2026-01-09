@@ -54,6 +54,7 @@ import text.Font;
 import toolbox.Equations;
 import toolbox.Mesh;
 import toolbox.MousePicker;
+import weapons.SmokeGrenade;
 
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -81,7 +82,7 @@ public class Main {
 
     private long window;
     private final int width = 800;
-    private final int height = 500;
+    private final int height = 600;
     
     private int frames = 0;
     private double timeCounter = 0.0;
@@ -122,7 +123,7 @@ public class Main {
     private DecalManager decalManager;
     private DecalRenderer decalRenderer;
     
-  
+    
     
     
     //
@@ -138,6 +139,8 @@ public class Main {
     ParticleTexture fireTexture;
     private ParticleTexture smokeTexture;
     private ParticleSystem smokeSystem;
+    
+    private SmokeGrenade smokeGrenade;
 
 
     //
@@ -383,12 +386,16 @@ public class Main {
 
      // STRONG first-pass values
      vol.setDensity(0.002f);        // << MUCH higher
-     vol.setNoiseScale(0.15f);
-     vol.setNoiseStrength(2.35f);  // << lower so it doesn’t erase density
-     vol.setBaseOpacity(5.75f);
-     vol.getFogColor().set(0.2f, 0.5f, 0.2f, 0.6f);
+     vol.setNoiseScale(1f);
+     vol.setNoiseStrength(6f);  // << lower so it doesn’t erase density
+     vol.setBaseOpacity(1f);
+     float cloudLight = 0.75f;
+     vol.getFogColor().set(0.245f * cloudLight, 0.173f * cloudLight, 0.104f * cloudLight, 1f);
 
-        	volumes.add(vol);
+        	//volumes.add(vol);
+     
+     smokeGrenade = new SmokeGrenade( new org.lwjgl.util.vector.Vector3f(600,100,600), new org.lwjgl.util.vector.Vector3f(1,1,1));
+     
 
         //Animations??
         AnimationLoader animationLoader = new AnimationLoader();
@@ -1067,8 +1074,10 @@ public class Main {
              */
             }
 
-            
-            
+            if (!smokeGrenade.isDead())
+            	smokeGrenade.update(deltaTime);
+            else
+            	System.out.println("dead");
 
             if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
                 //System.out.println("Shoot!");

@@ -143,18 +143,16 @@ float sampleNoise(vec3 worldPos) {
 }
 
 
-
 float phaseHG(float cosTheta, float g) {
-    // Clamp g for numerical stability
     g = clamp(g, -0.95, 0.95);
+    float g2 = g*g;
+    float denom = 1.0 + g2 - 2.0*g*cosTheta;
+    denom = max(denom, 1e-4);
 
-    float g2 = g * g;
-    float denom = 1.0 + g2 - 2.0 * g * cosTheta;
+    float invSqrt = inversesqrt(denom);
+    float invDenomPow = invSqrt / denom;
 
-    // denom^(3/2)
-    float denomPow = denom * sqrt(max(denom, 1e-4));
-
-    return (1.0 - g2) / (4.0 * 3.14159265 * max(denomPow, 1e-4));
+    return (1.0 - g2) * (1.0 / (4.0 * 3.14159265)) * invDenomPow;
 }
 
 
@@ -271,12 +269,11 @@ void main() {
 	
 	    vec3 pWorld = cameraPos + rayDirWorld * tW;
 	
-	    // 0..1 depth through volume along VIEW ray
-	    float volumeDepth = (tW - tEnterW) / (tExitW - tEnterW);
+	   
 	
 	    float interior = interiorFalloff(pWorld);
 	
-	    float base = density * pow(volumeDepth, 1.5) * interior;
+	   float base = density * interior;
 	
 	    float n = sampleNoise(pWorld);
 	    float cloud = smoothstep(0.4, 0.75, n);

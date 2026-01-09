@@ -148,6 +148,16 @@ public class Maths {
 	            assimp.a4(), assimp.b4(), assimp.c4(), assimp.d4()
 	        );
 	    }
+
+	    public static float lerp(float a, float b, float t) {
+	        return a + (b - a) * t;
+	    }
+
+	    public static float clamp(float value, float min, float max) {
+	        return Math.max(min, Math.min(max, value));
+	    }
+
+
 	
 
 }

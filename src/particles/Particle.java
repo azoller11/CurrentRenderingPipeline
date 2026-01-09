@@ -156,4 +156,11 @@ public class Particle {
 		offset.x = (float) column / texture.getNumberOfRows();
 		offset.y = (float) row / texture.getNumberOfRows();
 	}
+	
+	public float getDistanceSquared(org.joml.Vector3f camPos) {
+	    float dx = position.getX() - camPos.x;
+	    float dy = position.getY() - camPos.y;
+	    float dz = position.getZ() - camPos.z;
+	    return dx*dx + dy*dy + dz*dz;
+	}
 }

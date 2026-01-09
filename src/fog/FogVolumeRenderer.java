@@ -90,7 +90,7 @@ public class FogVolumeRenderer {
         shader.setUniform1f("scatteringStrength", 0.4f);
         shader.setUniform1f("anisotropyG", -0.6f);
         
-        shader.setUniform1f("stepMultiplier", 5.0f);
+        shader.setUniform1f("stepMultiplier", 15.0f);
         
         time += deltaTime;
         shader.setUniform1f("time", time);
@@ -113,33 +113,19 @@ public class FogVolumeRenderer {
             shader.setUniformMat4("invModel", new Matrix4f(model).invert());
 
             // ✅ THIS IS WHAT PREVENTS "BLACK BOX"
-           // shader.setUniform4f("fogColor", v.getFogColor());
 
-            //shader.setUniform1f("density", v.getDensity());
-            //shader.setUniform1f("density", 0.2f);
-            //shader.setUniform1f("noiseScale", v.getNoiseScale());
-            //shader.setUniform1f("noiseStrength", v.getNoiseStrength());
-            //shader.setUniform1awwwf("baseOpacity", v.getBaseOpacity());
             
-            
-            //shader.setUniform1f("density", v.getDensity());
-            shader.setUniform1f("density", 0.024f);
-            shader.setUniform1f("baseOpacity", 1.0f);
-            //shader.setUniform1f("baseOpacity", v.getBaseOpacity());
-            float cloudLight = 0.75f;
-            shader.setUniform4f("fogColor", new  org.joml.Vector4f(0.245f * cloudLight, 0.173f * cloudLight, 0.104f * cloudLight, 1f));
-            //shader.setUniform4f("fogColor", v.getFogColor());
+            shader.setUniform1f("density", v.getDensity());
+            shader.setUniform1f("baseOpacity", v.getBaseOpacity());
+            shader.setUniform4f("fogColor", v.getFogColor());
             
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, v.getNoiseTexture());
             shader.setUniformSampler("noiseMap", 1);
 
-            //shader.setUniform1f("noiseScale", v.getNoiseScale());
-            shader.setUniform1f("noiseScale", 1.0f);
-            shader.setUniform1f("noiseStrength", 6.0f);
-            //shader.setUniform1f("noiseStrength", v.getNoiseStrength());
+           shader.setUniform1f("noiseScale", v.getNoiseScale());
+            shader.setUniform1f("noiseStrength", v.getNoiseStrength());
 
-            //shader.setUniform1f("uniformScale", v.getUniformScale());
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
             glDrawArrays(GL_TRIANGLES, 0, vertexCount);

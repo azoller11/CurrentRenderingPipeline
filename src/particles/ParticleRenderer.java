@@ -114,10 +114,10 @@ public class ParticleRenderer {
         glDisable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
         glDepthMask(false);
-        glDepthFunc(GL_LEQUAL);
+        glDepthFunc(GL_LESS);
         glEnable(GL_BLEND);
 
-
+        Vector3f camPos = camera.getPosition();
         for (ParticleTexture texture : particles.keySet()) {
 
             // blend mode
@@ -134,7 +134,15 @@ public class ParticleRenderer {
             shader.setUniform1f("numberOfRows", texture.getNumberOfRows());
 
             List<Particle> list = particles.get(texture);
-            int count = Math.min(list.size(), MAX_INSTANCES);
+	
+	         // 🔥 SORT BACK-TO-FRONT
+	         list.sort((p1, p2) -> {
+	             float d1 = p1.getDistanceSquared(camPos);
+	             float d2 = p2.getDistanceSquared(camPos);
+	             return Float.compare(d2, d1); // FAR → NEAR
+	         });
+	
+	         int count = Math.min(list.size(), MAX_INSTANCES);
 
             int pointer = 0;
 
@@ -183,6 +191,8 @@ public class ParticleRenderer {
         glBindVertexArray(0);
         shader.unbind();
     }
+    
+    
 
     private void buildModelViewMatrix(Vector3f position, float rotationDeg, float scale, Matrix4f view) {
         modelMatrix.identity().translate(position);
