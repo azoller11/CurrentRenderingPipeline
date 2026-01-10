@@ -135,6 +135,19 @@ public class TexturedModels {
         FPSAnimation.setCastShadows(true);
         texturedModels.put("FPSAnimation", FPSAnimation);
         
+        //Target
+        TexturedModel Target = new TexturedModel();
+        Target.setAnimatedModels( animationLoader.loadMultiMeshObject(animationLoader.loadScene("target.fbx")));
+        Target.setTextureId(TextureLoader.loadTexture("rust_diff_2k.png"));
+        Target.setNormalMapId(TextureLoader.loadTexture("rust_nor_2k.png"));
+		//tubeDude.setHeighMapId(TextureLoader.loadTexture("rust_disp_2k.png"));
+        Target.setMetallicMap(TextureLoader.loadTexture("rust_metal_2k.png"));
+        Target.setRoughnessMap(TextureLoader.loadTexture("rust_rough_2k.png"));
+        Target.setAoMap(TextureLoader.loadTexture("rust_ao_2k.png"));
+		//tubeDude.setParallaxScale(new Vector3f(0.01f, 20, 60));
+        Target.setCastShadows(true);
+        texturedModels.put("Target", Target);
+        
         //tank
 		TexturedModel tank = new TexturedModel();
 		tank.setMesh(ObjLoader.loadObj("tank"));

@@ -4,6 +4,8 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.lwjgl.assimp.AIAnimation;
+import org.lwjgl.assimp.AIFace;
+import org.lwjgl.assimp.AIMesh;
 import org.lwjgl.assimp.AINode;
 import org.lwjgl.assimp.AINodeAnim;
 import org.lwjgl.assimp.AIQuatKey;
@@ -12,8 +14,22 @@ import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.AIVectorKey;
 
 import toolbox.Maths;
+import toolbox.Mesh;
+
+import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
+import static org.lwjgl.opengl.GL15.glBindBuffer;
+import static org.lwjgl.opengl.GL15.glBufferData;
+import static org.lwjgl.opengl.GL15.glGenBuffers;
+import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
+import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
+import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class AnimatedModel
@@ -26,6 +42,7 @@ public class AnimatedModel
     Bone[] bones;
     AIAnimation[] animations;
     AINode root;
+    
     
     private String meshNodeName;
     
@@ -798,6 +815,11 @@ public class AnimatedModel
 
         return (float) anim.mDuration() / ticksPerSecond;
     }
+    
+    public Mesh createMesh() {
+  	    return new Mesh(this.vaoID, this.count);
+  }
+
 
 
     

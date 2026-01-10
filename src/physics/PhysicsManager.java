@@ -23,6 +23,9 @@ import com.bulletphysics.dynamics.constraintsolver.SequentialImpulseConstraintSo
 import com.bulletphysics.linearmath.DefaultMotionState;
 import com.bulletphysics.linearmath.Transform;
 import com.bulletphysics.util.ObjectArrayList;
+
+import animatedModel.AnimatedModel;
+
 import com.bulletphysics.collision.shapes.ConvexHullShape;
 
 import entities.Camera;

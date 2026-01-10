@@ -5,6 +5,8 @@ import org.joml.Vector3f;
 import org.lwjgl.assimp.*;
 
 import toolbox.Maths;
+import toolbox.Mesh;
+import toolbox.MeshData;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -139,6 +141,9 @@ public class AnimationLoader
         return models;
     }
      
+  
+
+    
 private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<MeshTransformInfo> meshTransforms) {
          // Get this node's transform
          Matrix4f nodeTransform = Maths.convertMatrix(node.mTransformation());

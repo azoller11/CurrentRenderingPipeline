@@ -55,6 +55,7 @@ import toolbox.Equations;
 import toolbox.Mesh;
 import toolbox.MousePicker;
 import weapons.SmokeGrenade;
+import weapons.Target;
 
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -140,7 +141,8 @@ public class Main {
     private ParticleTexture smokeTexture;
     private ParticleSystem smokeSystem;
     
-    private SmokeGrenade smokeGrenade;
+    private List<SmokeGrenade> smokeGrenades;
+    private List<Target> targets;
 
 
     //
@@ -394,8 +396,8 @@ public class Main {
 
         	//volumes.add(vol);
      
-     smokeGrenade = new SmokeGrenade( new org.lwjgl.util.vector.Vector3f(600,100,600), new org.lwjgl.util.vector.Vector3f(1,1,1));
-     
+     //smokeGrenade = new SmokeGrenade( new org.lwjgl.util.vector.Vector3f(600,100,600), new org.lwjgl.util.vector.Vector3f(1,1,1));
+     smokeGrenades = new ArrayList<SmokeGrenade>();
 
         //Animations??
         AnimationLoader animationLoader = new AnimationLoader();
@@ -435,14 +437,18 @@ public class Main {
         entityManager.addEntity(cube12, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
         
-        Entity cube13 = new Entity(entityManager.texturedModels.get("MK2"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 1f);
+        Entity cube13 = new Entity(entityManager.texturedModels.get("Target"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 0.01f);
 
-        //entityManager.addEntity(cube13, EntityManager.CollisionType.DYNAMIC_ACCURATE, 3);
+        cube13 = entityManager.addEntity(cube13, EntityManager.CollisionType.NONE, 3);
+        
+        targets = new ArrayList<Target>();
+        Target t = new Target(cube13);
+        targets.add(t);
         
         
         for (int i = 0; i < 3; i++) {
         	 Entity tubeMan = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(0, 45 + (50 * i), 0), new Vector3f(0,0,0), 20f);
-             entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
+             //entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
         }
         
        
@@ -1020,8 +1026,14 @@ public class Main {
             //postRenderer.renderPostProcess();
             bloomRenderer.renderBloom(width, height,1.0f, 0.2f);
             
-            if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS) {
-            	/*
+         
+            for (Target target : targets) {
+            	target.update(deltaTime, window);
+            }
+            
+            
+            if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS && smokeGrenades.size() == 0) {
+            	
                 Entity cube13 = new Entity(
                     entityManager.texturedModels.get("MK2"),
                     new Vector3f(
@@ -1069,15 +1081,30 @@ public class Main {
                     velocity.y,
                     velocity.z
                 ));
+                SmokeGrenade smokeGrenade = 
+                		new SmokeGrenade(g.getId(), new org.lwjgl.util.vector.Vector3f(g.getPosition().x(),
+                				g.getPosition().y(),
+                				g.getPosition().z()), new org.lwjgl.util.vector.Vector3f(1,1,1));
+                smokeGrenades.add(smokeGrenade);
+                
 
                 // Optional realism spin
-             */
+             
             }
-
-            if (!smokeGrenade.isDead())
-            	smokeGrenade.update(deltaTime);
-            else
-            	System.out.println("dead");
+            List<SmokeGrenade> removeSmoke = new ArrayList<SmokeGrenade>();
+            for (SmokeGrenade smokeGrenade : smokeGrenades) {
+            	  if (!smokeGrenade.isDead()) {
+            		  //System.out.println(entityManager.getEntityById(smokeGrenade.getEntityId()).getPosition());
+            		  smokeGrenade.update(entityManager.getEntityById(smokeGrenade.getEntityId()), deltaTime);
+            	  } else {
+            		  entityManager.removeEntityByID(smokeGrenade.getEntityId());  
+            		  removeSmoke.add(smokeGrenade);
+            	  }
+                  	
+            }
+            smokeGrenades.removeAll(removeSmoke);
+            
+          
 
             if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
                 //System.out.println("Shoot!");

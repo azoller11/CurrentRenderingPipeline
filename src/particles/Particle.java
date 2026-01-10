@@ -122,6 +122,7 @@ public class Particle {
 	    // 🔥 SCALE GROWTH
 	    scale = initialScale + (elapsedTime * scaleGrowth);
 
+	    /*
 	    distance = Vector3f.sub(
 	        new Vector3f(camera.getPosition().x(), camera.getPosition().y(), camera.getPosition().z()),
 	        position,
@@ -132,7 +133,7 @@ public class Particle {
 	        alive = false;
 	        return false;
 	    }
-
+	     	*/
 	    updateTextureCoordInfo();
 	    elapsedTime += delta;
 	    return elapsedTime < lifeLength;

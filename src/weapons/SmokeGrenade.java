@@ -1,6 +1,8 @@
 package weapons;
 
 import org.lwjgl.util.vector.Vector3f;
+
+import entities.Entity;
 import loaders.TextureLoader;
 import particles.Particle;
 import particles.ParticleMaster;
@@ -15,6 +17,8 @@ public class SmokeGrenade {
     private Vector3f initialDirection;
     private ParticleTexture smokeTexture;
     private Random random = new Random();
+    
+    private int entityId;
 
     private float age = 0f;
     private float emitAccumulator = 0f;
@@ -33,7 +37,8 @@ public class SmokeGrenade {
     private static final float FADE_OUT_TIME  = 15f * LIFE_SCALE;
     private static final float MAX_LIFE       = 2000f * LIFE_SCALE;
 
-    public SmokeGrenade(Vector3f position, Vector3f initialDirection) {
+    public SmokeGrenade(int entityId, Vector3f position, Vector3f initialDirection) {
+    	this.entityId = entityId;
         this.position = position;
         this.initialDirection = new Vector3f(initialDirection);
         this.initialDirection.normalise();
@@ -45,9 +50,23 @@ public class SmokeGrenade {
         );
     }
 
-    public void update(float deltaTime) {
+    public void update(Entity entity, float deltaTime) {
 
         if (dead) return;
+        
+        if (entity != null && entity.getPosition() != null) {
+        	this.setPosition(new org.lwjgl.util.vector.Vector3f(
+        			entity.getPosition().x(),
+        			entity.getPosition().y(),
+        			entity.getPosition().z()));
+
+  		  Vector3f forward = directionFromRotation(new org.lwjgl.util.vector.Vector3f(
+  				entity.getRotation().x(),
+  				entity.getRotation().y(),
+  				entity.getRotation().z()));
+
+  	    this.setInitialDirection(forward);
+        }
 
         age += deltaTime;
 
@@ -137,7 +156,26 @@ public class SmokeGrenade {
         }
     }
 
-    public boolean isDead() {
+    private Vector3f directionFromRotation(org.lwjgl.util.vector.Vector3f rotation) {
+
+        // Assumes degrees
+        float yaw   = (float) Math.toRadians(rotation.y);
+        float pitch = (float) Math.toRadians(rotation.x);
+
+        float cosPitch = (float) Math.cos(pitch);
+
+        Vector3f dir = new Vector3f(
+            (float) (Math.sin(yaw) * cosPitch),
+            (float) (-Math.sin(pitch)),
+            (float) (Math.cos(yaw) * cosPitch)
+        );
+
+        dir.normalise();
+        return dir;
+    }
+
+
+	public boolean isDead() {
         return dead;
     }
 
@@ -185,8 +223,34 @@ public class SmokeGrenade {
         dir.normalise();
         return dir;
     }
+    
+    
 
-    private float randomRange(float min, float max) {
+    public Vector3f getPosition() {
+		return position;
+	}
+
+	public void setPosition(Vector3f position) {
+		this.position = position;
+	}
+
+	public Vector3f getInitialDirection() {
+		return initialDirection;
+	}
+
+	public void setInitialDirection(Vector3f initialDirection) {
+		this.initialDirection = initialDirection;
+	}
+
+	public int getEntityId() {
+		return entityId;
+	}
+
+	public void setEntityId(int entityId) {
+		this.entityId = entityId;
+	}
+
+	private float randomRange(float min, float max) {
         return min + random.nextFloat() * (max - min);
     }
 }
