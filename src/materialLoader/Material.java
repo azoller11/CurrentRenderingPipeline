@@ -25,6 +25,11 @@ public class Material {
 	public Material() {}
 	
 
+	public Material(Material material) {
+		// TODO Auto-generated constructor stub
+	}
+
+
 	public int getTextureId() {
 		return textureId;
 	}

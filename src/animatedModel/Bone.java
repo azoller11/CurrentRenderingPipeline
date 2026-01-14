@@ -34,4 +34,13 @@ public class Bone
     {
         this.transformation = transformation;
     }
+    
+    public Bone clone() {
+        return new Bone(
+            this.getName(),
+            new Matrix4f(this.getOffsetMatrix())
+        );
+    }
+
+    
 }

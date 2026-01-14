@@ -19,7 +19,6 @@ public class TexturedModel {
 	private Material material;
 	
 	
-	private int activeAnimation = -1; 
 	 
 
 	/*SOON TO REMOVE START*/
@@ -283,36 +282,6 @@ public class TexturedModel {
 	    }
 	}
 
-	public AnimationElement getActiveAnimation() {
-	    if (animationElements == null || animationElements.isEmpty()) return null;
-	    if (activeAnimation < 0 || activeAnimation >= animationElements.size()) return null;
-	    return animationElements.get(activeAnimation);
-	}
-	
-	public int getActiveAnimationIndex() {
-		return activeAnimation;
-	}
-
-
-	public void playAnimation(int index, boolean loop) {
-
-	    // Stop animation explicitly
-	    if (index < 0) {
-	        activeAnimation = -1;
-	        return;
-	    }
-
-	    if (animationElements == null || index >= animationElements.size()) return;
-
-	    // Do not restart same animation
-	    if (activeAnimation == index) return;
-
-	    activeAnimation = index;
-
-	    AnimationElement anim = animationElements.get(index);
-	    anim.reset();
-	    anim.setLoop(loop);
-	}
 
 
 	
@@ -349,9 +318,6 @@ public class TexturedModel {
 			
 		}
 		
-		public void setActiveAnimation(int activeAnimation) {
-			this.activeAnimation = activeAnimation;
-		}
 
 		public Material getMaterial() {
 			return material;

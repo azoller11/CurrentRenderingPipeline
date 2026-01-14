@@ -219,7 +219,7 @@ public class MasterRenderer {
             
             if (entity.getTexturedModel().getAnimatedModel() != null || 
                 entity.getTexturedModel().getAnimatedModels() != null) {
-            	scale = 100 * entity.getScale(); // Use a reasonable bounding sphere for animated models
+            	scale =  entity.getTexturedModel().getAnimatedModels().get(0).getMesh().getFurthestPoint(); // Use a reasonable bounding sphere for animated models
             }
             
             if (!frustum.contains(entity.getPosition(), scale)) {
@@ -298,11 +298,13 @@ public class MasterRenderer {
 
     
     private void renderMultiMeshAnimatedModel(TexturedModel model, List<Entity> batch, int shadowMap, float outsideAmbience) {
-        List<AnimatedModel> parts = model.getAnimatedModels();
-        if (parts == null || parts.isEmpty()) return;
+       
 
         for (Entity entity : batch) {
             Matrix4f entityMatrix = entity.getModelMatrix();
+            
+            List<AnimatedModel> parts = entity.getAnimatedModels();
+            if (parts == null || parts.isEmpty()) continue;
 
             for (AnimatedModel part : parts) {
                 prepareAnimatedModelComponent(part, model, shadowMap, outsideAmbience);

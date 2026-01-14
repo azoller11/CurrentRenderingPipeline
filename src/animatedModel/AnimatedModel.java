@@ -15,18 +15,8 @@ import org.lwjgl.assimp.AIVectorKey;
 
 import toolbox.Maths;
 import toolbox.Mesh;
+import toolbox.MeshData;
 
-import static org.lwjgl.opengl.GL11.GL_FLOAT;
-import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
-import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
-import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
-import static org.lwjgl.opengl.GL15.glBindBuffer;
-import static org.lwjgl.opengl.GL15.glBufferData;
-import static org.lwjgl.opengl.GL15.glGenBuffers;
-import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
-import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +32,10 @@ public class AnimatedModel
     Bone[] bones;
     AIAnimation[] animations;
     AINode root;
+    
+    private  AIMesh aiMesh;
+    private MeshData meshData;   // CPU-side mesh
+    private Mesh mesh;           // GPU-side mesh
     
     
     private String meshNodeName;
@@ -820,8 +814,149 @@ public class AnimatedModel
   	    return new Mesh(this.vaoID, this.count);
   }
 
+    public Mesh buildMeshDataFromAIMesh() {
+
+        int vertexCount = this.aiMesh.mNumVertices();
+        int faceCount   = aiMesh.mNumFaces();
+
+        float[] vertices  = new float[vertexCount * 3];
+        float[] normals   = new float[vertexCount * 3];
+        float[] texCoords = new float[vertexCount * 2];
+        int[] indices     = new int[faceCount * 3];
+
+        float furthestDistance = 0f;
+
+        // ----- Vertices -----
+        for (int i = 0; i < vertexCount; i++) {
+            AIVector3D v = aiMesh.mVertices().get(i);
+
+            vertices[i * 3]     = v.x();
+            vertices[i * 3 + 1] = v.y();
+            vertices[i * 3 + 2] = v.z();
+
+            float len = (float) Math.sqrt(v.x()*v.x() + v.y()*v.y() + v.z()*v.z());
+            furthestDistance = Math.max(furthestDistance, len);
+
+            if (aiMesh.mNormals() != null) {
+                AIVector3D n = aiMesh.mNormals().get(i);
+                normals[i * 3]     = n.x();
+                normals[i * 3 + 1] = n.y();
+                normals[i * 3 + 2] = n.z();
+            }
+        }
+
+        // ----- Texture Coords (UV0 only, standard) -----
+        if (aiMesh.mTextureCoords(0) != null) {
+            for (int i = 0; i < vertexCount; i++) {
+                AIVector3D uv = aiMesh.mTextureCoords(0).get(i);
+                texCoords[i * 2]     = uv.x();
+                texCoords[i * 2 + 1] = 1.0f - uv.y(); // flip V (OpenGL)
+            }
+        }
+
+        // ----- Indices -----
+        int indexPointer = 0;
+        for (int i = 0; i < faceCount; i++) {
+            AIFace face = aiMesh.mFaces().get(i);
+
+            // Assimp guarantees triangles after triangulation
+            indices[indexPointer++] = face.mIndices().get(0);
+            indices[indexPointer++] = face.mIndices().get(1);
+            indices[indexPointer++] = face.mIndices().get(2);
+        }
+
+        this.meshData = new MeshData(
+                vertices,
+                texCoords,
+                normals,
+                indices,
+                furthestDistance
+        );
+        
+        Mesh m = new Mesh(this.meshData);
+        this.mesh = m;
+        return m;
+    }
+
+	public AIMesh getAimesh() {
+		return aiMesh;
+	}
+
+	public void setAimesh(AIMesh aiMesh) {
+		this.aiMesh = aiMesh;
+	}
+
+	public Mesh getMesh() {
+		return mesh;
+	}
+
+	public void setMesh(Mesh mesh) {
+		this.mesh = mesh;
+	}
+	
+	
 
 
+	public AnimatedModel clone() {
+	    // Create a new instance with the same mesh data
+	    AnimatedModel clone = new AnimatedModel(this.vaoID, this.count);
+	    
+	    // Copy primitive types and immutable objects
+	    clone.count = this.count;
+	    clone.meshNodeName = this.meshNodeName;
+	    clone.attachedBoneName = this.attachedBoneName;
+	    clone.isMultiMeshPart = this.isMultiMeshPart;
+	    clone.meshIndex = this.meshIndex;
+	    clone.skinned = this.skinned;
+	    
+	    // Deep copy Matrix4f objects
+	    if (this.localTransform != null) {
+	        clone.localTransform = new Matrix4f(this.localTransform);
+	    }
+	    
+	    if (this.globalInverseTransform != null) {
+	        clone.globalInverseTransform = new Matrix4f(this.globalInverseTransform);
+	    }
+	    
+	    clone.bindPoseNodeGlobal = new Matrix4f(this.bindPoseNodeGlobal);
+	    clone.bindPoseNodeGlobalInverse = new Matrix4f(this.bindPoseNodeGlobalInverse);
+	    
+	    // Deep copy bones array
+	    if (this.bones != null) {
+	        clone.bones = new Bone[this.bones.length];
+	        for (int i = 0; i < this.bones.length; i++) {
+	            clone.bones[i] = this.bones[i].clone(); // Assuming Bone has a clone method
+	        }
+	    }
+	    
+	    // Deep copy animations array - IMPORTANT: These are LWJGL ASSIMP objects
+	    // They're typically read-only and can be shared, but we need to ensure they're not modified
+	    if (this.animations != null) {
+	        clone.animations = new AIAnimation[this.animations.length];
+	        System.arraycopy(this.animations, 0, clone.animations, 0, this.animations.length);
+	    }
+	    
+	    // The root node - also typically read-only from ASSIMP
+	    clone.root = this.root;
+	    
+	    // Mesh references - these are shared (should not be modified)
+	    clone.aiMesh = this.aiMesh;
+	    clone.meshData = this.meshData; // Assuming MeshData is immutable
+	    clone.mesh = this.mesh; // Assuming Mesh is immutable or shouldn't be cloned
+	    
+	    // Deep copy maps
+	    clone.animatedNodeTransforms.clear();
+	    for (Map.Entry<String, Matrix4f> entry : this.animatedNodeTransforms.entrySet()) {
+	        clone.animatedNodeTransforms.put(entry.getKey(), new Matrix4f(entry.getValue()));
+	    }
+	    
+	    clone.bindPoseGlobalByNode = new HashMap<>();
+	    for (Map.Entry<String, Matrix4f> entry : this.bindPoseGlobalByNode.entrySet()) {
+	        clone.bindPoseGlobalByNode.put(entry.getKey(), new Matrix4f(entry.getValue()));
+	    }
+	    
+	    return clone;
+	}
     
     
 }

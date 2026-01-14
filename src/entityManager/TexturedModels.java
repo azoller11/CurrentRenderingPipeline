@@ -138,7 +138,7 @@ public class TexturedModels {
         //Target
         TexturedModel Target = new TexturedModel();
         Target.setAnimatedModels( animationLoader.loadMultiMeshObject(animationLoader.loadScene("target.fbx")));
-        Target.setTextureId(TextureLoader.loadTexture("rust_diff_2k.png"));
+        Target.setTextureId(TextureLoader.loadTexture("rust_target_diff_2k.png"));
         Target.setNormalMapId(TextureLoader.loadTexture("rust_nor_2k.png"));
 		//tubeDude.setHeighMapId(TextureLoader.loadTexture("rust_disp_2k.png"));
         Target.setMetallicMap(TextureLoader.loadTexture("rust_metal_2k.png"));

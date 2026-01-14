@@ -82,6 +82,9 @@ public class AnimationLoader
             // Create AnimatedModel for this mesh with SHARED bones
             AnimatedModel model = new AnimatedModel(meshData.vaoID, meshData.vertexCount);
             
+            toolbox.MeshData md = new  toolbox.MeshData(meshData.vertices, meshData.texCoords,
+            		meshData.normals, meshData.indices, meshData.furthestPoint);
+            model.setMesh(new toolbox.Mesh(md));
           
             
             // CRITICAL: All models share the EXACT SAME bone array
@@ -172,10 +175,17 @@ private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<M
          final int vertexSizeFloats = 14;
          final int floatSize = 4;
          
+         
+         float furthestPoint = 0.0f;
+         
          int numVertices = mesh.mNumVertices();
          float[] vertices = new float[numVertices * vertexSizeFloats];
          int[] boneIdsArray = new int[numVertices * 4];
          float[] boneWeightsArray = new float[numVertices * 4];
+         
+         float[] cpuVertices  = new float[numVertices * 3];
+         float[] cpuTexCoords = new float[numVertices * 2];
+         float[] cpuNormals   = new float[numVertices * 3];
          
          // Initialize bone data
          for (int v = 0; v < numVertices; v++) {
@@ -202,6 +212,8 @@ private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<M
         	      // Transform position by mesh's local transform
                 Vector3f transformedPos = new Vector3f(position.x(), position.y(), position.z());
                 meshTransform.transformPosition(transformedPos);
+                
+              
                
                 // Transform normals and tangents (without translation)
                 Vector3f transformedNormal =  new Vector3f(normalVec);
@@ -247,6 +259,31 @@ private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<M
                 vertices[i++] = transformedBitangent.x();
                 vertices[i++] = transformedBitangent.y();
                 vertices[i++] = transformedBitangent.z();
+                
+                int pv = v * 3;
+                int pt = v * 2;
+
+                // POSITION
+                cpuVertices[pv]     = transformedPos.x();
+                cpuVertices[pv + 1] = transformedPos.y();
+                cpuVertices[pv + 2] = transformedPos.z();
+
+                // TEX COORDS
+                cpuTexCoords[pt]     = tex.x();
+                cpuTexCoords[pt + 1] = tex.y();
+
+                // NORMALS
+                cpuNormals[pv]     = transformedNormal.x();
+                cpuNormals[pv + 1] = transformedNormal.y();
+                cpuNormals[pv + 2] = transformedNormal.z();
+
+                // Furthest point
+                float len = transformedPos.length();
+                if (len > furthestPoint) {
+                    furthestPoint = len;
+                }
+                
+
         	}
 
          
@@ -416,9 +453,19 @@ private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<M
                  }
              }
          }
+         
+      
     
          
-         return new MeshData(vao, indices.length);
+         return new MeshData(
+        		    vao,
+        		    indices.length,
+        		    cpuVertices,
+        		    cpuTexCoords,
+        		    cpuNormals,
+        		    indices,
+        		    furthestPoint
+        		);
      }
      
     
@@ -825,16 +872,38 @@ private void collectMeshTransforms(AINode node, Matrix4f parentTransform, List<M
 		// If we get here, it's not in the top 4 → discard
 	}
 
-    
     private static class MeshData {
         int vaoID;
         int vertexCount;
-        
-        MeshData(int vaoID, int vertexCount) {
+
+        // CPU-side geometry
+        float[] vertices;   // xyz per vertex
+        float[] texCoords;  // uv per vertex
+        float[] normals;    // xyz per vertex
+        int[] indices;
+
+        float furthestPoint;
+
+        MeshData(
+            int vaoID,
+            int vertexCount,
+            float[] vertices,
+            float[] texCoords,
+            float[] normals,
+            int[] indices,
+            float furthestPoint
+        ) {
             this.vaoID = vaoID;
             this.vertexCount = vertexCount;
+            this.vertices = vertices;
+            this.texCoords = texCoords;
+            this.normals = normals;
+            this.indices = indices;
+            this.furthestPoint = furthestPoint;
         }
     }
+
+
     private static class MeshTransformInfo {
         int meshIndex;
         String nodeName;

@@ -82,8 +82,8 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Main {
 
     private long window;
-    private final int width = 800;
-    private final int height = 600;
+    private final int width = 800 * 2;
+    private final int height = 450 * 2;
     
     private int frames = 0;
     private double timeCounter = 0.0;
@@ -394,7 +394,7 @@ public class Main {
      float cloudLight = 0.75f;
      vol.getFogColor().set(0.245f * cloudLight, 0.173f * cloudLight, 0.104f * cloudLight, 1f);
 
-        	//volumes.add(vol);
+        volumes.add(vol);
      
      //smokeGrenade = new SmokeGrenade( new org.lwjgl.util.vector.Vector3f(600,100,600), new org.lwjgl.util.vector.Vector3f(1,1,1));
      smokeGrenades = new ArrayList<SmokeGrenade>();
@@ -408,56 +408,62 @@ public class Main {
         }
      
         
-        Entity cube7 = new Entity(entityManager.texturedModels.get("rock_plane"), new Vector3f(15, 25, 15), new Vector3f(0,0,0), 10f);
+        Entity cube7 = new Entity(entityManager.getTexturedModel("rock_plane"), new Vector3f(15, 25, 15), new Vector3f(0,0,0), 10f);
 
         entityManager.addEntity(cube7, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
-        Entity cube8 = new Entity(entityManager.texturedModels.get("container"), new Vector3f(1291, 103, 775), new Vector3f(0,0,0), 1f);
+        Entity cube8 = new Entity(entityManager.getTexturedModel("container"), new Vector3f(1291, 103, 775), new Vector3f(0,0,0), 1f);
 
         entityManager.addEntity(cube8, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
   
-        Entity cube9 = new Entity(entityManager.texturedModels.get("concreteBuilding"), new Vector3f(1197, 74, 1305), new Vector3f(0,0,0), 1f);
+        Entity cube9 = new Entity(entityManager.getTexturedModel("concreteBuilding"), new Vector3f(1197, 74, 1305), new Vector3f(0,0,0), 1f);
 
         entityManager.addEntity(cube9, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
   
       
-        Entity cube10 = new Entity(entityManager.texturedModels.get("rusted_barrier"), new Vector3f(1414, 98, 1400), new Vector3f(0,0,0), 1f);
+        Entity cube10 = new Entity(entityManager.getTexturedModel("rusted_barrier"), new Vector3f(1414, 98, 1400), new Vector3f(0,0,0), 1f);
 
         entityManager.addEntity(cube10, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
         
-        Entity cube11 = new Entity(entityManager.texturedModels.get("tank"), new Vector3f(1637, 106, 1326), new Vector3f(0,0,0), 1f);
+        Entity cube11 = new Entity(entityManager.getTexturedModel("tank"), new Vector3f(1637, 106, 1326), new Vector3f(0,0,0), 1f);
 
         entityManager.addEntity(cube11, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
-        Entity cube12 = new Entity(entityManager.texturedModels.get("tank2"), new Vector3f(-205, 25, -105), new Vector3f(0,0,0), 1f);
+        Entity cube12 = new Entity(entityManager.getTexturedModel("tank2"), new Vector3f(-205, 25, -105), new Vector3f(0,0,0), 1f);
 
         entityManager.addEntity(cube12, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
         
-        Entity cube13 = new Entity(entityManager.texturedModels.get("Target"), new Vector3f(0, 45, 0), new Vector3f(0,0,0), 0.01f);
-
-        cube13 = entityManager.addEntity(cube13, EntityManager.CollisionType.NONE, 3);
+     
         
         targets = new ArrayList<Target>();
-        Target t = new Target(cube13);
-        targets.add(t);
+        for (int i = 0; i < 5; i++) {
+        	
+        	   Entity cube13 = new Entity(entityManager.getTexturedModel("Target"), new Vector3f(1414, 98, 1330- (80 * i)), new Vector3f(0,180,0), 0.01f);
+
+               cube13 = entityManager.addEntity(cube13, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 3);
+               
+             
+               Target t = new Target(cube13, true);
+               targets.add(t);
+        }
         
         
         for (int i = 0; i < 3; i++) {
-        	 Entity tubeMan = new Entity(entityManager.texturedModels.get("tubeDude"), new Vector3f(0, 45 + (50 * i), 0), new Vector3f(0,0,0), 20f);
+        	 Entity tubeMan = new Entity(entityManager.getTexturedModel("tubeDude"), new Vector3f(0, 45 + (80 * i), 0), new Vector3f(0,0,0), 20f);
              //entityManager.addEntity(tubeMan, EntityManager.CollisionType.NONE, 3);
         }
         
        
         
         
-        Entity pistol = new Entity(entityManager.texturedModels.get("pistol"), new Vector3f(1000, 0, 0), new Vector3f(0,90,0), 1f);
+        Entity pistol = new Entity(entityManager.getTexturedModel("pistol"), new Vector3f(1000, 0, 0), new Vector3f(0,90,0), 1f);
         //entityManager.addEntity(pistol, EntityManager.CollisionType.NONE, 3);
         
-       // FPSAnimation = new Entity(entityManager.texturedModels.get("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 0.5f);
+       // FPSAnimation = new Entity(entityManager.getTexturedModel("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 0.5f);
        // FPSAnimation = entityManager.addEntity(FPSAnimation, EntityManager.CollisionType.NONE, 3);
        /*
        reloadScript =
@@ -475,7 +481,7 @@ public class Main {
         	
         	
         	
-        	Entity bush = new Entity(entityManager.texturedModels.get("bush_1"),
+        	Entity bush = new Entity(entityManager.getTexturedModel("bush_1"),
         			new Vector3f(x,y,z), 
         			new Vector3f(0,0,0), random.nextFloat(65) + 100);
             //bush.setMetallicMap(TextureLoader.loadTexture("searsia_lucida_rough_2k.png"));
@@ -537,14 +543,14 @@ public class Main {
         	int treeNum = random.nextInt(15);
         	Entity tree = new Entity();
         	if (treeNum == 0) {
-        		tree = new Entity(entityManager.texturedModels.get("tree_9"),
+        		tree = new Entity(entityManager.getTexturedModel("tree_9"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
         	}
         	
         	if (treeNum == 1) {
-        		tree = new Entity(entityManager.texturedModels.get("tree_8"),
+        		tree = new Entity(entityManager.getTexturedModel("tree_8"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
@@ -552,14 +558,14 @@ public class Main {
         	}
         	
         	if (treeNum == 2) {
-        		tree = new Entity(entityManager.texturedModels.get("tree_3"),
+        		tree = new Entity(entityManager.getTexturedModel("tree_3"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
         		
         	}
         	if (treeNum == 3) {
-        		tree = new Entity(entityManager.texturedModels.get("tree_9"),
+        		tree = new Entity(entityManager.getTexturedModel("tree_9"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
@@ -567,7 +573,7 @@ public class Main {
         	}
         	
         	if (treeNum == 4) {
-        		tree = new Entity(entityManager.texturedModels.get("bush_4"),
+        		tree = new Entity(entityManager.getTexturedModel("bush_4"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		entityManager.addEntity(tree, EntityManager.CollisionType.NONE, 0);
@@ -575,7 +581,7 @@ public class Main {
         	}
         	
         	if (treeNum == 5) {
-        		tree = new Entity(entityManager.texturedModels.get("bush_5"),
+        		tree = new Entity(entityManager.getTexturedModel("bush_5"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		entityManager.addEntity(tree, EntityManager.CollisionType.NONE, 0);
@@ -583,7 +589,7 @@ public class Main {
         	}
         	
         	if (treeNum == 6) {
-        		tree = new Entity(entityManager.texturedModels.get("boulder_1"),
+        		tree = new Entity(entityManager.getTexturedModel("boulder_1"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_ACCURATE, 0);
@@ -591,7 +597,7 @@ public class Main {
         	}
         	
         	if (treeNum == 7) {
-        		tree = new Entity(entityManager.texturedModels.get("boulder_3"),
+        		tree = new Entity(entityManager.getTexturedModel("boulder_3"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_ACCURATE, 0);
@@ -599,7 +605,7 @@ public class Main {
         	}
         	
         	if (treeNum == 8) {
-        		tree = new Entity(entityManager.texturedModels.get("bush_3"),
+        		tree = new Entity(entityManager.getTexturedModel("bush_3"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.NONE, 0);
@@ -607,7 +613,7 @@ public class Main {
         	}
         	
         	if (treeNum == 9) {
-        		tree = new Entity(entityManager.texturedModels.get("bush_2"),
+        		tree = new Entity(entityManager.getTexturedModel("bush_2"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.NONE, 0);
@@ -615,7 +621,7 @@ public class Main {
         	}
         	
         	if (treeNum == 10) {
-        		tree = new Entity(entityManager.texturedModels.get("pine_tree_4"),
+        		tree = new Entity(entityManager.getTexturedModel("pine_tree_4"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
@@ -625,7 +631,7 @@ public class Main {
         	}
         	
         	if (treeNum == 11) {
-        		tree = new Entity(entityManager.texturedModels.get("pine_tree_4"),
+        		tree = new Entity(entityManager.getTexturedModel("pine_tree_4"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
@@ -633,7 +639,7 @@ public class Main {
         	}
         	
         	if (treeNum == 12) {
-        		tree = new Entity(entityManager.texturedModels.get("cedar_tree_2"),
+        		tree = new Entity(entityManager.getTexturedModel("cedar_tree_2"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_NOT_ACCURATE, 0);
@@ -641,7 +647,7 @@ public class Main {
         	}
         	
         	if (treeNum == 13) {
-        		tree = new Entity(entityManager.texturedModels.get("boulder_7"),
+        		tree = new Entity(entityManager.getTexturedModel("boulder_7"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
         		 entityManager.addEntity(tree, EntityManager.CollisionType.STATIC_ACCURATE, 0);
@@ -649,7 +655,7 @@ public class Main {
         	}
         	
         	if (treeNum == 14) {
-        		tree = new Entity(entityManager.texturedModels.get("blades_3"),
+        		tree = new Entity(entityManager.getTexturedModel("blades_3"),
             			new Vector3f(x,y,z), 
             			new Vector3f(0,rotY,0), size);
        		 entityManager.addEntity(tree, EntityManager.CollisionType.NONE, 0);
@@ -672,7 +678,7 @@ public class Main {
         	float rotY = random.nextInt(360);
         	
         	Entity tree = new Entity();
-        	tree = new Entity(entityManager.texturedModels.get("tall_grass"),
+        	tree = new Entity(entityManager.getTexturedModel("tall_grass"),
         			new Vector3f(x,y,z), 
         			new Vector3f(0,rotY,0), size);
         	
@@ -692,7 +698,7 @@ public class Main {
         	float rotY = random.nextInt(360);
         	
         	Entity tree = new Entity();
-        	tree = new Entity(entityManager.texturedModels.get("barrel"),
+        	tree = new Entity(entityManager.getTexturedModel("barrel"),
         			new Vector3f(x,y,z), 
         			new Vector3f(0,rotY,0), size);
         	
@@ -708,7 +714,7 @@ public class Main {
 
         
         
-        Entity playerModel = new Entity(entityManager.texturedModels.get("player_body"), new Vector3f(0, 30, 0), new Vector3f(0,0,0), 3f);
+        Entity playerModel = new Entity(entityManager.getTexturedModel("player_body"), new Vector3f(0, 30, 0), new Vector3f(0,0,0), 3f);
         playerModel.setPosition(600,  terrain.getHeightOfTerrain(600, 600) + 30, 600);
         
         //entityManager.addEntity(playerModel, EntityManager.CollisionType.NONE, 1);
@@ -1014,7 +1020,7 @@ public class Main {
             ParticleMaster.renderParticles(camera);
             
             
-            fogRenderer.render(volumes, camera, masterRenderer.getProjectionMatrix(), bloomRenderer.getSceneDepthTexture(), lights, deltaTime);
+            //fogRenderer.render(volumes, camera, masterRenderer.getProjectionMatrix(), bloomRenderer.getSceneDepthTexture(), lights, deltaTime);
 
             
            // debugRenderer.addCollisionMesh(player.getPhysicsBody(), new Vector3f(1,1,1));
@@ -1027,15 +1033,13 @@ public class Main {
             bloomRenderer.renderBloom(width, height,1.0f, 0.2f);
             
          
-            for (Target target : targets) {
-            	target.update(deltaTime, window);
-            }
+            Target.updateAllTargets(targets, deltaTime);
             
             
             if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS && smokeGrenades.size() == 0) {
             	
                 Entity cube13 = new Entity(
-                    entityManager.texturedModels.get("MK2"),
+                    entityManager.getTexturedModel("MK2"),
                     new Vector3f(
                         camera.getPosition().x(),
                         camera.getPosition().y() + 5f,
@@ -1065,7 +1069,7 @@ public class Main {
                 Entity g = entityManager.addEntity(
                     cube13,
                     EntityManager.CollisionType.DYNAMIC_NOT_ACCURATE,
-                    1
+                    2
                 );
 
                 RigidBody body = entityManager.getEntityRigidBody(g);
@@ -1194,6 +1198,12 @@ public class Main {
                             Decal.DecalType.BULLET
                         )
                     );
+                    ///debugRenderer.addCollisionMesh( hit.hitBody, new Vector3f(1,0,0));
+                    for (Target tar : targets) {
+                    	if (tar.getEntity().getCollisionBody() == hit.hitBody) {
+                    		tar.putDown();
+                    	}
+                    }
                 }
             }
 

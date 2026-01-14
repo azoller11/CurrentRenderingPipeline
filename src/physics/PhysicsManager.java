@@ -408,6 +408,22 @@ public class PhysicsManager {
      * @return the created RigidBody
      */
     public RigidBody addMovableAccurateCollision(Entity entity, float mass) {
+    	
+    	if (entity.getTexturedModel() != null && entity.getTexturedModel().getAnimatedModels() != null && entity.getTexturedModel().getAnimatedModels().size() > 0) {
+    		List<RigidBody> subMeshes = new ArrayList<RigidBody>();
+    		for (AnimatedModel model : entity.getTexturedModel().getAnimatedModels()) {
+    			Entity tempE = entity;
+    			tempE.getTexturedModel().setMesh(model.getMesh());
+    			CollisionShape shape = createDynamicConvexCollisionMesh(entity);
+    	    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
+    	    	subMeshes.add(addStaticCollisionMesh(entity, shape));
+    			
+    		}
+    		return combineRigidBodies(subMeshes);
+    		//return combineRigidBodies(entity, subMeshes, 1);
+    	}
+    	
+    	
     	CollisionShape shape = createDynamicConvexCollisionMesh(entity);
     	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addMovableCollisionMesh(entity, shape, mass);
@@ -421,6 +437,22 @@ public class PhysicsManager {
      * @return the created RigidBody
      */
     public RigidBody addMovableNotSoAccurateCollision(Entity entity, float mass) {
+    	
+    	if (entity.getTexturedModel() != null && entity.getTexturedModel().getAnimatedModels() != null && entity.getTexturedModel().getAnimatedModels().size() > 0) {
+    		List<RigidBody> subMeshes = new ArrayList<RigidBody>();
+    		for (AnimatedModel model : entity.getTexturedModel().getAnimatedModels()) {
+    			Entity tempE = entity;
+    			tempE.getTexturedModel().setMesh(model.getMesh());
+    			CollisionShape shape = createNotSoAccurateCollisionMesh(entity);
+    	    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
+    	    	subMeshes.add(addStaticCollisionMesh(entity, shape));
+    			
+    		}
+    		return combineRigidBodies(subMeshes);
+    		//return combineRigidBodies(entity, subMeshes, 1);
+    	}
+    	
+    	
         CollisionShape shape = createNotSoAccurateCollisionMesh(entity);
     	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addMovableCollisionMesh(entity, shape, mass);
@@ -433,6 +465,19 @@ public class PhysicsManager {
      * @return the created RigidBody (with zero mass)
      */
     public RigidBody addStaticAccurateCollision(Entity entity) {
+    	if (entity.getTexturedModel() != null && entity.getTexturedModel().getAnimatedModels() != null && entity.getTexturedModel().getAnimatedModels().size() > 0) {
+    		List<RigidBody> subMeshes = new ArrayList<RigidBody>();
+    		for (AnimatedModel model : entity.getTexturedModel().getAnimatedModels()) {
+    			Entity tempE = entity;
+    			tempE.getTexturedModel().setMesh(model.getMesh());
+    			CollisionShape shape = createAccurateCollisionEntity(entity);
+    	    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
+    	    	subMeshes.add(addStaticCollisionMesh(entity, shape));
+    			
+    		}
+    		return combineRigidBodies(subMeshes);
+    	}
+    	
         CollisionShape shape = createAccurateCollisionEntity(entity);
     	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addStaticCollisionMesh(entity, shape);
@@ -451,6 +496,22 @@ public class PhysicsManager {
      * @return the created RigidBody (with zero mass)
      */
     public RigidBody addStaticNotSoAccurateCollision(Entity entity) {
+    	
+    	if (entity.getTexturedModel() != null && entity.getTexturedModel().getAnimatedModels() != null && entity.getTexturedModel().getAnimatedModels().size() > 0) {
+    		List<RigidBody> subMeshes = new ArrayList<RigidBody>();
+    		for (AnimatedModel model : entity.getTexturedModel().getAnimatedModels()) {
+    			Entity tempE = entity;
+    			tempE.getTexturedModel().setMesh(model.getMesh());
+    			CollisionShape shape = createDynamicConvexCollisionMesh(entity);
+    	    	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
+    	    	subMeshes.add(addStaticCollisionMesh(entity, shape));
+    			
+    		}
+    		return combineRigidBodies(subMeshes);
+    		//return combineRigidBodies(entity, subMeshes, 1);
+    	}
+    	
+    	
         CollisionShape shape = createDynamicConvexCollisionMesh(entity);
     	shape.setLocalScaling(new Vector3f(entity.getScale(),entity.getScale(),entity.getScale()));
         return addStaticCollisionMesh(entity, shape);
@@ -837,6 +898,58 @@ public class PhysicsManager {
             rayResult.hitBody
         );
     }
+    
+   public RigidBody combineRigidBodies(List<RigidBody> bodies) {
+
+    if (bodies == null || bodies.isEmpty()) {
+        throw new IllegalArgumentException("RigidBody list is empty");
+    }
+
+    // 1) Create compound shape
+    com.bulletphysics.collision.shapes.CompoundShape compound =
+            new com.bulletphysics.collision.shapes.CompoundShape();
+
+    // Use first body as reference frame
+    Transform rootTransform = new Transform();
+    bodies.get(0).getWorldTransform(rootTransform);
+
+    // 2) Add each body as a child shape
+    for (RigidBody body : bodies) {
+
+        CollisionShape shape = body.getCollisionShape();
+
+        Transform bodyTransform = new Transform();
+        body.getWorldTransform(bodyTransform);
+
+        // local = inverse(root) * body
+        Transform local = new Transform();
+        local.inverse(rootTransform);
+        local.mul(bodyTransform);
+
+        compound.addChildShape(local, shape);
+    }
+
+    // 3) Create combined rigid body (STATIC)
+    DefaultMotionState motionState = new DefaultMotionState(rootTransform);
+
+    Vector3f inertia = new Vector3f(0, 0, 0);
+    float mass = 0f; // static by default
+
+    RigidBodyConstructionInfo info =
+            new RigidBodyConstructionInfo(mass, motionState, compound, inertia);
+
+    RigidBody combined = new RigidBody(info);
+
+    // Optional sane defaults
+    combined.setFriction(0.8f);
+    combined.setRestitution(0.0f);
+
+    dynamicsWorld.addRigidBody(combined);
+
+    return combined;
+}
+
+
     
     
     public static Vector3f quaternionToEuler(Quat4f q) {

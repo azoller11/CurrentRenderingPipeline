@@ -31,7 +31,7 @@ public class EntityManager {
 	
 	public Terrain terrain;
 	
-	public Map<String, TexturedModel> texturedModels;
+	private Map<String, TexturedModel> texturedModels;
 	
 	public Map<Entity, RigidBody> entityRigidBodyMap = new HashMap<>();
 	
@@ -101,7 +101,7 @@ public class EntityManager {
 	        TexturedModel texturedModel = e.getTexturedModel();
 	        if (texturedModel == null) continue;
 
-	        AnimationElement anim = texturedModel.getActiveAnimation();
+	        AnimationElement anim = e.getActiveAnimation();
 
 	        // ✅ Nothing playing → do nothing
 	        if (anim == null) continue;
@@ -110,21 +110,22 @@ public class EntityManager {
 
 	        // ✅ Animation finished and not looping → stop it
 	        if (anim.isFinished()) {
-	            texturedModel.playAnimation(-1, false);
+	            e.playAnimation(-1, false);
 	            continue;
 	        }
 
+	        
 	        int animIndex = anim.getAnimationIndex();
 	        float timeSeconds = anim.getTimeSeconds();
 
 	        // ---- Single model ----
-	        if (texturedModel.getAnimatedModel() != null) {
-	            texturedModel.getAnimatedModel()
+	        if (e.getAnimatedModel() != null) {
+	            e.getAnimatedModel()
 	                         .updateAnimation(animIndex, timeSeconds);
 	        }
 	        // ---- Multi-mesh ----
-	        else if (texturedModel.getAnimatedModels() != null) {
-	            for (AnimatedModel model : texturedModel.getAnimatedModels()) {
+	        else if (e.getAnimatedModels() != null) {
+	            for (AnimatedModel model : e.getAnimatedModels()) {
 	                model.updateAnimation(animIndex, timeSeconds);
 	            }
 	        }
@@ -267,6 +268,12 @@ public class EntityManager {
 	}
 	
 
+	public TexturedModel getTexturedModel(String name) {
+		if (this.texturedModels.containsKey(name)) {
+			return this.texturedModels.get(name);
+		}
+		return new TexturedModel();
+	}
 	
 	
 	

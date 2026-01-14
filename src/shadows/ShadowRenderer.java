@@ -145,9 +145,9 @@ public class ShadowRenderer {
         // ============================================================
         // MULTI-MESH ANIMATED MODEL
         // ============================================================
-        if (tm.getAnimatedModels() != null && !tm.getAnimatedModels().isEmpty()) {
+        if (entity.getAnimatedModels() != null && !entity.getAnimatedModels().isEmpty()) {
 
-            for (animatedModel.AnimatedModel part : tm.getAnimatedModels()) {
+            for (animatedModel.AnimatedModel part : entity.getAnimatedModels()) {
 
                 // MUST match main renderer logic
                 Matrix4f finalModel = new Matrix4f(entityMatrix);

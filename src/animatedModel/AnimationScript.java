@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 
+import entities.Entity;
 import entities.TexturedModel;
 
 public class AnimationScript {
@@ -21,7 +22,8 @@ public class AnimationScript {
         }
     }
 
-    private final TexturedModel model;
+    //private final TexturedModel model;
+    private Entity entity;
 
     // Immutable script definition
     private final List<Step> steps = new ArrayList<>();
@@ -33,8 +35,8 @@ public class AnimationScript {
     
     private boolean stepBegan = false;
 
-    public AnimationScript(TexturedModel model) {
-        this.model = model;
+    public AnimationScript(Entity entity) {
+        this.entity = entity;
     }
 
     // ---------- Builder API ----------
@@ -70,7 +72,7 @@ public class AnimationScript {
         currentStep = null;
         runQueue = null;
 
-        model.playAnimation(-1, false);
+        entity.playAnimation(-1, false);
     }
 
     public boolean isRunning() {
@@ -82,7 +84,8 @@ public class AnimationScript {
     public void update(float deltaTime) {
         if (!running || currentStep == null) return;
 
-        AnimationElement anim = model.getActiveAnimation();
+        AnimationElement anim =
+        	    entity.getActiveAnimation();
 
         // ✅ If animation exists, run it normally
         if (anim != null) {
@@ -133,7 +136,7 @@ public class AnimationScript {
         }
 
         stepBegan = false; // ✅ new step, haven't observed it playing yet
-        model.playAnimation(currentStep.animationIndex, currentStep.loop);
+        entity.playAnimation(currentStep.animationIndex, currentStep.loop);
     }
 
     private void finishSequence() {
@@ -142,7 +145,7 @@ public class AnimationScript {
         runQueue = null;
         stepBegan = false;
 
-        model.playAnimation(-1, false);
+        entity.playAnimation(-1, false);
     }
 
     private void finish() {
@@ -150,6 +153,6 @@ public class AnimationScript {
         currentStep = null;
         runQueue = null;
 
-        model.playAnimation(-1, false);
+        entity.playAnimation(-1, false);
     }
 }

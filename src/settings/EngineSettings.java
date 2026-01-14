@@ -4,11 +4,12 @@ import static org.lwjgl.glfw.GLFW.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 import org.joml.Vector2f;
 
 import org.lwjgl.opengl.GL11;
-
+import animatedModel.AnimatedModelData;
 import entities.Entity;
 import entities.Light;
 import entityManager.EntityManager;
@@ -78,6 +79,8 @@ public class EngineSettings {
     public static Map<String, Mesh> meshCache = new HashMap<>();
     // Cache to store loaded textures
     public static Map<String, Integer> textureCache = new HashMap<>();
+    // Cache to store loaded animated meshes
+    public static Map<String, List<AnimatedModelData>> animationCache = new HashMap<>();
 	
 	
 	public static boolean keyPressing = false;

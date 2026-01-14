@@ -1,11 +1,17 @@
 package entities;
 
+import java.util.List;
+import java.util.ArrayList;
+
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import com.bulletphysics.dynamics.RigidBody;
 
+import animatedModel.AnimatedModel;
+import animatedModel.AnimationElement;
+import animation.Animator;
 import toolbox.Mesh;
 
 public class Entity {
@@ -14,13 +20,19 @@ public class Entity {
 	
 	private TexturedModel texturedModel;
 	
+	private AnimatedModel animatedModel;
+	
+	private List<AnimatedModel> animatedModels;
+	
 
     // Basic transform
     private Vector3f position;
     private Vector3f rotation; // rotation.x => pitch, rotation.y => yaw, rotation.z => roll
     private float scale;
     
-    
+    private int activeAnimation = -1;
+    private List<AnimationElement> animationState;
+    private Animator animator;
     
     
     
@@ -35,6 +47,31 @@ public class Entity {
         this.rotation = new Vector3f(rotation);
         this.scale = scale;
         this.Id = generateNewId();
+        
+        //Generate animations
+        animationState = new ArrayList<>();
+        if (texturedModel.getAnimationElements() != null) {
+        	this.activeAnimation = 0;
+        	 for (AnimationElement def : texturedModel.getAnimationElements()) {
+                 animationState.add(new AnimationElement(def)); // COPY
+             }
+        	 this.animator = new Animator(this);
+        	 this.activeAnimation = -1;
+        }
+        
+        // ---- Single animated model (legacy support) ----
+        if (texturedModel.getAnimatedModel() != null) {
+        	this.setAnimatedModel(texturedModel.getAnimatedModel().clone());
+        }
+
+        // ---- Multiple animated models ----
+        if (texturedModel.getAnimatedModels() != null) {
+        	animatedModels = new ArrayList<>();
+            for (AnimatedModel  model : texturedModel.getAnimatedModels()) {
+              this.animatedModels.add(model.clone());
+            }
+        }
+       
     }
 
     public Entity() {
@@ -173,7 +210,57 @@ public class Entity {
 
 	    return e;
 	}
+	
 
+    public void playAnimation(int index, boolean loop) {
+        if (index < 0) {
+            activeAnimation = -1;
+            return;
+        }
+
+        if (activeAnimation == index) return;
+
+        activeAnimation = index;
+        AnimationElement anim = animationState.get(index);
+        anim.reset();
+        anim.setLoop(loop);
+    }
+
+    public AnimationElement getActiveAnimation() {
+        if (activeAnimation < 0 || activeAnimation >= animationState.size())
+            return null;
+        return animationState.get(activeAnimation);
+    }
+    
+    public void setActiveAnimation(int activeAnimation) {
+		this.activeAnimation = activeAnimation;
+	}
+    
+	public int getActiveAnimationIndex() {
+		return activeAnimation;
+	}
+
+	public Animator getAnimator() {
+	    return animator;
+	}
+
+	public AnimatedModel getAnimatedModel() {
+		return animatedModel;
+	}
+
+	public void setAnimatedModel(AnimatedModel animatedModel) {
+		this.animatedModel = animatedModel;
+	}
+
+	public List<AnimatedModel> getAnimatedModels() {
+		return animatedModels;
+	}
+
+	public void setAnimatedModels(List<AnimatedModel> animatedModels) {
+		this.animatedModels = animatedModels;
+	}
+
+	
 
 	
 	/*

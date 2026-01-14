@@ -17,7 +17,13 @@ public class AnimationElement {
         this.durationSeconds = durationSeconds;
     }
 
-    public void update(float deltaTime) {
+    public AnimationElement(AnimationElement e) {
+    	 this.animationIndex = e.getAnimationIndex();
+         this.name = e.getName();
+         this.durationSeconds = e.getDurationSeconds();
+	}
+
+	public void update(float deltaTime) {
         if (finished) return;
 
         timeSeconds += deltaTime * speed;
