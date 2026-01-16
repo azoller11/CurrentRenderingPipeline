@@ -44,6 +44,7 @@ import settings.EngineSettings;
 import settings.EngineSettings.TerrainBrushColor;
 import shadows.ShadowRenderer;
 import skybox.SkyboxRenderer;
+import screens.StartUpScreen;
 import terrain.TerrainRenderer;
 import terrain.TerrainTextureLayer;
 import terrain.Terrain;
@@ -82,13 +83,16 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Main {
 
     private long window;
-    private final int width = 800 * 2;
-    private final int height = 450 * 2;
+    private final int width = 800 * 1;
+    private final int height = 500 * 1;
     
     private int frames = 0;
     private double timeCounter = 0.0;
     public static int currentFPS = 0; // optional: store current FPS
     public static int MAX_FPS = 70;   // set to -1 for uncapped
+    
+    
+
     
     float outsideAmbience = 0;
 
@@ -181,47 +185,39 @@ public class Main {
     }
 
     private void firstLoop() {
-   	 // Initialize GLFW
-       if (!glfwInit()) {
-           throw new IllegalStateException("Unable to initialize GLFW");
-       }
 
-       glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-       glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-       glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-       glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-       glfwWindowHint(GLFW_SAMPLES, 4); // Request 4x MSAA
+        if (!glfwInit()) {
+            throw new IllegalStateException("Unable to initialize GLFW");
+        }
 
-       window = glfwCreateWindow(width, height, "Elk Engine 2", NULL, NULL);
-       if (window == NULL) {
-           throw new RuntimeException("Failed to create the GLFW window");
-       }
-       glfwMakeContextCurrent(window);
-       glfwSwapInterval(0); // vsync
-       GL.createCapabilities();
-       
-    // Enable multisampling
-       glEnable(GL_MULTISAMPLE);
-       
-       textureRenderer = new TextureRenderer();
-       loadingScreen = new gui.GuiTexture(TextureLoader.loadExplicitTexture("ElkEngine.png"), 0, 0, width,height);
-       
-       textureRenderer.addTexture(loadingScreen);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+        glfwWindowHint(GLFW_SAMPLES, 4);
 
-       // Clear both color and depth buffers
-       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-       glViewport(0, 0, width, height); // Ensure viewport is correct
-       glEnable(GL_BLEND);
-       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-       
-       // Render loading screen
-       textureRenderer.render(new Matrix4f().ortho2D(0.0f, width, 0.0f, height), new Matrix4f().identity(), 0, 0);
-       
-       // Swap buffers to display the loading screen immediately
-       glfwSwapBuffers(window);
-       
-       
-   }
+        window = glfwCreateWindow(width, height, "Elk Engine 2", NULL, NULL);
+        if (window == NULL) {
+            throw new RuntimeException("Failed to create the GLFW window");
+        }
+
+        glfwMakeContextCurrent(window);
+        glfwSwapInterval(0);
+        GL.createCapabilities();
+
+        glEnable(GL_MULTISAMPLE);
+
+        textureRenderer = new TextureRenderer();
+
+        StartUpScreen startUpScreen = new StartUpScreen();
+        startUpScreen.render(textureRenderer, width, height);
+
+        // Keep reference so init() can remove it later
+        loadingScreen = startUpScreen.getLoadingScreen();
+
+        glfwSwapBuffers(window);
+    }
+
     
     
     private void init() {
@@ -240,14 +236,11 @@ public class Main {
         
         
         
-        Font font = new Font("res/verdana.fnt", "verdana.png");
+        Font font = new Font("res/arial.fnt", "arial.png");
   
-        textRenderer = new TextRenderer(font, 100);
+        textRenderer = new TextRenderer(font, 100, width, height);
         
-        textRenderer.setTextColor(1.9f,1.9f, 1.9f, 1.0f);
-        textRenderer.setOutlineColor(0.0f, 0.0f, 0.0f, 0.0f);
-        textRenderer.setEdgeSmoothness(0.5f);
-        textRenderer.setOutlineWidth(0.0f);
+        textRenderer.setTextColor(1f,1f, 1f, 1.0f);
         
         guiManager = new GuiManager();
         
@@ -1015,7 +1008,7 @@ public class Main {
             
             
 
-            
+     
             
             ParticleMaster.renderParticles(camera);
             
@@ -1207,6 +1200,7 @@ public class Main {
                 }
             }
 
+            
            
             
             //int c = Equations.combineTexturesFixed(3, 4, width, height);
@@ -1216,6 +1210,7 @@ public class Main {
             glClear(GL_DEPTH_BUFFER_BIT);
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            
             textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
           
             
@@ -1228,7 +1223,7 @@ public class Main {
             }
             
            	
-            guiManager.update(textureRenderer, textRenderer, entityManager, window);
+            guiManager.update(textureRenderer, textRenderer, entityManager, window, deltaTime);
             
             EngineSettings.updateSettings(window);
             if (MAX_FPS > 0) {

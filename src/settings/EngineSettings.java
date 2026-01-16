@@ -20,6 +20,14 @@ import toolbox.Mesh;
 public class EngineSettings {
 	
 	
+	public static enum ScreenState {
+        HOME,
+        GAME
+    }
+
+	public static ScreenState screenState = ScreenState.HOME;
+	
+	
 	//General 
 	public static boolean pause = false;
 	public static boolean grabMouse = true;

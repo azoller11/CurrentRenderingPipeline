@@ -3,6 +3,8 @@ package guiManager;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.joml.Vector4f;
+
 import entities.Entity;
 import entityManager.EntityManager;
 import gui.GuiButton;
@@ -43,9 +45,38 @@ public class GuiManager {
 	}
 	
 	
-	public void update(TextureRenderer textureRender, TextRenderer textRenderer, EntityManager entityManager, long window) {
+	public void update(TextureRenderer textureRender, TextRenderer textRenderer, EntityManager entityManager, long window, float deltaTime) {
+		// Clear all effects for simple white text
+		textRenderer.setTextColor(1.0f, 0.5f, 0.5f, 1.0f);      // Pure white
+		//textRenderer.setOutlineWidth(0.0f);                    // Disable outline
+		//textRenderer.setOutlineColor(0, 0, 0, 0);              // Transparent outline
+		//textRenderer.setBorderWidth(0.0f);                     // Disable border
+		//textRenderer.setBorderColor(0, 0, 0, 0);               // Transparent border
+		textRenderer.setGlow(false, 0.0f, 0.0f, 0, 0, 0, 0);  // No glow
+		textRenderer.setShadow(false, 0, 0, 0, 0, 0, 0, 0);   // No shadow
+		//textRenderer.setTintGradient(0.0f, new Vector4f(1,1,1,0), new Vector4f(1,1,1,0)); // No tint
+		//textRenderer.setWave(0.0f, 0.0f);                     // No wave
+		//textRenderer.setJitter(0.0f);                         // No jitter
 		
-		textRenderer.renderText(""+Main.currentFPS,  masterRenderer.getScreenWidth() - 40, masterRenderer.getScreenHeight() - 20, 0.25f, masterRenderer.getFlatProjection(), masterRenderer.getScreenWidth(), TextAlignment.LEFT);
+		//textRenderer.setGlow(true, 0.28f, 2.2f, 1f, 1f, 1f, 1f);
+		//textRenderer.setShadow(false, 2f,5f, 0f, 0f, 0f, 0.7f, 0.8f);
+		//textRenderer.setTimeSeconds(deltaTime);
+		//textRenderer.setJitter(0);
+		//textRenderer.setWave(0, 0);
+		textRenderer.setOutlineColor(0.40f,1, 0.4f, 1.0f);
+		textRenderer.setOutlineWidth(0.00f);
+		textRenderer.setShadow(false, 2, -2, 0,0,0,0.75f, 1.7f);
+		textRenderer.setGlow(true,0.6f, 0.40f,1, 0.4f, 0, 0.8f);
+		textRenderer.setTintGradient(1.35f,
+			    new Vector4f(1,1,1,1),
+			    new Vector4f(0.6f,0.8f,1,1)
+			);
+		
+		textRenderer.setWave(0.0f, 0.0f);
+		textRenderer.setTimeSeconds(deltaTime);
+		textRenderer.setJitter(0.0f);
+		
+		textRenderer.renderText(""+Main.currentFPS,  0.75f, 0.75f, 1.025f,  masterRenderer.getScreenWidth(), TextAlignment.LEFT);
 		
 		selectedEntityDebug.update(textureRender, textRenderer, masterRenderer);
 		selectedLightDebug.update(textureRender, textRenderer, masterRenderer);

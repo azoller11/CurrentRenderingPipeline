@@ -3,6 +3,7 @@ package shaders;
 import org.joml.Matrix3f;
 import org.joml.Matrix3fc;
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector4f;
 import org.joml.Vector3f; // Changed to JOML's Vector3f for consistency
 import org.lwjgl.opengl.GL20;
@@ -515,6 +516,14 @@ public class ShaderProgram {
 
 	public void cleanUp() {
 		// TODO Auto-generated method stub
+		
+	}
+
+	public void setUniform2f(String string, Vector2f vector2f) {
+		 int loc = getUniformLocation(string);
+	        if (loc >= 0) {
+	            glUniform2f(loc, vector2f.x, vector2f.y);
+	        }
 		
 	}
 	

@@ -98,7 +98,7 @@ public class SelectedEntityDebug {
 				 int x = masterRenderer.getScreenHeight();
 				 
 				 textRenderer.renderText(""+EngineSettings.OpenEntity.getId(), 
-				         0, x - 20, 0.25f, masterRenderer.getFlatProjection(),
+				         0, x - 20, 0.25f,
 				         masterRenderer.getScreenWidth(), TextAlignment.LEFT);
 				
 				 textRenderer.renderText(
@@ -106,11 +106,11 @@ public class SelectedEntityDebug {
 				         EngineSettings.OpenEntity.getPosition().x() + ", " +
 				         EngineSettings.OpenEntity.getPosition().y() + ", " +
 				         EngineSettings.OpenEntity.getPosition().z() + "]",
-					         0, x - 40, 0.25f, masterRenderer.getFlatProjection(),
+					         0, x - 40, 0.25f, 
 					         masterRenderer.getScreenWidth(), TextAlignment.LEFT);
 				 
 				 textRenderer.renderText("Size: "+EngineSettings.OpenEntity.getScale() + " RotY: " + EngineSettings.OpenEntity.getRotation().y() + " Collision: " + EngineSettings.OpenEntity.getCollisionType(), 
-				         0, x - 60, 0.25f, masterRenderer.getFlatProjection(),
+				         0, x - 60, 0.25f, 
 				         masterRenderer.getScreenWidth(), TextAlignment.LEFT);
 					
 					 entityTexture.setTextureId(EngineSettings.OpenEntity.getTexturedModel().getTextureId());

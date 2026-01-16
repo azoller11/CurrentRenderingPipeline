@@ -13,9 +13,9 @@ public class SelectedLightDebug {
 			
 
         	if (EngineSettings.OpenLight != null) {
-                textRenderer.renderText(""+EngineSettings.OpenLight.getId(), 0, 120, 0.25f, masterRenderer.getFlatProjection(), masterRenderer.getScreenWidth(), TextAlignment.LEFT);
+                textRenderer.renderText(""+EngineSettings.OpenLight.getId(), 0, 120, 0.25f, masterRenderer.getScreenWidth(), TextAlignment.LEFT);
 
-                textRenderer.renderText(""+EngineSettings.OpenLight.getPosition(), 0, 140, 0.25f, masterRenderer.getFlatProjection(), masterRenderer.getScreenWidth(), TextAlignment.LEFT);
+                textRenderer.renderText(""+EngineSettings.OpenLight.getPosition(), 0, 140, 0.25f,  masterRenderer.getScreenWidth(), TextAlignment.LEFT);
 
         	}
 			

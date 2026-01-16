@@ -159,6 +159,101 @@ public class TextureLoader {
         return textureId;
     }
     
+    /**
+     * Loads an SDF (Signed Distance Field) font texture with optimal settings.
+     */
+  public static int loadSDFTexture(String filename) {
+    long totalStartTime = System.nanoTime();
+    
+    String cacheKey = "SDF_" + filename;
+    if (EngineSettings.textureCache.containsKey(cacheKey)) {
+        return EngineSettings.textureCache.get(cacheKey);
+    }
+    
+    String filePath = TEXTURE_DIR + filename;
+    int width, height;
+    ByteBuffer imageData;
+    int actualChannels;
+    
+    // 1) Load image data
+    long imageLoadStart = System.nanoTime();
+    try (MemoryStack stack = MemoryStack.stackPush()) {
+        IntBuffer w = stack.mallocInt(1);
+        IntBuffer h = stack.mallocInt(1);
+        IntBuffer channels = stack.mallocInt(1);
+        
+        // First try to load as-is to detect actual format
+        imageData = STBImage.stbi_load(filePath, w, h, channels, 0); // 0 = keep original channels
+        if (imageData == null) {
+            throw new RuntimeException("Failed to load SDF texture file: " + filePath
+                    + "\n" + STBImage.stbi_failure_reason());
+        }
+        
+        width = w.get(0);
+        height = h.get(0);
+        actualChannels = channels.get(0);
+        
+        System.out.println("SDF Texture Info: " + filename + 
+                          " | Size: " + width + "x" + height + 
+                          " | Channels: " + actualChannels);
+    }
+    long imageLoadEnd = System.nanoTime();
+    
+    // 2) Create texture with SDF-optimized settings
+    long gpuUploadStart = System.nanoTime();
+    int textureId = glGenTextures();
+    glBindTexture(GL_TEXTURE_2D, textureId);
+    
+    // Determine the correct texture format based on actual channels
+    int internalFormat, format;
+    if (actualChannels == 1) {
+        internalFormat = GL_R8;          // Single channel
+        format = GL_RED;                 // Red channel only
+        System.out.println("Using GL_R8 format for SDF texture");
+    } else if (actualChannels == 3) {
+        internalFormat = GL_RGB8;        // RGB
+        format = GL_RGB;                 // RGB channels
+        System.out.println("Using GL_RGB8 format for SDF texture (WARNING: SDF should be single channel!)");
+    } else if (actualChannels == 4) {
+        internalFormat = GL_RGBA8;       // RGBA  
+        format = GL_RGBA;                // RGBA channels
+        System.out.println("Using GL_RGBA8 format for SDF texture");
+    } else {
+        throw new RuntimeException("Unsupported number of channels: " + actualChannels);
+    }
+    
+    // Upload texture data
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0,
+                 format, GL_UNSIGNED_BYTE, imageData);
+    
+    // CRITICAL: SDF texture settings
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);  // No mipmaps for SDF!
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  // Linear filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // NO REPEAT!
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); // NO REPEAT!
+    
+    // IMPORTANT: Disable mipmaps completely for SDF
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    
+    
+    long gpuUploadEnd = System.nanoTime();
+    
+    STBImage.stbi_image_free(imageData);
+    EngineSettings.textureCache.put(cacheKey, textureId);
+    
+    long totalEndTime = System.nanoTime();
+    if (DEBUG) {
+        String debugInfo = String.format("SDF Texture Load [%s]: imageLoad=%.2f ms, gpuUpload=%.2f ms, total=%.2f ms",
+                filename,
+                (imageLoadEnd - imageLoadStart) / 1_000_000.0,
+                (gpuUploadEnd - gpuUploadStart) / 1_000_000.0,
+                (totalEndTime - totalStartTime) / 1_000_000.0);
+        System.out.println(debugInfo);
+    }
+    
+    return textureId;
+}
 
     /**
      * Loads an HDR texture using floating-point data.

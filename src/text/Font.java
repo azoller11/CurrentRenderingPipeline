@@ -1,9 +1,16 @@
 package text;
 
+import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL12.*;
+import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.opengl.EXTTextureFilterAnisotropic.*;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.lwjgl.opengl.GL;
 
 import loaders.TextureLoader;
 
@@ -16,7 +23,7 @@ public class Font {
     private int atlasHeight;
 
     public Font(String fntFile, String pngFile) {
-        this.textureID = TextureLoader.loadExplicitTexture(pngFile);
+        this.textureID = TextureLoader.loadSDFTexture(pngFile);
         loadFntFile(fntFile);
     }
 
@@ -34,6 +41,9 @@ public class Font {
             e.printStackTrace();
         }
     }
+    
+
+
 
     private void parseCommonLine(String line) {
         String[] parts = line.split(" +");

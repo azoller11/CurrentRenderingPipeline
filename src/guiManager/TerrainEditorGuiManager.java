@@ -122,8 +122,8 @@ private boolean loadedTextures;
 		
 		if (EngineSettings.TerrainEditor) {
 			showGui();
-			textRenderer.renderText("Brush: "+EngineSettings.TerrainBrushSize,  masterRenderer.getScreenWidth() - 115, 420, 0.25f, masterRenderer.getFlatProjection(), masterRenderer.getScreenWidth(), TextAlignment.LEFT);
-			textRenderer.renderText("Tool: "+EngineSettings.TerrainTool,  masterRenderer.getScreenWidth() - 155, 460, 0.25f, masterRenderer.getFlatProjection(), masterRenderer.getScreenWidth(), TextAlignment.LEFT);
+			textRenderer.renderText("Brush: "+EngineSettings.TerrainBrushSize,  masterRenderer.getScreenWidth() - 115, 420, 0.25f,  masterRenderer.getScreenWidth(), TextAlignment.LEFT);
+			textRenderer.renderText("Tool: "+EngineSettings.TerrainTool,  masterRenderer.getScreenWidth() - 155, 460, 0.25f,  masterRenderer.getScreenWidth(), TextAlignment.LEFT);
 
 			
 		} else {
