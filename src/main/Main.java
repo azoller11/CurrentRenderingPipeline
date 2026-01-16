@@ -51,6 +51,7 @@ import terrain.Terrain;
 import terrain.TerrainEditor;
 import text.TextRenderer;
 import text.TextRenderer.TextAlignment;
+import text.TextRendererMaster;
 import text.Font;
 import toolbox.Equations;
 import toolbox.Mesh;
@@ -870,10 +871,116 @@ public class Main {
             }
             	
             
-            
             player.updatePlayer(window, deltaTime, terrain);
-            playerFPS.updatePlayerFPS(player, camera, window, deltaTime);
 
+            
+            for (HitResult hit :playerFPS.updatePlayerFPS(player, camera, entityManager.getPhysicsManager(), textRenderer, window, deltaTime)) {
+            	if (hit.hit) {
+
+                    Vector3f n = new Vector3f(hit.hitNormal).normalize();
+
+                    Vector3f forward = new Vector3f(0, 0, 1);
+
+               
+                    if (Math.abs(n.y) > 0.999f) {
+                        forward.set(0, 0, n.y > 0 ? -1 : 1);
+                    }
+
+                
+                    Vector3f axis = forward.cross(n, new Vector3f());
+                    float axisLen = axis.length();
+
+                    float angle;
+                    if (axisLen < 1e-6f) {
+                        // Already aligned
+                        axis.set(0, 1, 0);
+                        angle = 0f;
+                    } else {
+                        axis.normalize();
+                        angle = (float) Math.acos(forward.dot(n));
+                    }
+
+                    // ---------------------------------
+                    // Convert axis-angle → Euler XYZ
+                    // ---------------------------------
+                    float s = (float) Math.sin(angle);
+                    float c = (float) Math.cos(angle);
+                    float t = 1f - c;
+
+                    float x = axis.x;
+                    float y = axis.y;
+                    float z = axis.z;
+
+                    // Rotation matrix from axis-angle
+                    float m00 = t*x*x + c;
+                    float m01 = t*x*y - s*z;
+                    float m02 = t*x*z + s*y;
+
+                    float m10 = t*x*y + s*z;
+                    float m11 = t*y*y + c;
+                    float m12 = t*y*z - s*x;
+
+                    float m20 = t*x*z - s*y;
+                    float m21 = t*y*z + s*x;
+                    float m22 = t*z*z + c;
+
+                    // Extract Euler XYZ (matches rotateXYZ)
+                    float rotX = (float) Math.atan2(m21, m22);
+                    float rotY = (float) Math.atan2(-m20, Math.sqrt(m21*m21 + m22*m22));
+                    float rotZ = (float) Math.atan2(m10, m00);
+
+                    Vector3f rotation = new Vector3f(rotX, rotY, rotZ);
+
+              
+                    Vector3f size = new Vector3f(
+                        1.15f,   // width
+                        1.15f,   // height
+                        0.025f  // thickness
+                    );
+
+
+                    Vector3f position = new Vector3f(hit.hitPoint)
+                            .fma(0.01f, n);
+
+                    
+                    Vector3f cameraForward = new Vector3f(0, 0, -1);
+                    cameraForward.rotateY((float)Math.toRadians(camera.getYaw()));
+                    cameraForward.rotateX((float)Math.toRadians(camera.getPitch()));
+                    cameraForward.normalize();
+                    hit.createSmokePuff(hit.hitPoint, hit.hitNormal, cameraForward, smokeTexture);
+              
+                    decalManager.add(
+                        new Decal(
+                            position,
+                            rotation,
+                            size,
+                            TextureLoader.loadTexture("bullet_hole.png"),
+                            TextureLoader.loadTexture("container_rust_nor_2k.png"),
+                            Decal.DecalType.BULLET
+                        )
+                    );
+                    ///debugRenderer.addCollisionMesh( hit.hitBody, new Vector3f(1,0,0));
+                    for (Target tar : targets) {
+                    	if (tar.getEntity().getCollisionBody() == hit.hitBody) {
+                    		tar.putDown();
+                    	}
+                    }
+                }
+            }
+            
+            /*
+
+            if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS && playerFPS.getLoadedAmmo() > 0) {
+                //System.out.println("Shoot!");
+                HitResult hit = PhysicsManager.shoot(camera, entityManager.getPhysicsManager(), 10000);
+
+                
+            }
+*/
+            
+            
+            
+            
             
             
             entityManager.getPhysicsManager().updateEntitiesFromCollisionShapes(deltaTime, entityManager.getEntitiesList());
@@ -932,7 +1039,7 @@ public class Main {
             // Render everything
             masterRenderer.render(entityManager.getEntitiesList(), lights, camera, shadowTextureID, outsideAmbience);
 
-
+            
          // Assuming you have projection, view, and model matrices available.
           
             //terrainRenderer.renderAdaptiveTerrain(adaptiveGen, masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), terrainModelMatrix, camera.getPosition(), lights);
@@ -1103,117 +1210,19 @@ public class Main {
             
           
 
-            if (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS) {
-                //System.out.println("Shoot!");
-                HitResult hit = PhysicsManager.shoot(camera, entityManager.getPhysicsManager(), 10000);
-
-                if (hit.hit) {
-
-                    Vector3f n = new Vector3f(hit.hitNormal).normalize();
-
-                    Vector3f forward = new Vector3f(0, 0, 1);
-
-               
-                    if (Math.abs(n.y) > 0.999f) {
-                        forward.set(0, 0, n.y > 0 ? -1 : 1);
-                    }
-
-                
-                    Vector3f axis = forward.cross(n, new Vector3f());
-                    float axisLen = axis.length();
-
-                    float angle;
-                    if (axisLen < 1e-6f) {
-                        // Already aligned
-                        axis.set(0, 1, 0);
-                        angle = 0f;
-                    } else {
-                        axis.normalize();
-                        angle = (float) Math.acos(forward.dot(n));
-                    }
-
-                    // ---------------------------------
-                    // Convert axis-angle → Euler XYZ
-                    // ---------------------------------
-                    float s = (float) Math.sin(angle);
-                    float c = (float) Math.cos(angle);
-                    float t = 1f - c;
-
-                    float x = axis.x;
-                    float y = axis.y;
-                    float z = axis.z;
-
-                    // Rotation matrix from axis-angle
-                    float m00 = t*x*x + c;
-                    float m01 = t*x*y - s*z;
-                    float m02 = t*x*z + s*y;
-
-                    float m10 = t*x*y + s*z;
-                    float m11 = t*y*y + c;
-                    float m12 = t*y*z - s*x;
-
-                    float m20 = t*x*z - s*y;
-                    float m21 = t*y*z + s*x;
-                    float m22 = t*z*z + c;
-
-                    // Extract Euler XYZ (matches rotateXYZ)
-                    float rotX = (float) Math.atan2(m21, m22);
-                    float rotY = (float) Math.atan2(-m20, Math.sqrt(m21*m21 + m22*m22));
-                    float rotZ = (float) Math.atan2(m10, m00);
-
-                    Vector3f rotation = new Vector3f(rotX, rotY, rotZ);
-
-              
-                    Vector3f size = new Vector3f(
-                        1.15f,   // width
-                        1.15f,   // height
-                        0.025f  // thickness
-                    );
-
-
-                    Vector3f position = new Vector3f(hit.hitPoint)
-                            .fma(0.01f, n);
-
-                    
-                    Vector3f cameraForward = new Vector3f(0, 0, -1);
-                    cameraForward.rotateY((float)Math.toRadians(camera.getYaw()));
-                    cameraForward.rotateX((float)Math.toRadians(camera.getPitch()));
-                    cameraForward.normalize();
-                    hit.createSmokePuff(hit.hitPoint, hit.hitNormal, cameraForward, smokeTexture);
-              
-                    decalManager.add(
-                        new Decal(
-                            position,
-                            rotation,
-                            size,
-                            TextureLoader.loadTexture("bullet_hole.png"),
-                            TextureLoader.loadTexture("container_rust_nor_2k.png"),
-                            Decal.DecalType.BULLET
-                        )
-                    );
-                    ///debugRenderer.addCollisionMesh( hit.hitBody, new Vector3f(1,0,0));
-                    for (Target tar : targets) {
-                    	if (tar.getEntity().getCollisionBody() == hit.hitBody) {
-                    		tar.putDown();
-                    	}
-                    }
-                }
-            }
-
-            
            
             
             //int c = Equations.combineTexturesFixed(3, 4, width, height);
             //System.out.print(c);
             
             //Render Texture
-            glClear(GL_DEPTH_BUFFER_BIT);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+         
+            TextRendererMaster.renderAllText(textRenderer);
+
             
             textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
           
-            
+
             
             
             if (!EngineSettings.grabMouse) {
@@ -1222,8 +1231,10 @@ public class Main {
             	
             }
             
-           	
+
             guiManager.update(textureRenderer, textRenderer, entityManager, window, deltaTime);
+            
+            
             
             EngineSettings.updateSettings(window);
             if (MAX_FPS > 0) {

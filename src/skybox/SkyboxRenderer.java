@@ -172,7 +172,7 @@ public class SkyboxRenderer {
         
         
         
-        shader.setUniform1f("skyboxTextureBrightness", ambience * (skyboxTextureBrightness * 0.4f));
+        shader.setUniform1f("skyboxTextureBrightness", ambience * (skyboxTextureBrightness * 0.35f));
 
 
         if (hasSkybox) {

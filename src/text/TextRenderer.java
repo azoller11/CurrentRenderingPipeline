@@ -33,6 +33,8 @@ public class TextRenderer {
 
     private float screenWidth;
     private float screenHeight;
+    
+    
 
     // Core colors
     private final Vector4f textColor = new Vector4f(1, 1, 1, 1);
