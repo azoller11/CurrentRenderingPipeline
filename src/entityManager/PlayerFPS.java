@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.glfw.GLFW;
 
 import animatedModel.AnimationScript;
@@ -37,7 +38,7 @@ public class PlayerFPS {
 	private float currentAimHeight = -10f;
 	private float targetAimHeight  = -10f;
 	
-	private int ammo = 100;
+	private int ammo = 999;
 	private int loadedAmmo = 4;
 	private int maxLoaded = 4;
 	
@@ -129,9 +130,20 @@ public class PlayerFPS {
           
           hits.addAll(updatePlayerInput(window, deltaTime, camera, physicsManager));
           
-          textRenderer.setTextColor(0.5f, 1.0f, 0.5f, 1.0f);
-          
+          textRenderer.setTextColor(1.15f, 1.15f, 2.65f, 1.0f);
+          textRenderer.setGlow(true,0.4f, 0.20f,
+  				1.5f, 0.5f, 0.5f, 
+  				0.8f);
+  		
   			TextRendererMaster.renderText(loadedAmmo + "/" + ammo,  0.85f, 0.05f, 0.5f,  1000, TextAlignment.LEFT);
+  			
+  			if (loadedAmmo == 0) {
+  		      textRenderer.setTextColor(2.5f, 0.5f, 0.5f, 1.0f);
+  	          textRenderer.setGlow(true,0.4f, 0.20f,
+  	  				1.5f, 0.5f, 0.5f, 
+  	  				0.8f);
+  	  			TextRendererMaster.renderText("RELOAD",  0.45f, 0.55f, 0.25f,  1000, TextAlignment.LEFT);
+  			}
           
           return hits;
 	}

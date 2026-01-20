@@ -228,6 +228,30 @@ public class TexturedModels {
         rootsPlane.setCastShadows(true);
         texturedModels.put("roots_plane", rootsPlane);
         
+      //Clay Pigeon
+        TexturedModel clayPigeon = new TexturedModel();
+        clayPigeon.setMesh(ObjLoader.loadObj("clayPigeon"));
+        clayPigeon.setTextureId(TextureLoader.loadTexture("orange.png"));
+        clayPigeon.setNormalMapId(TextureLoader.loadTexture("concrete_nor_2k.png"));
+        clayPigeon.setHeighMapId(TextureLoader.loadTexture("concrete_disp_2k.png"));
+        clayPigeon.setMetallicMap(TextureLoader.loadTexture("concrete_rough_2k.png"));
+        clayPigeon.setRoughnessMap(TextureLoader.loadTexture("concrete_rough_2k.png"));
+        clayPigeon.setAoMap(TextureLoader.loadTexture("concrete_ao_2k.png"));
+        clayPigeon.setCastShadows(true);
+        texturedModels.put("clay_pigeon", clayPigeon);
+        
+        //SkeetHouse
+        TexturedModel skeetHouse = new TexturedModel();
+        skeetHouse.setMesh(ObjLoader.loadObj("skeetHouse"));
+        skeetHouse.setTextureId(TextureLoader.loadTexture("building_diff_2k.png"));
+        skeetHouse.setNormalMapId(TextureLoader.loadTexture("building_nor_2k.png"));
+        skeetHouse.setHeighMapId(TextureLoader.loadTexture("concrete3_disp_2k.png"));
+        skeetHouse.setMetallicMap(TextureLoader.loadTexture("building_rough_2k.png"));
+        skeetHouse.setRoughnessMap(TextureLoader.loadTexture("building_rough_2k.png"));
+        skeetHouse.setAoMap(TextureLoader.loadTexture("building_ao_2k.png"));
+        skeetHouse.setCastShadows(true);
+        texturedModels.put("skeet_house", skeetHouse);
+        
         
         //Bush
         TexturedModel bush1 = new TexturedModel();

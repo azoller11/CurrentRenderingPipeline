@@ -24,6 +24,18 @@ public class ParticleMaster {
 		renderer = new ParticleRenderer(projectionMatrix);
 	}
 	
+	public static Particle createParticle(int textureId, Vector3f position, Vector3f velocity,
+	        float gravityEffect, float lifeLength, float rotation, float scale) {
+			Particle particle = new Particle(); // particlePool.getParticle();
+			if (particle == null) {
+				particle = new Particle();
+			}
+			ParticleTexture pt = new ParticleTexture(textureId, 1, false);
+			particle.setActive(pt, position, velocity, gravityEffect, lifeLength, rotation, scale);
+			addParticle(particle);
+			return particle;
+			}
+	
 	public static Particle createParticle(ParticleTexture texture, Vector3f position, Vector3f velocity,
         float gravityEffect, float lifeLength, float rotation, float scale) {
 		Particle particle = new Particle(); // particlePool.getParticle();

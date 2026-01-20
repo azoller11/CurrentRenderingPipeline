@@ -56,6 +56,7 @@ import text.Font;
 import toolbox.Equations;
 import toolbox.Mesh;
 import toolbox.MousePicker;
+import weapons.SkeetShooter;
 import weapons.SmokeGrenade;
 import weapons.Target;
 
@@ -84,8 +85,8 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Main {
 
     private long window;
-    private final int width = 800 * 1;
-    private final int height = 500 * 1;
+    private final int width = 800 * 2;
+    private final int height = 500 * 2;
     
     private int frames = 0;
     private double timeCounter = 0.0;
@@ -120,6 +121,8 @@ public class Main {
     
     private FogVolumeRenderer fogRenderer;
     private List<FogVolume> volumes;
+    
+    private SkeetShooter skeetShooter;
     
     
     //ENTITIES
@@ -431,7 +434,15 @@ public class Main {
         entityManager.addEntity(cube12, EntityManager.CollisionType.STATIC_ACCURATE, 0);
         
         
-     
+        Entity cube14 = new Entity(entityManager.getTexturedModel("skeet_house"), new Vector3f(394.9f, 74.55f, 2525.0f), new Vector3f(0,0,0), 1f);
+
+        entityManager.addEntity(cube14, EntityManager.CollisionType.STATIC_ACCURATE, 1f);
+        
+        
+        skeetShooter = new SkeetShooter(new Vector3f(460.9f, 237.55f, 2525.0f), new Vector3f(5, 5, 0), 0f);
+        
+        
+        
         
         targets = new ArrayList<Target>();
         for (int i = 0; i < 5; i++) {
@@ -965,6 +976,11 @@ public class Main {
                     		tar.putDown();
                     	}
                     }
+                    
+                    if (skeetShooter.checkHit(hit.hitBody, entityManager)) {
+                    	
+                    }
+                    
                 }
             }
             
@@ -1120,6 +1136,7 @@ public class Main {
             ParticleMaster.renderParticles(camera);
             
             
+            //volumes
             //fogRenderer.render(volumes, camera, masterRenderer.getProjectionMatrix(), bloomRenderer.getSceneDepthTexture(), lights, deltaTime);
 
             
@@ -1222,7 +1239,13 @@ public class Main {
             
             textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
           
-
+            skeetShooter.update(entityManager, player, deltaTime, window);
+            
+            for (Entity e :entityManager.getEntities().values()) {
+            	if (e.getTexturedModel() == entityManager.getTexturedModel("clay_pigeon")) {
+            		//debugRenderer.addCollisionMesh( e.getCollisionBody(), new Vector3f(1,0,0));
+            	}
+            }
             
             
             if (!EngineSettings.grabMouse) {
