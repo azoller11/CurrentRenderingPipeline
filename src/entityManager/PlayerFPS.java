@@ -39,8 +39,8 @@ public class PlayerFPS {
 	private float targetAimHeight  = -10f;
 	
 	private int ammo = 999;
-	private int loadedAmmo = 4;
-	private int maxLoaded = 4;
+	private int loadedAmmo = 6;
+	private int maxLoaded = 6;
 	
 	private int bulletsPerFire = 10; // Shotgun, 1 for a rifle for example
 	private float bulleDistance = 10000f;
@@ -63,7 +63,7 @@ public class PlayerFPS {
 	public PlayerFPS(EntityManager entityManager) {
 		FPSAnimation = new Entity(entityManager.getTexturedModel("FPSAnimation"), new Vector3f(500, 0, 0), new Vector3f(0,90,0), 0.25f);
         FPSAnimation = entityManager.addEntity(FPSAnimation, EntityManager.CollisionType.NONE, 3);
-        
+        FPSAnimation.setSaveToScene(false);
         shootScript =
         	    new AnimationScript(FPSAnimation)
         	        .play(0, false); // Fire

@@ -19,6 +19,7 @@ import javax.vecmath.Quat4f;
 import entities.Camera;
 import entities.Entity;
 import entities.Light;
+import physics.HitResult;
 import physics.PhysicsManager;
 import settings.EngineSettings;
 import terrain.Terrain;
@@ -98,7 +99,6 @@ public class MousePicker {
 
     // Settings for interaction.
     private float pickRadius = 5.0f;         // How close the ray must be to pick a light.
-    private boolean useCameraPlane = true;     // Dragging on a camera-facing plane.
 
     // Rotation settings.
     private float rotationSpeed = 0.2f;      // Degrees per pixel movement.
@@ -138,7 +138,18 @@ public class MousePicker {
         this.entities = entities;
         this.lights = lights;
     }
-    
+
+    /**
+     * Refreshes the entity list the picker raycasts/selects against.
+     * Needed after entities are added/removed outside of picker construction
+     * (e.g. after loading a scene), since getEntitiesList() returns a
+     * point-in-time copy rather than a live view.
+     */
+    public void setEntities(List<Entity> entities) {
+        this.entities = entities;
+    }
+
+
     /**
      * Public getter for the current translation drag constraint.
      */
@@ -182,7 +193,10 @@ public class MousePicker {
         
         float debugLength = 10.0f;
         if (EngineSettings.SelectedEntity != null) {
-            float objectRadius = EngineSettings.SelectedEntity.getTexturedModel().getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
+            float objectRadius = 10;
+            if (EngineSettings.SelectedEntity.getTexturedModel().getMesh() != null) {
+            	objectRadius = EngineSettings.SelectedEntity.getTexturedModel().getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
+            }
             debugLength = 200.0f * objectRadius;
         }
         
@@ -241,7 +255,10 @@ public class MousePicker {
         
         float debugRadius = 10.0f;
         if (EngineSettings.SelectedEntity != null) {
-            float objectRadius = EngineSettings.SelectedEntity.getTexturedModel().getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
+            float objectRadius = 10;
+            if (EngineSettings.SelectedEntity.getTexturedModel().getMesh() != null) {
+            	objectRadius = EngineSettings.SelectedEntity.getTexturedModel().getMesh().getFurthestPoint() * EngineSettings.SelectedEntity.getScale();
+            }
             debugRadius = 1.0f * objectRadius;
         }
         
@@ -265,24 +282,25 @@ public class MousePicker {
     /**
      * Call this each frame.
      * Handles picking, dragging (translation), rotation, and undo/redo based on mouse and keyboard input.
-     * @param terrain 
+     * @param terrain
      */
-    public void update(long window, PhysicsManager physics, Terrain terrain) {
+    public void update(long window, PhysicsManager physics, Terrain terrain, float deltaTime) {
         handleUndoRedo(window);
+        handleScaleKeys(window, deltaTime);
 
         boolean leftPressed = (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS);
         boolean rightPressed = (GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS);
 
         boolean gHeld = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_G) == GLFW.GLFW_PRESS;
-        gridSnapActive = gHeld; 
-        
+        gridSnapActive = gHeld;
+
         boolean tHeld = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_T) == GLFW.GLFW_PRESS;
         terrainSnapActive = tHeld;
-        
+
         double[] mouseX = new double[1];
         double[] mouseY = new double[1];
         GLFW.glfwGetCursorPos(window, mouseX, mouseY);
-        updateMouseWorldPosition(mouseX[0], mouseY[0]);
+        updateWorldPosition(window);
 
         MouseButton currentButton = MouseButton.NONE;
         if (leftPressed && !rightPressed) {
@@ -306,6 +324,12 @@ public class MousePicker {
                     RigidBody body = physics.getBodyForEntity(EngineSettings.SelectedEntity);
                     if (body != null) {
                         physics.setBodyKinematic(body);
+                        // Re-push the entity's actual current rotation onto the body right
+                        // away. Otherwise, whatever rotation happens to already be stored on
+                        // the body (possibly stale/never-synced) gets read back into the
+                        // entity on the next physics sync, which looks like the rotation
+                        // "reverting" the moment an object is selected.
+                        syncBodyRotationFromEntity(EngineSettings.SelectedEntity, body);
                     }
                 } else if (EngineSettings.SelectedLight != null) {
                     undoStack.push(new TransformState(
@@ -324,11 +348,15 @@ public class MousePicker {
                         ? EngineSettings.SelectedEntity.getPosition()
                         : EngineSettings.SelectedLight.getPosition()
                 );
-             // Lock drag plane at drag start for stable interaction
-                if (currentDragConstraint == DragConstraint.FREE && useCameraPlane) {
-                    Matrix4f viewMatrix = camera.getViewMatrix();
-                    dragPlaneNormal = new Vector3f(-viewMatrix.m20(), -viewMatrix.m21(), -viewMatrix.m22()).normalize();
-                    dragPlaneD = dragPlaneNormal.dot(dragStartPos);
+             // Lock drag plane at drag start for stable interaction.
+                // Always horizontal (world up), not camera-facing: a camera-facing plane
+                // tilts with the camera's pitch, so free-dragging felt "slanted" whenever
+                // the camera wasn't level. A horizontal plane at the object's current
+                // height keeps free-drag movement flat along the ground no matter how
+                // the camera is angled.
+                if (currentDragConstraint == DragConstraint.FREE) {
+                    dragPlaneNormal = new Vector3f(0, 1, 0);
+                    dragPlaneD = dragStartPos.y;
                 } else {
                     dragPlaneNormal = null;
                 }
@@ -444,7 +472,35 @@ public class MousePicker {
             redoKeyWasDown = false;
         }
     }
-    
+
+    private static final float SCALE_SPEED = 1.0f;  // units/sec at full hold
+    private static final float MIN_SCALE = 0.05f;
+
+    /**
+     * While an entity is selected, "=" (i.e. "+") grows it and "-" shrinks it, held for
+     * continuous scaling. Keeps the physics collision shape's scale in sync too, since
+     * it's otherwise only set once when the entity is first given a collision body.
+     */
+    private void handleScaleKeys(long window, float deltaTime) {
+        Entity selected = EngineSettings.SelectedEntity;
+        if (selected == null) return;
+
+        boolean growing = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_EQUAL) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_KP_ADD) == GLFW.GLFW_PRESS;
+        boolean shrinking = GLFW.glfwGetKey(window, GLFW.GLFW_KEY_MINUS) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_KP_SUBTRACT) == GLFW.GLFW_PRESS;
+        if (growing == shrinking) return; // neither or both held - no change
+
+        float newScale = selected.getScale() + (growing ? 1 : -1) * SCALE_SPEED * deltaTime;
+        newScale = Math.max(MIN_SCALE, newScale);
+        selected.setScale(newScale);
+
+        RigidBody body = selected.getCollisionBody();
+        if (body != null && body.getCollisionShape() != null) {
+            body.getCollisionShape().setLocalScaling(new javax.vecmath.Vector3f(newScale, newScale, newScale));
+        }
+    }
+
     /**
      * Casts a ray into the scene to pick the closest Entity or Light based on the mouse position.
      */
@@ -457,7 +513,7 @@ public class MousePicker {
             for (Entity e : entities) {
                 Vector3f center = e.getPosition();
                 float effectiveScale = e.getScale();
-                float radius = e.getTexturedModel().getMesh().getFurthestPoint() * effectiveScale;
+                float radius = e.getTexturedModel().getMesh() != null ? e.getTexturedModel().getMesh().getFurthestPoint() * effectiveScale : 10;
                 float dist = distanceRayToPoint(ray, center);
                 if (dist < radius && dist < closestDist) {
                     closestDist = dist;
@@ -595,36 +651,46 @@ public class MousePicker {
             Entity selected = EngineSettings.SelectedEntity;
             Vector3f currentRotation = new Vector3f(selected.getRotation());
 
+            // rotationSpeed is authored as degrees-per-pixel; Entity.rotation is radians
+            // (see Entity.getModelMatrix() / PhysicsManager.updateEntitiesFromCollisionShapes),
+            // so convert the increment before applying it.
+            float rotSpeedRad = (float) Math.toRadians(rotationSpeed);
+
             // Determine rotation axis and apply
             Vector3f rotationChange = new Vector3f();
 
             if (rotLockCount == 1) {
                 if (lockRotX) {
                     currentRotationConstraint = RotationConstraint.LOCK_X;
-                    rotationChange.x = deltaY * rotationSpeed;
+                    rotationChange.x = deltaY * rotSpeedRad;
                 } else if (lockRotY) {
                     currentRotationConstraint = RotationConstraint.LOCK_Y;
-                    rotationChange.y = deltaX * rotationSpeed;
+                    rotationChange.y = deltaX * rotSpeedRad;
                 } else if (lockRotZ) {
                     currentRotationConstraint = RotationConstraint.LOCK_Z;
-                    rotationChange.z = deltaX * rotationSpeed;
+                    rotationChange.z = deltaX * rotSpeedRad;
                 }
             } else {
                 currentRotationConstraint = RotationConstraint.FREE;
-                rotationChange.x = deltaY * rotationSpeed;
-                rotationChange.y = deltaX * rotationSpeed;
+                rotationChange.x = deltaY * rotSpeedRad;
+                rotationChange.y = deltaX * rotSpeedRad;
             }
 
-            // Apply rotation and clamp pitch (X axis)
+            // Apply rotation and clamp pitch (X axis) to [-89.9, 89.9] degrees, in radians
             currentRotation.add(rotationChange);
-            currentRotation.x = Math.clamp(currentRotation.x, -89.9f, 89.9f);
+            currentRotation.x = Math.clamp(currentRotation.x,
+                    (float) Math.toRadians(-89.9), (float) Math.toRadians(89.9));
             selected.setRotation(currentRotation);
 
             // Apply to physics body
             RigidBody body = physics.getBodyForEntity(selected);
             if (body != null) {
-                // Convert Euler to Quaternion
-                Quat4f quat = Equations.eulerToQuat(currentRotation);
+                // Build the quaternion directly - currentRotation is already radians here,
+                // whereas Equations.eulerToQuat assumes degrees (used elsewhere with degree
+                // inputs), so it can't be reused for this conversion.
+                org.joml.Quaternionf jomlQuat = new org.joml.Quaternionf()
+                        .rotateXYZ(currentRotation.x, currentRotation.y, currentRotation.z);
+                Quat4f quat = new Quat4f(jomlQuat.x, jomlQuat.y, jomlQuat.z, jomlQuat.w);
 
                 Transform transform = new Transform();
                 body.getWorldTransform(transform);
@@ -659,7 +725,47 @@ public class MousePicker {
         }
     }
 
-    
+    /**
+     * Pushes an entity's current (radians) rotation onto its physics body's
+     * transform. Called right when an object is selected, so the body never
+     * holds a stale rotation that the next physics sync would read back into
+     * the entity.
+     */
+    private void syncBodyRotationFromEntity(Entity entity, RigidBody body) {
+        org.joml.Quaternionf jomlQuat = new org.joml.Quaternionf()
+                .rotateXYZ(entity.getRotation().x, entity.getRotation().y, entity.getRotation().z);
+        Quat4f quat = new Quat4f(jomlQuat.x, jomlQuat.y, jomlQuat.z, jomlQuat.w);
+
+        Transform transform = new Transform();
+        body.getWorldTransform(transform);
+        transform.setRotation(quat);
+
+        body.setWorldTransform(transform);
+        if (body.getMotionState() != null) {
+            body.getMotionState().setWorldTransform(transform);
+        }
+    }
+
+    /**
+     * Re-pushes the selected entity's rotation onto its physics body. Must be called
+     * every frame regardless of whether update() itself runs, because Main.loop() only
+     * calls update() when !overTexture && !grabMouse && MouseItemPicker - e.g. it stops
+     * while a debug/GUI panel has mouse focus - but
+     * PhysicsManager.updateEntitiesFromCollisionShapes() reads the body's rotation back
+     * into the entity unconditionally, every frame, regardless of that gate. Skipping
+     * this call for even one frame lets that read-back overwrite the entity's rotation
+     * with whatever the body actually has stored, which is exactly what caused rotation
+     * to appear to "snap" the moment a debug panel opened and stole the picker's turn.
+     */
+    public void pinSelectedEntityRotation(PhysicsManager physics) {
+        if (EngineSettings.SelectedEntity == null) return;
+        RigidBody body = physics.getBodyForEntity(EngineSettings.SelectedEntity);
+        if (body != null) {
+            syncBodyRotationFromEntity(EngineSettings.SelectedEntity, body);
+        }
+    }
+
+
     // -----------------------------------------------------------------------
     // Ray and Intersection Helpers
     // -----------------------------------------------------------------------
@@ -701,21 +807,13 @@ public class MousePicker {
             return intersectRayPlane(ray, dragPlaneNormal, dragPlaneD);
         }
 
-        // Fallback if plane wasn't locked correctly
-        Vector3f fallbackPlaneNormal;
-        float fallbackPlaneD;
-        
-        if (useCameraPlane) {
-            Matrix4f viewMatrix = camera.getViewMatrix();
-            fallbackPlaneNormal = new Vector3f(-viewMatrix.m20(), -viewMatrix.m21(), -viewMatrix.m22()).normalize();
-            Vector3f position = (EngineSettings.SelectedEntity != null)
-                ? EngineSettings.SelectedEntity.getPosition()
-                : (EngineSettings.SelectedLight != null) ? EngineSettings.SelectedLight.getPosition() : new Vector3f();
-            fallbackPlaneD = fallbackPlaneNormal.dot(position);
-        } else {
-            fallbackPlaneNormal = new Vector3f(0, 1, 0); // Horizontal plane
-            fallbackPlaneD = 0.0f;
-        }
+        // Fallback if plane wasn't locked correctly: horizontal plane at the
+        // selected object's current height (see the drag-start comment above).
+        Vector3f position = (EngineSettings.SelectedEntity != null)
+            ? EngineSettings.SelectedEntity.getPosition()
+            : (EngineSettings.SelectedLight != null) ? EngineSettings.SelectedLight.getPosition() : new Vector3f();
+        Vector3f fallbackPlaneNormal = new Vector3f(0, 1, 0);
+        float fallbackPlaneD = position.y;
 
         return intersectRayPlane(ray, fallbackPlaneNormal, fallbackPlaneD);
     }
@@ -799,8 +897,36 @@ public class MousePicker {
     	}
     }
 
+    /**
+     * Refreshes getWorldPosX()/getWorldPosZ() from the current cursor position. Must be
+     * called every frame independent of update(), since update() itself is skipped
+     * while other tools (GUI panels, entity placement) have mouse focus - callers of
+     * getWorldPosX()/Z() while update() is skipped would otherwise see a stale position.
+     */
+    public void updateWorldPosition(long window) {
+        double[] mouseX = new double[1];
+        double[] mouseY = new double[1];
+        GLFW.glfwGetCursorPos(window, mouseX, mouseY);
+        updateMouseWorldPosition(mouseX[0], mouseY[0]);
+    }
+
     public float getWorldPosX() { return worldPosX; }
     public float getWorldPosZ() { return worldPosZ; }
+
+    /**
+     * Casts the mouse ray against the physics world (terrain, entities - whatever's
+     * actually there, not just terrain) and returns where it hits. hit.hit is false
+     * if nothing was within maxDistance.
+     */
+    public HitResult raycastMouseAgainstWorld(long window, PhysicsManager physics, float maxDistance) {
+        double[] mouseX = new double[1];
+        double[] mouseY = new double[1];
+        GLFW.glfwGetCursorPos(window, mouseX, mouseY);
+        Ray ray = calculateMouseRay(mouseX[0], mouseY[0]);
+
+        Vector3f to = new Vector3f(ray.origin).fma(maxDistance, ray.direction);
+        return physics.rayCastWithDetails(ray.origin, to, maxDistance);
+    }
 
 	public boolean isDragging() {
 		return isDragging;

@@ -84,7 +84,10 @@ public class EntityManager {
 		if (collisionType.equals(CollisionType.ADD_BODY)) {
 			entityRigidBodyMap.put(newEntity, this.physicsManager.addRigidBody(newEntity));
 		}
-			
+
+		newEntity.setCollisionType(collisionType.name());
+		newEntity.setMass(mass);
+
 		entities.put(newEntity.getId(), newEntity);
 		if (entities.containsKey(newEntity.getId())) {
 			//System.out.println("Successfully Created Entity: " + newEntity.getId());
@@ -149,7 +152,9 @@ public class EntityManager {
 				EngineSettings.OpenEntity = null;
 			}
 			//Remove collision detection first
-			this.physicsManager.dynamicsWorld.removeRigidBody(e.getCollisionBody());
+			if (e.getCollisionBody() != null) {
+				this.physicsManager.dynamicsWorld.removeRigidBody(e.getCollisionBody());
+			}
 			entities.remove(Id);
 			
 			if (!entities.containsKey(Id)) {
@@ -273,6 +278,27 @@ public class EntityManager {
 			return this.texturedModels.get(name);
 		}
 		return new TexturedModel();
+	}
+
+	public boolean hasTexturedModel(String name) {
+		return this.texturedModels.containsKey(name);
+	}
+
+	public List<String> getTexturedModelNames() {
+		return new ArrayList<>(this.texturedModels.keySet());
+	}
+
+	/**
+	 * Reverse lookup of the registry name a TexturedModel was loaded under,
+	 * used when serializing an Entity out to a scene file.
+	 */
+	public String getTexturedModelName(TexturedModel model) {
+		for (Map.Entry<String, TexturedModel> entry : this.texturedModels.entrySet()) {
+			if (entry.getValue() == model) {
+				return entry.getKey();
+			}
+		}
+		return null;
 	}
 	
 	

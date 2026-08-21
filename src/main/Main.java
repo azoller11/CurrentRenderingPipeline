@@ -32,6 +32,7 @@ import loaders.ObjLoader;
 import loaders.SceneLoader;
 import loaders.SceneLoader2;
 import loaders.TextureLoader;
+import scene.SceneManager;
 import physics.HitResult;
 import physics.PhysicsManager;
 import postProcessing.BloomRenderer;
@@ -85,17 +86,67 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Main {
 
     private long window;
-    private final int width = 800 * 2;
-    private final int height = 500 * 2;
+    private final int width = 800 * 1;
+    private final int height = 500 * 1;
     
     private int frames = 0;
     private double timeCounter = 0.0;
     public static int currentFPS = 0; // optional: store current FPS
-    public static int MAX_FPS = 70;   // set to -1 for uncapped
-    
-    
+    public static int MAX_FPS = 150;   // set to -1 for uncapped
 
-    
+    // --- Per-section timing (debug) ---
+    private final java.util.LinkedHashMap<String, Long> sectionNanos = new java.util.LinkedHashMap<>();
+    private long sectionT0;
+    private final List<String> debugTextLines = new ArrayList<>();
+
+    private void tStart() {
+        sectionT0 = System.nanoTime();
+    }
+
+    private void tEnd(String label) {
+        long dt = System.nanoTime() - sectionT0;
+        sectionNanos.merge(label, dt, Long::sum);
+    }
+
+    private void printSectionTimings() {
+        //System.out.println("==== FPS: " + currentFPS + " ====");
+        long totalNanos = 0;
+        for (long v : sectionNanos.values()) totalNanos += v;
+        int sampledFrames = Math.max(1, currentFPS);
+
+        debugTextLines.clear();
+        debugTextLines.add("FPS: " + currentFPS);
+
+        for (java.util.Map.Entry<String, Long> e : sectionNanos.entrySet()) {
+            double totalMs = e.getValue() / 1_000_000.0;
+            double avgMsPerFrame = totalMs / sampledFrames;
+           // System.out.printf("  %-14s %6.2f ms/frame  (%.1f ms/sec)%n", e.getKey(), avgMsPerFrame, totalMs);
+            debugTextLines.add(String.format("%-14s %6.2f ms", e.getKey(), avgMsPerFrame));
+        }
+
+        double totalAvgMs = (totalNanos / 1_000_000.0) / sampledFrames;
+        //System.out.printf("  %-14s %6.2f ms/frame  (%.1f ms/sec)%n", "TOTAL", totalAvgMs, totalNanos / 1_000_000.0);
+        debugTextLines.add(String.format("%-14s %6.2f ms", "TOTAL", totalAvgMs));
+
+        sectionNanos.clear();
+    }
+
+    // Queues the last computed section timings via the in-game TextRenderer. Toggle with F3.
+    private void renderDebugTextOverlay() {
+        if (!EngineSettings.PerformanceDebug) return;
+
+        float y = 0.8f;
+        float lineStep = 0.032f;
+        for (String line : debugTextLines) {
+            TextRendererMaster.renderText(line, 0.02f, y, 0.25f, 1000, TextAlignment.LEFT);
+            y -= lineStep;
+        }
+    }
+
+
+
+
+
     float outsideAmbience = 0;
 
     public Random random = new Random(2342342);
@@ -171,6 +222,11 @@ public class Main {
     
     //Mouse Picker
     private MousePicker picker;
+
+    // Scene save/load
+    private static final String CURRENT_SCENE = "testScene";
+    private boolean saveSceneKeyWasDown = false;
+    private boolean loadSceneKeyWasDown = false;
 
     // Timing
     private double lastTime;
@@ -263,8 +319,16 @@ public class Main {
         	    TextureLoader.loadExplicitTexture("sLeft.png")    // -Z
         	});
         skyboxRenderer.setSkyboxBlend(1.0f);
-        
-        
+
+        // Single consolidated scroll callback - GLFW only supports one per window, so
+        // every scroll-driven tool (time-of-day, terrain brush size, entity-type
+        // cycling) is dispatched from here instead of each registering its own
+        // (which would silently clobber the others).
+        glfwSetScrollCallback(window, (win, xOffset, yOffset) -> {
+            skyboxRenderer.handleScroll(yOffset);
+            guiManager.handleScroll(yOffset);
+        });
+
         postRenderer = new PostProcessingRenderer(width, height, 1);
         
         bloomRenderer = new BloomRenderer(width, height);
@@ -275,9 +339,10 @@ public class Main {
         
         terrainRenderer = new TerrainRenderer();
         
-        float terrainSize = 3000;
-        float terrainTileScale = 35;
-        float terrainHeight = 180;
+        float terrainScale = 3.0f;
+        float terrainSize = (7000 / 2) * terrainScale;
+        float terrainTileScale = (35 ) * terrainScale;
+        float terrainHeight = (180) * terrainScale;
         
         
         terrain = new Terrain(
@@ -329,7 +394,7 @@ public class Main {
         
         
      // Initialize the ShadowMapRenderer
-        int shadowMapSize = 2048 * 4 * 4;
+        int shadowMapSize = 4096 * 2;
         shadowRenderer = new ShadowRenderer(shadowMapSize, shadowMapSize);
        
         
@@ -348,7 +413,7 @@ public class Main {
         
      
         
-        entityManager.getPhysicsManager().addTerrainAccurateCollision(terrain);
+        terrainEditor.setTerrainCollisionBody(entityManager.getPhysicsManager().addTerrainAccurateCollision(terrain));
         
 
         decalManager = new DecalManager();
@@ -380,7 +445,13 @@ public class Main {
         fogRenderer = new FogVolumeRenderer(width, height);
         volumes = new ArrayList<FogVolume>();
         float fogScale = terrain.getSize();
-        Matrix4f m = new Matrix4f().translation(terrain.getX() + (fogScale/2),-500,terrain.getZ()+ (fogScale/2)).scale(fogScale);
+        float fogMarginXZ = 1.5f; // how far past the terrain edges the fog extends
+        float fogHeightScale = 0.03f; // shrinks the fog vertically relative to fogScale
+        float fogCenterX = terrain.getX() + fogScale / 2f;
+        float fogCenterZ = terrain.getZ() + fogScale / 2f;
+        float fogCenterY = terrain.getMaxHeight() / 2f;
+        Matrix4f m = new Matrix4f().translation(fogCenterX, fogCenterY, fogCenterZ)
+                .scale(fogScale * fogMarginXZ, fogScale * fogHeightScale, fogScale * fogMarginXZ);
         FogVolume vol = new FogVolume(m, fogScale, TextureLoader.loadExplicitTexture("heightmap perlin.png")); // must match
 
      // STRONG first-pass values
@@ -391,7 +462,7 @@ public class Main {
      float cloudLight = 0.75f;
      vol.getFogColor().set(0.245f * cloudLight, 0.173f * cloudLight, 0.104f * cloudLight, 1f);
 
-        volumes.add(vol);
+        //volumes.add(vol);
      
      //smokeGrenade = new SmokeGrenade( new org.lwjgl.util.vector.Vector3f(600,100,600), new org.lwjgl.util.vector.Vector3f(1,1,1));
      smokeGrenades = new ArrayList<SmokeGrenade>();
@@ -408,6 +479,14 @@ public class Main {
         Entity cube7 = new Entity(entityManager.getTexturedModel("rock_plane"), new Vector3f(15, 25, 15), new Vector3f(0,0,0), 10f);
 
         entityManager.addEntity(cube7, EntityManager.CollisionType.STATIC_ACCURATE, 0);
+        
+        
+        Entity cube12 = new Entity(entityManager.getTexturedModel("tank2"), new Vector3f(-205, 25, -105), new Vector3f(0,0,0), 1f);
+
+        entityManager.addEntity(cube12, EntityManager.CollisionType.STATIC_ACCURATE, 0);
+        
+        
+        /*
         
         Entity cube8 = new Entity(entityManager.getTexturedModel("container"), new Vector3f(1291, 103, 775), new Vector3f(0,0,0), 1f);
 
@@ -441,8 +520,9 @@ public class Main {
         
         skeetShooter = new SkeetShooter(new Vector3f(460.9f, 237.55f, 2525.0f), new Vector3f(5, 5, 0), 0f);
         
+       */
         
-        
+        /*
         
         targets = new ArrayList<Target>();
         for (int i = 0; i < 5; i++) {
@@ -455,7 +535,7 @@ public class Main {
                Target t = new Target(cube13, true);
                targets.add(t);
         }
-        
+        */
         
         for (int i = 0; i < 3; i++) {
         	 Entity tubeMan = new Entity(entityManager.getTexturedModel("tubeDude"), new Vector3f(0, 45 + (80 * i), 0), new Vector3f(0,0,0), 20f);
@@ -538,11 +618,11 @@ public class Main {
         
         
         //Tree
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 600; i++) {
         	float x = random.nextFloat(terrain.getSize()) + terrain.getX();
         	float z = random.nextFloat(terrain.getSize()) + terrain.getZ();
         	float y = terrain.getHeightOfTerrain(x, z);
-        	float size = random.nextFloat(6) + 1;
+        	float size = random.nextFloat(6) + 3;
         	float rotY = random.nextInt(360);
         	
         	int treeNum = random.nextInt(15);
@@ -672,7 +752,10 @@ public class Main {
            
 
             
-        }
+        	}
+        
+        
+        
         
         //Grass
         for (int i = 0; i < 1400; i++) {
@@ -693,9 +776,10 @@ public class Main {
 
             
         }
+        
      
         //Boxes
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 13; i++) {
         	float x = random.nextFloat(terrain.getSize()) + terrain.getX();
         	float z = random.nextFloat(terrain.getSize()) + terrain.getZ();
         	float y = terrain.getHeightOfTerrain(x, z);;
@@ -816,6 +900,7 @@ public class Main {
                 currentFPS = frames;
                 frames = 0;
                 timeCounter -= 1.0;
+                printSectionTimings();
             }
             
            
@@ -838,23 +923,34 @@ public class Main {
             
             
             //Scene stuff
-            //READ
-            if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-            	//entities.clear();
-            	//lights.clear();
-            	//physicsManager = new PhysicsManager();
-            	//SceneLoader2.ReadScene("testScene.txt", physicsManager);
-            	//entities.addAll(SceneLoader2.entities);
-            	//lights.addAll(lights)
+            if (EngineSettings.pause) {
+                TextRendererMaster.renderText("F5 to Save Map", 0.72f, 0.1f, 0.25f, 1000, TextAlignment.LEFT);
+                TextRendererMaster.renderText("F9 to Reload Map", 0.72f, 0.05f, 0.25f, 1000, TextAlignment.LEFT);
+
             	
-            	
-    		}
-            
-            //Create
-            if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-            	//SceneLoader2.CreateScene("testScene.txt", entities, lights, entityManager.getPhysicsManager());
+                //SAVE (F5)
+            	 if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS) {
+                 	if (!saveSceneKeyWasDown) {
+                 		SceneManager.saveScene(CURRENT_SCENE, entityManager, lights);
+                 		saveSceneKeyWasDown = true;
+                 	}
+                 } else if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_RELEASE) {
+                 	saveSceneKeyWasDown = false;
+         		}
+
+                 //LOAD (F9)
+                 if (glfwGetKey(window, GLFW_KEY_F9) == GLFW_PRESS) {
+                 	if (!loadSceneKeyWasDown) {
+                 		scene.SceneLoader.loadScene(CURRENT_SCENE, entityManager, lights);
+                 		picker.setEntities(entityManager.getEntitiesList());
+                 		loadSceneKeyWasDown = true;
+                 	}
+                 } else if (glfwGetKey(window, GLFW_KEY_F9) == GLFW_RELEASE) {
+                 	loadSceneKeyWasDown = false;
+                 }
+                 
             }
-            
+           
             
             
 
@@ -872,11 +968,18 @@ public class Main {
                 }
             }
             
-            if (!EngineSettings.grabMouse && EngineSettings.MouseItemPicker && !EngineSettings.overTexture) {
-            	picker.update(window, entityManager.getPhysicsManager(), terrain);
+            if (!EngineSettings.grabMouse && EngineSettings.MouseItemPicker && !EngineSettings.overTexture
+            		&& !EngineSettings.EntityPlacementMode) {
+            	picker.update(window, entityManager.getPhysicsManager(), terrain, deltaTime);
             	picker.drawDebug(debugRenderer);
             	picker.drawRotationDebug(debugRenderer);
-            	
+
+            } else if (!EngineSettings.grabMouse) {
+            	// picker.update() didn't run this frame (e.g. entity placement mode is
+            	// active), but getWorldPosX()/Z() is still relied on elsewhere (terrain
+            	// brush cursor, entity placement preview), so keep it fresh regardless.
+            	picker.updateWorldPosition(window);
+
          
             	
             }
@@ -885,104 +988,110 @@ public class Main {
             player.updatePlayer(window, deltaTime, terrain);
 
             
-            for (HitResult hit :playerFPS.updatePlayerFPS(player, camera, entityManager.getPhysicsManager(), textRenderer, window, deltaTime)) {
-            	if (hit.hit) {
+            if (EngineSettings.grabMouse && !EngineSettings.pause) {
+            	for (HitResult hit :playerFPS.updatePlayerFPS(player, camera, entityManager.getPhysicsManager(), textRenderer, window, deltaTime)) {
+                	if (hit.hit) {
 
-                    Vector3f n = new Vector3f(hit.hitNormal).normalize();
+                        Vector3f n = new Vector3f(hit.hitNormal).normalize();
 
-                    Vector3f forward = new Vector3f(0, 0, 1);
+                        Vector3f forward = new Vector3f(0, 0, 1);
 
-               
-                    if (Math.abs(n.y) > 0.999f) {
-                        forward.set(0, 0, n.y > 0 ? -1 : 1);
-                    }
-
-                
-                    Vector3f axis = forward.cross(n, new Vector3f());
-                    float axisLen = axis.length();
-
-                    float angle;
-                    if (axisLen < 1e-6f) {
-                        // Already aligned
-                        axis.set(0, 1, 0);
-                        angle = 0f;
-                    } else {
-                        axis.normalize();
-                        angle = (float) Math.acos(forward.dot(n));
-                    }
-
-                    // ---------------------------------
-                    // Convert axis-angle → Euler XYZ
-                    // ---------------------------------
-                    float s = (float) Math.sin(angle);
-                    float c = (float) Math.cos(angle);
-                    float t = 1f - c;
-
-                    float x = axis.x;
-                    float y = axis.y;
-                    float z = axis.z;
-
-                    // Rotation matrix from axis-angle
-                    float m00 = t*x*x + c;
-                    float m01 = t*x*y - s*z;
-                    float m02 = t*x*z + s*y;
-
-                    float m10 = t*x*y + s*z;
-                    float m11 = t*y*y + c;
-                    float m12 = t*y*z - s*x;
-
-                    float m20 = t*x*z - s*y;
-                    float m21 = t*y*z + s*x;
-                    float m22 = t*z*z + c;
-
-                    // Extract Euler XYZ (matches rotateXYZ)
-                    float rotX = (float) Math.atan2(m21, m22);
-                    float rotY = (float) Math.atan2(-m20, Math.sqrt(m21*m21 + m22*m22));
-                    float rotZ = (float) Math.atan2(m10, m00);
-
-                    Vector3f rotation = new Vector3f(rotX, rotY, rotZ);
-
-              
-                    Vector3f size = new Vector3f(
-                        1.15f,   // width
-                        1.15f,   // height
-                        0.025f  // thickness
-                    );
-
-
-                    Vector3f position = new Vector3f(hit.hitPoint)
-                            .fma(0.01f, n);
+                   
+                        if (Math.abs(n.y) > 0.999f) {
+                            forward.set(0, 0, n.y > 0 ? -1 : 1);
+                        }
 
                     
-                    Vector3f cameraForward = new Vector3f(0, 0, -1);
-                    cameraForward.rotateY((float)Math.toRadians(camera.getYaw()));
-                    cameraForward.rotateX((float)Math.toRadians(camera.getPitch()));
-                    cameraForward.normalize();
-                    hit.createSmokePuff(hit.hitPoint, hit.hitNormal, cameraForward, smokeTexture);
-              
-                    decalManager.add(
-                        new Decal(
-                            position,
-                            rotation,
-                            size,
-                            TextureLoader.loadTexture("bullet_hole.png"),
-                            TextureLoader.loadTexture("container_rust_nor_2k.png"),
-                            Decal.DecalType.BULLET
-                        )
-                    );
-                    ///debugRenderer.addCollisionMesh( hit.hitBody, new Vector3f(1,0,0));
-                    for (Target tar : targets) {
-                    	if (tar.getEntity().getCollisionBody() == hit.hitBody) {
-                    		tar.putDown();
-                    	}
+                        Vector3f axis = forward.cross(n, new Vector3f());
+                        float axisLen = axis.length();
+
+                        float angle;
+                        if (axisLen < 1e-6f) {
+                            // Already aligned
+                            axis.set(0, 1, 0);
+                            angle = 0f;
+                        } else {
+                            axis.normalize();
+                            angle = (float) Math.acos(forward.dot(n));
+                        }
+
+                        // ---------------------------------
+                        // Convert axis-angle → Euler XYZ
+                        // ---------------------------------
+                        float s = (float) Math.sin(angle);
+                        float c = (float) Math.cos(angle);
+                        float t = 1f - c;
+
+                        float x = axis.x;
+                        float y = axis.y;
+                        float z = axis.z;
+
+                        // Rotation matrix from axis-angle
+                        float m00 = t*x*x + c;
+                        float m01 = t*x*y - s*z;
+                        float m02 = t*x*z + s*y;
+
+                        float m10 = t*x*y + s*z;
+                        float m11 = t*y*y + c;
+                        float m12 = t*y*z - s*x;
+
+                        float m20 = t*x*z - s*y;
+                        float m21 = t*y*z + s*x;
+                        float m22 = t*z*z + c;
+
+                        // Extract Euler XYZ (matches rotateXYZ)
+                        float rotX = (float) Math.atan2(m21, m22);
+                        float rotY = (float) Math.atan2(-m20, Math.sqrt(m21*m21 + m22*m22));
+                        float rotZ = (float) Math.atan2(m10, m00);
+
+                        Vector3f rotation = new Vector3f(rotX, rotY, rotZ);
+
+                  
+                        Vector3f size = new Vector3f(
+                            1.15f,   // width
+                            1.15f,   // height
+                            0.025f  // thickness
+                        );
+
+
+                        Vector3f position = new Vector3f(hit.hitPoint)
+                                .fma(0.01f, n);
+
+                        
+                        Vector3f cameraForward = new Vector3f(0, 0, -1);
+                        cameraForward.rotateY((float)Math.toRadians(camera.getYaw()));
+                        cameraForward.rotateX((float)Math.toRadians(camera.getPitch()));
+                        cameraForward.normalize();
+                        hit.createSmokePuff(hit.hitPoint, hit.hitNormal, cameraForward, smokeTexture);
+                  
+                        decalManager.add(
+                            new Decal(
+                                position,
+                                rotation,
+                                size,
+                                TextureLoader.loadTexture("bullet_hole.png"),
+                                TextureLoader.loadTexture("container_rust_nor_2k.png"),
+                                Decal.DecalType.BULLET
+                            )
+                        );
+                        ///debugRenderer.addCollisionMesh( hit.hitBody, new Vector3f(1,0,0));
+                        if (targets != null && targets.size() > 0) {
+                        	for (Target tar : targets) {
+                            	if (tar.getEntity().getCollisionBody() == hit.hitBody) {
+                            		tar.putDown();
+                            	}
+                            }
+                        }
+                        
+                        
+                       // if (skeetShooter.checkHit(hit.hitBody, entityManager)) {
+                        	
+                       // }
+                        
                     }
-                    
-                    if (skeetShooter.checkHit(hit.hitBody, entityManager)) {
-                    	
-                    }
-                    
                 }
             }
+            
             
             /*
 
@@ -999,10 +1108,17 @@ public class Main {
             
             
             
+            tStart();
+            // Must run every frame regardless of whether picker.update() ran this frame
+            // (e.g. it's skipped while a debug/GUI panel has mouse focus), otherwise the
+            // sync below overwrites the selected entity's rotation with whatever its
+            // physics body actually has stored.
+            picker.pinSelectedEntityRotation(entityManager.getPhysicsManager());
             entityManager.getPhysicsManager().updateEntitiesFromCollisionShapes(deltaTime, entityManager.getEntitiesList());
-          
-         
+
+
             entityManager.updateAnimations(deltaTime);
+            tEnd("Physics+Anim");
             
             
             
@@ -1021,18 +1137,20 @@ public class Main {
             
             
         	//System.out.println(shadowTextureID);
+            tStart();
             Matrix4f lightSpaceMatrix;
             if (skyboxRenderer.isSunOut()) {
             	 shadowRenderer.renderShadowMap(entityManager.getEntitiesList(),
-            			 lightSpaceMatrix = shadowRenderer.createLightSpaceMatrix(lights.get(0), camera), 
+            			 lightSpaceMatrix = shadowRenderer.createLightSpaceMatrix(lights.get(0), camera),
                  		camera.getViewMatrix(),  masterRenderer.getProjectionMatrix());
             } else {
             	 shadowRenderer.renderShadowMap(entityManager.getEntitiesList(),
-            			 lightSpaceMatrix = shadowRenderer.createLightSpaceMatrix(lights.get(1), camera), 
+            			 lightSpaceMatrix = shadowRenderer.createLightSpaceMatrix(lights.get(1), camera),
                  		camera.getViewMatrix(),  masterRenderer.getProjectionMatrix());
             }
-            
-           
+            tEnd("ShadowMap");
+
+
             int shadowTextureID = shadowRenderer.getDepthMapTexture();
             //System.out.println(shadowTextureID);
             int err = glGetError();
@@ -1053,19 +1171,25 @@ public class Main {
           
         
             // Render everything
+            tStart();
             masterRenderer.render(entityManager.getEntitiesList(), lights, camera, shadowTextureID, outsideAmbience);
+            tEnd("MasterRender");
 
-            
+
          // Assuming you have projection, view, and model matrices available.
-          
+
             //terrainRenderer.renderAdaptiveTerrain(adaptiveGen, masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), terrainModelMatrix, camera.getPosition(), lights);
-           
-         
-            skyboxRenderer.render(camera, camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000000);            
-           
+
+
+            tStart();
+            skyboxRenderer.render(camera, camera.getViewMatrix(), masterRenderer.getProjectionMatrix(), lights.get(0),lights.get(1), 1000000);
+            tEnd("Skybox");
+
 
             // Could add more interesting transforms as well
+            tStart();
             debugRenderer.render(camera, masterRenderer.getProjectionMatrix(), camera.getViewMatrix());
+            tEnd("DebugRenderer");
             
            
             float time = (System.currentTimeMillis() % 10000L) / 1000.0f;
@@ -1080,7 +1204,7 @@ public class Main {
                     masterRenderer.getProjectionMatrix(), camera.getViewMatrix(), lights, shadowTextureID, camera
                 );
             */
-            terrainEditor.update(terrain, picker.getWorldPosX(), picker.getWorldPosZ(), window);
+            terrainEditor.update(terrain, entityManager.getPhysicsManager(), picker.getWorldPosX(), picker.getWorldPosZ(), window, deltaTime);
             
             
             
@@ -1112,6 +1236,7 @@ public class Main {
             
             
             
+            tStart();
             terrainRenderer.render(
                     terrain,
                     masterRenderer.getProjectionMatrix(),
@@ -1122,22 +1247,28 @@ public class Main {
                     camera.getPosition(),
                     outsideAmbience
             );
+            tEnd("Terrain");
             //bloomRenderer.copySceneDepth();
 
-
-     
-            decalRenderer.render(decalManager.getDecals(), camera, masterRenderer.getProjectionMatrix(),
-            		shadowTextureID, lights, lightSpaceMatrix);
-            
-            
-
-     
-            
-            ParticleMaster.renderParticles(camera);
-            
             
             //volumes
-            //fogRenderer.render(volumes, camera, masterRenderer.getProjectionMatrix(), bloomRenderer.getSceneDepthTexture(), lights, deltaTime);
+            fogRenderer.render(volumes, camera, masterRenderer.getProjectionMatrix(), bloomRenderer.getSceneDepthTexture(), lights, deltaTime);
+
+
+            tStart();
+            decalRenderer.render(decalManager.getDecals(), camera, masterRenderer.getProjectionMatrix(),
+            		shadowTextureID, lights, lightSpaceMatrix);
+            tEnd("Decals");
+
+
+
+
+            tStart();
+            ParticleMaster.renderParticles(camera);
+            tEnd("Particles");
+            
+            
+           
 
             
            // debugRenderer.addCollisionMesh(player.getPhysicsBody(), new Vector3f(1,1,1));
@@ -1147,10 +1278,14 @@ public class Main {
             
     
             //postRenderer.renderPostProcess();
+            tStart();
             bloomRenderer.renderBloom(width, height,1.0f, 0.2f);
+            tEnd("Bloom");
             
          
-            Target.updateAllTargets(targets, deltaTime);
+            if (targets != null && targets.size() > 0) {
+                Target.updateAllTargets(targets, deltaTime);
+            }
             
             
             if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS && smokeGrenades.size() == 0) {
@@ -1234,12 +1369,21 @@ public class Main {
             
             //Render Texture
          
-            TextRendererMaster.renderAllText(textRenderer);
+            renderDebugTextOverlay();
 
-            
+            tStart();
+            TextRendererMaster.renderAllText(textRenderer);
+            tEnd("TextRender");
+
+
+            tStart();
             textureRenderer.render(masterRenderer.getFlatProjection(), camera.getFlatViewMatrix(), mouseX[0], adjustedMouseY);
+            tEnd("GuiTextureRender");
           
-            skeetShooter.update(entityManager, player, deltaTime, window);
+            if (skeetShooter != null) {
+                skeetShooter.update(entityManager, player, deltaTime, window);
+
+            }
             
             for (Entity e :entityManager.getEntities().values()) {
             	if (e.getTexturedModel() == entityManager.getTexturedModel("clay_pigeon")) {
@@ -1255,7 +1399,9 @@ public class Main {
             }
             
 
-            guiManager.update(textureRenderer, textRenderer, entityManager, window, deltaTime);
+            tStart();
+            guiManager.update(textureRenderer, textRenderer, entityManager, picker, window, deltaTime);
+            tEnd("GuiUpdate");
             
             
             

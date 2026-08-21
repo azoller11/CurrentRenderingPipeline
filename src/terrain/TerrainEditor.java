@@ -3,7 +3,12 @@ package terrain;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.util.vector.Vector2f;
 
+import com.bulletphysics.collision.shapes.CollisionShape;
+import com.bulletphysics.dynamics.RigidBody;
+
 import loaders.TextureLoader;
+import physics.PhysicsManager;
+import toolbox.Mesh;
 
 import java.nio.ByteBuffer;
 import java.util.Random;
@@ -13,60 +18,119 @@ import settings.EngineSettings.TerrainBrushColor;
 import settings.EngineSettings.TerrainBrushTool;
 
 public class TerrainEditor {
-	
+
 	private Random random = new Random();
-	
+
+	// The terrain's current collision body, so it can be swapped out for a fresh one
+	// after sculpting. Set once via setTerrainCollisionBody() right after the initial
+	// PhysicsManager.addTerrainAccurateCollision(terrain) call in Main's init.
+	private RigidBody terrainCollisionBody;
+
+	public void setTerrainCollisionBody(RigidBody terrainCollisionBody) {
+		this.terrainCollisionBody = terrainCollisionBody;
+	}
+
 	private long lastBlendUploadTime = 0;
 	private static final long BLEND_UPLOAD_INTERVAL_NS = 33_000_000; // ~30 fp
 	private boolean paintedBefore = false;
-	
-	
-	public void update(Terrain terrain, float mousePointX, float mousePointZ, long window) {
+
+	// Height-sculpting state
+	private static final long HEIGHT_REBUILD_INTERVAL_NS = 33_000_000; // ~30 fps GPU mesh rebuild
+	private static final float HEIGHT_CHANGE_SPEED = 60.0f; // world units/sec at full brush strength (RAISE/LOWER/RANDOM)
+	private static final float FLATTEN_SPEED = 4.0f;        // convergence rate/sec toward the captured target height
+	private static final float SMOOTH_SPEED = 4.0f;         // convergence rate/sec toward the local neighborhood average
+	private boolean sculptStrokeActive = false;
+	private boolean heightDataDirty = false;
+	private boolean strokeHasUnsavedChanges = false;
+	private float flattenTargetHeight = 0f;
+	private long lastHeightRebuildTime = 0;
+
+	// Collision is only rebuilt once, when the editor is exited (not per stroke) -
+	// rebuilding the terrain's BvhTriangleMeshShape is expensive, and a long editing
+	// session can involve many strokes. The expensive part (building the shape from
+	// the mesh) runs on a background thread since it's pure CPU work with no Bullet
+	// world/GL state involved; only the cheap swap into the dynamicsWorld happens on
+	// the main thread, once the background build finishes.
+	private boolean wasTerrainEditorActive = false;
+	private boolean collisionDirty = false;
+	private volatile CollisionShape pendingCollisionShape;
+	private boolean collisionRebuildInProgress = false;
+
+
+	public void update(Terrain terrain, PhysicsManager physics, float mousePointX, float mousePointZ, long window, float deltaTime) {
 		if (EngineSettings.SelectedTerrain != terrain) {EngineSettings.SelectedTerrain = terrain;}
-		
+
 		float terrainY = terrain.getHeightOfTerrain(mousePointX, mousePointZ);
 		float brushSize = EngineSettings.TerrainBrushSize;
 		float paintStrength = 0.5f;
-		
-		
+
+
 		//Edit the shape of the terrain
-		String heightMapPath = terrain.getHeightmapPath();
 	    boolean mouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
 
-	
+
 		if (EngineSettings.TerrainEditor) {
 			if (mouseDown && !EngineSettings.overTexture) {
-				if (EngineSettings.TerrainTool == TerrainBrushTool.SMOOTH) {
-					System.out.println("Applying change!");
+				if (!sculptStrokeActive) {
+					// Start of a new stroke: capture the height under the cursor so FLATTEN
+					// has a stable target for the whole drag instead of chasing the cursor.
+					sculptStrokeActive = true;
+					flattenTargetHeight = terrainY;
 				}
-				
-				if (EngineSettings.TerrainTool == TerrainBrushTool.FLATTEN) {
-					System.out.println("Applying change!");
 
-				}
-				
-				if (EngineSettings.TerrainTool == TerrainBrushTool.RAISE) {
-					System.out.println("Applying change!");
+				applyHeightBrush(terrain, mousePointX, mousePointZ, brushSize, EngineSettings.TerrainTool, deltaTime);
+				heightDataDirty = true;
+				strokeHasUnsavedChanges = true;
 
+				long now = System.nanoTime();
+				if (now - lastHeightRebuildTime > HEIGHT_REBUILD_INTERVAL_NS) {
+					terrain.rebuildMeshFromHeightData();
+					lastHeightRebuildTime = now;
+					heightDataDirty = false;
 				}
-				
-				if (EngineSettings.TerrainTool == TerrainBrushTool.LOWER) {
-					System.out.println("Applying change!");
-
+			} else if (sculptStrokeActive) {
+				// Stroke just ended: flush any change that missed the last throttled rebuild
+				// so the mesh never lags behind the final brush position, then persist the
+				// edited heights to the heightmap file so they survive a reload.
+				if (heightDataDirty) {
+					terrain.rebuildMeshFromHeightData();
+					heightDataDirty = false;
 				}
-				
-				if (EngineSettings.TerrainTool == TerrainBrushTool.RANDOM) {
-					System.out.println("Applying change!");
-
+				if (strokeHasUnsavedChanges) {
+					terrain.saveHeightMapImage();
+					strokeHasUnsavedChanges = false;
+					// Collision is now stale, but rebuilding it (an expensive
+					// BvhTriangleMeshShape rebuild) is deferred until the editor is
+					// exited rather than done per stroke - see below.
+					collisionDirty = true;
 				}
+				sculptStrokeActive = false;
 			}
-			
-			
-			
-			
-			
-			
-			
+		} else if (wasTerrainEditorActive) {
+			// Terrain editor was just exited: kick off the (expensive) collision shape
+			// rebuild on a background thread so it doesn't stall the frame, from
+			// whatever the final sculpted mesh ended up being.
+			if (collisionDirty && physics != null && terrainCollisionBody != null && !collisionRebuildInProgress) {
+				collisionDirty = false;
+				collisionRebuildInProgress = true;
+				Mesh meshSnapshot = terrain.getMesh();
+				Thread rebuildThread = new Thread(() -> {
+					pendingCollisionShape = physics.createAccurateCollisionMesh(meshSnapshot, 1);
+				}, "terrain-collision-rebuild");
+				rebuildThread.setDaemon(true);
+				rebuildThread.start();
+			}
+		}
+		wasTerrainEditorActive = EngineSettings.TerrainEditor;
+
+		// If a background collision rebuild finished, do the cheap part (swapping it
+		// into the physics world) here on the main thread.
+		if (pendingCollisionShape != null) {
+			CollisionShape shape = pendingCollisionShape;
+			pendingCollisionShape = null;
+			physics.dynamicsWorld.removeRigidBody(terrainCollisionBody);
+			terrainCollisionBody = physics.addStaticCollisionTerrainMesh(terrain, shape);
+			collisionRebuildInProgress = false;
 		}
 		
 		
@@ -248,6 +312,96 @@ public class TerrainEditor {
 	
 	
 	
+	// Mutates terrain.getHeightData() in place under a circular brush centered on the
+	// given world-space point. Does not touch the GPU mesh - the caller is responsible
+	// for calling terrain.rebuildMeshFromHeightData() to push the change.
+	private void applyHeightBrush(Terrain terrain, float worldX, float worldZ, float brushSize, TerrainBrushTool tool, float deltaTime) {
+		float[][] heightData = terrain.getHeightData();
+		if (heightData == null || heightData.length == 0) {
+			return;
+		}
+
+		int gridHeight = heightData.length;
+		int gridWidth = heightData[0].length;
+		float size = terrain.getSize();
+		float maxHeight = terrain.getMaxHeight();
+
+		float localX = worldX - terrain.getX();
+		float localZ = worldZ - terrain.getZ();
+
+		// Same world->grid mapping used by Terrain.getHeightOfTerrain / HeightmapLoader.
+		float gridXf = (localX / size) * (gridWidth - 1);
+		float gridZf = (1.0f - (localZ / size)) * (gridHeight - 1);
+
+		int centerX = Math.round(gridXf);
+		int centerZ = Math.round(gridZf);
+
+		int radius = Math.max(1, (int) ((brushSize / size) * (gridWidth - 1)));
+
+		for (int dz = -radius; dz <= radius; dz++) {
+			int z = centerZ + dz;
+			if (z < 0 || z >= gridHeight) continue;
+
+			for (int dx = -radius; dx <= radius; dx++) {
+				int x = centerX + dx;
+				if (x < 0 || x >= gridWidth) continue;
+
+				float distance = (float) Math.sqrt(dx * dx + dz * dz);
+				if (distance > radius) continue;
+
+				float falloff = 1.0f - (distance / radius);
+				falloff *= falloff; // softer brush edge
+
+				switch (tool) {
+					case RAISE:
+						heightData[z][x] = clamp(heightData[z][x] + falloff * HEIGHT_CHANGE_SPEED * deltaTime, 0f, maxHeight);
+						break;
+
+					case LOWER:
+						heightData[z][x] = clamp(heightData[z][x] - falloff * HEIGHT_CHANGE_SPEED * deltaTime, 0f, maxHeight);
+						break;
+
+					case FLATTEN: {
+						float blend = Math.min(1f, FLATTEN_SPEED * deltaTime) * falloff;
+						heightData[z][x] += (flattenTargetHeight - heightData[z][x]) * blend;
+						break;
+					}
+
+					case SMOOTH: {
+						float avg = averageNeighborHeight(heightData, x, z, gridWidth, gridHeight);
+						float blend = Math.min(1f, SMOOTH_SPEED * deltaTime) * falloff;
+						heightData[z][x] += (avg - heightData[z][x]) * blend;
+						break;
+					}
+
+					case RANDOM: {
+						float noise = (random.nextFloat() * 2f - 1f) * falloff * HEIGHT_CHANGE_SPEED * deltaTime;
+						heightData[z][x] = clamp(heightData[z][x] + noise, 0f, maxHeight);
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	private float averageNeighborHeight(float[][] heightData, int x, int z, int width, int height) {
+		float sum = 0f;
+		int count = 0;
+		for (int nz = z - 1; nz <= z + 1; nz++) {
+			if (nz < 0 || nz >= height) continue;
+			for (int nx = x - 1; nx <= x + 1; nx++) {
+				if (nx < 0 || nx >= width) continue;
+				sum += heightData[nz][nx];
+				count++;
+			}
+		}
+		return count > 0 ? sum / count : heightData[z][x];
+	}
+
+	private static float clamp(float value, float min, float max) {
+		return Math.max(min, Math.min(max, value));
+	}
+
 	private Vector2f worldToBlendUV(Terrain terrain, float worldX, float worldZ) {
 	    float terrainX = worldX - terrain.getX();
 	    float terrainZ = worldZ - terrain.getZ();

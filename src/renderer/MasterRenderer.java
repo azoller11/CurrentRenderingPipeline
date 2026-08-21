@@ -43,6 +43,10 @@ public class MasterRenderer {
     
     private Frustum frustum;
 
+    // Reused across calls to avoid allocating a new native buffer every animated entity, every frame.
+    private final FloatBuffer boneBuffer = org.lwjgl.BufferUtils.createFloatBuffer(16 * MAX_BONES);
+    private final float[] boneArrayScratch = new float[16 * MAX_BONES];
+
     public MasterRenderer(int width, int height) {
     	
         MasterRenderer.screenHeight = height;
@@ -219,7 +223,9 @@ public class MasterRenderer {
             
             if (entity.getTexturedModel().getAnimatedModel() != null || 
                 entity.getTexturedModel().getAnimatedModels() != null) {
-            	scale =  entity.getTexturedModel().getAnimatedModels().get(0).getMesh().getFurthestPoint(); // Use a reasonable bounding sphere for animated models
+            	if ( entity.getTexturedModel().getAnimatedModels() != null) {
+                	scale =  entity.getTexturedModel().getAnimatedModels().get(0).getMesh().getFurthestPoint(); // Use a reasonable bounding sphere for animated models
+            	}
             }
             
             if (!frustum.contains(entity.getPosition(), scale)) {
@@ -489,9 +495,9 @@ public class MasterRenderer {
         }
         
         int boneCount = Math.min(bones.length, MAX_BONES);
-        
-        // Use direct float array for bone matrices
-        float[] boneArray = new float[16 * MAX_BONES];
+
+        // Reuse scratch array/buffer instead of allocating new ones every call
+        float[] boneArray = boneArrayScratch;
         int arrayIndex = 0;
         
         // Fill with bone matrices
@@ -544,11 +550,11 @@ public class MasterRenderer {
             boneArray[arrayIndex++] = 1.0f; // m33
         }
         
-        // Create FloatBuffer and send to shader
-        FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(16 * MAX_BONES);
-        fb.put(boneArray);
-        fb.flip();
-        shader.setUniformMat4ArrayBones("bones", fb, MAX_BONES);
+        // Reuse persistent buffer and send to shader
+        boneBuffer.clear();
+        boneBuffer.put(boneArray);
+        boneBuffer.flip();
+        shader.setUniformMat4ArrayBones("bones", boneBuffer, MAX_BONES);
     }
     
     /**

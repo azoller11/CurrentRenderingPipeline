@@ -41,9 +41,8 @@ private boolean loadedTextures;
 	
 	public void loadTexturesButtons(TextureRenderer textureRender, MasterRenderer masterRenderer, long window) {
 		Terrain terrain = EngineSettings.SelectedTerrain;
-		GLFW.glfwSetScrollCallback(window, (win, xOffset, yOffset) -> {
-            handleScroll(yOffset);
-        });
+		// Scroll handling is dispatched from the single consolidated GLFW scroll
+		// callback registered in Main.java - see handleScroll(double) below.
 		terrainHeightMap = new GuiButton(terrain.getHeightMapTexture(), masterRenderer.getScreenWidth() - 50, 100, 50, 50, new Runnable() {
             @Override
             public void run() {

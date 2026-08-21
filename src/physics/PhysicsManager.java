@@ -352,7 +352,11 @@ public class PhysicsManager {
     
     public CollisionShape createDynamicConvexCollisionMesh(Entity entity) {
         Mesh mesh = entity.getTexturedModel().getMesh();
-        float[] vertices = mesh.getVertices();
+        // Deduplicated positions (one per unique source vertex) instead of the fully-expanded
+        // per-triangle-corner array — a convex hull only needs distinct points, and using the
+        // expanded array made dynamic props (e.g. the ~5300-vertex grenade mesh) build enormous
+        // hulls that were expensive for Bullet's narrowphase to test every physics step.
+        float[] vertices = mesh.getUniquePositions();
         
         // Create an ObjectArrayList and add each vertex point.
         ObjectArrayList<Vector3f> bulletPoints = new ObjectArrayList<>();
@@ -521,8 +525,13 @@ public class PhysicsManager {
     private static final float FIXED_TIME_STEP = 1f / 60;
     private static final int MAX_SUB_STEPS = 1;
 
+    // Reused across entities/frames to avoid allocating a new Transform/Quat4f/Vector3f per entity per frame.
+    private final Transform scratchTransform = new Transform();
+    private final Quat4f scratchQuat = new Quat4f();
+    private final org.joml.Vector3f scratchEulerXYZ = new org.joml.Vector3f();
+
     public void updateEntitiesFromCollisionShapes(float deltaTime, List<Entity> entities) {
-    	
+
     	  deltaTime = Math.min(deltaTime, 0.05f);
 
     	    physicsAccumulator += deltaTime;
@@ -533,51 +542,37 @@ public class PhysicsManager {
     	        physicsAccumulator -= FIXED_TIME_STEP;
     	        steps++;
     	    }
-           
-           
+
+
         for (Entity entity : entities) {
             //RigidBody body = entityRigidBodyMap.get(entity);
         	RigidBody body = entity.getCollisionBody();
             if (body == null) {
                 continue; // No physics body associated with this entity.
             }
-            
-            Transform transform = new Transform();
+
             // Retrieve the world transform from the body's motion state.
             if (body.getMotionState() != null) {
-                body.getMotionState().getWorldTransform(transform);
+                body.getMotionState().getWorldTransform(scratchTransform);
 
                 // Update the entity's position.
-                Vector3f pos = new Vector3f(transform.origin);
-                entity.setPosition(pos.x, pos.y, pos.z);
-                //System.out.println("Updating: " + pos);
+                entity.setPosition(scratchTransform.origin.x, scratchTransform.origin.y, scratchTransform.origin.z);
 
-                // Update the entity's rotation if applicable.
-                
-                Quat4f rotationQuat = new Quat4f();
-                transform.getRotation(rotationQuat);
-                Vector3f eulerRotation = quaternionToEuler(rotationQuat);
-                
-                Quat4f rq = new Quat4f();
-                transform.getRotation(rq);
+                // Update the entity's rotation.
+                scratchTransform.getRotation(scratchQuat);
 
                 // Bullet → JOML quaternion
-                Quaternionf q = new Quaternionf(rq.x, rq.y, rq.z, rq.w).normalize();
+                Quaternionf q = new Quaternionf(scratchQuat.x, scratchQuat.y, scratchQuat.z, scratchQuat.w).normalize();
 
                 // Extract Euler XYZ (radians)
-                org.joml.Vector3f eulerXYZ = new org.joml.Vector3f();
-                q.getEulerAnglesXYZ(eulerXYZ);
+                q.getEulerAnglesXYZ(scratchEulerXYZ);
 
                 // Apply directly (radians)
-                entity.setRotation(eulerXYZ);
-                
-                
-                //entity.setRotation(new org.joml.Vector3f(eulerRotation.x, eulerRotation.y, eulerRotation.z));
-                
+                entity.setRotation(scratchEulerXYZ);
             }
         }
-     
-        
+
+
     }
 
     //For the mouse picker.

@@ -23,6 +23,7 @@ import static org.lwjgl.opengl.GL40.*;
 
 public class ShaderProgram {
     private final int programId;
+    private final java.util.Map<String, Integer> uniformLocationCache = new java.util.HashMap<>();
 
     //For a straight path
     public ShaderProgram(String vertPath,
@@ -274,7 +275,12 @@ public class ShaderProgram {
 
     // Uniform utility methods
     public int getUniformLocation(String name) {
+        Integer cached = uniformLocationCache.get(name);
+        if (cached != null) {
+            return cached;
+        }
         int loc = glGetUniformLocation(programId, name);
+        uniformLocationCache.put(name, loc);
         if (loc < 0) {
             System.err.println("Warning: Uniform '" + name + "' not found!");
         }
@@ -350,9 +356,8 @@ public class ShaderProgram {
     }
 
     public void setUniform1f(String name, float value) {
-        int location = glGetUniformLocation(programId, name); // Get the uniform location
+        int location = getUniformLocation(name);
         if (location < 0) {
-            System.err.println("Warning: Uniform '" + name + "' not found in shader program!");
             return;
         }
         glUniform1f(location, value); // Set the float uniform
@@ -430,9 +435,8 @@ public class ShaderProgram {
 
     public void setUniformMat4(String name, FloatBuffer fb) {
         // Get the location of the uniform variable from the shader program.
-        int location = glGetUniformLocation(programId, name);
+        int location = getUniformLocation(name);
         if (location < 0) {
-            System.err.println("Warning: Uniform '" + name + "' not found or is not used in shader.");
             return;
         }
         // Upload the 4x4 matrix. The 'false' flag indicates that the matrix is not transposed.
@@ -441,12 +445,11 @@ public class ShaderProgram {
 
     public void setUniformMat4Array(String uniformName, FloatBuffer fb, int count) {
         // Get the location of the uniform array in the shader
-        int location = glGetUniformLocation(programId, uniformName);
+        int location = getUniformLocation(uniformName);
         if (location < 0) {
-            System.err.println("Warning: Uniform '" + uniformName + "' not found or inactive in shader.");
             return;
         }
-        
+
         // Upload the array of matrices.
         // count is the number of mat4's, fb should contain count * 16 floats.
         glUniformMatrix4fv2(location, count, false, fb);

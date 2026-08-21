@@ -29,23 +29,40 @@ public class GuiManager {
 	
 	public TerrainEditorGuiManager terrainEditorGuiManager;
 	public TerrainPainterGuiManager terrainPainterGuiManager;
-	
+	public EntityGuiManager entityGuiManager;
+
 	private EntityManager entityManager;
-	
+
 	public void init(TextureRenderer textureRenderer, MasterRenderer masterRenderer) {
 		loadDebugButtons(textureRenderer);
 		loadTextures(textureRenderer);
 		this.masterRenderer = masterRenderer;
-		
+
 		selectedEntityDebug = new SelectedEntityDebug(textureRenderer);
 		selectedLightDebug = new SelectedLightDebug();
 		terrainEditorGuiManager = new TerrainEditorGuiManager();
 		terrainPainterGuiManager = new TerrainPainterGuiManager();
-		
+		entityGuiManager = new EntityGuiManager();
+
 	}
-	
-	
-	public void update(TextureRenderer textureRender, TextRenderer textRenderer, EntityManager entityManager, long window, float deltaTime) {
+
+	/**
+	 * Dispatches a mouse-scroll event to whichever tool cares about it right now.
+	 * Called from the single consolidated GLFW scroll callback registered in Main.java
+	 * (GLFW only supports one scroll callback per window, so every scroll-driven tool
+	 * routes through here instead of each registering its own).
+	 */
+	public void handleScroll(double yOffset) {
+		terrainEditorGuiManager.handleScroll(yOffset);
+		terrainPainterGuiManager.handleScroll(yOffset);
+		if (entityManager != null) {
+			entityGuiManager.handleScroll(yOffset, entityManager);
+		}
+	}
+
+
+	public void update(TextureRenderer textureRender, TextRenderer textRenderer, EntityManager entityManager,
+			toolbox.MousePicker picker, long window, float deltaTime) {
 		// Clear all effects for simple white text
 		textRenderer.setTextColor(0.5f, 1.0f, 0.5f, 1.0f);      // Pure white
 		textRenderer.setGlow(false, 0.0f, 0.0f, 0, 0, 0, 0);  // No glow
@@ -72,9 +89,10 @@ public class GuiManager {
 		
 		terrainEditorGuiManager.update(textureRender, textRenderer, masterRenderer, window);
 		terrainPainterGuiManager.update(textureRender, textRenderer, masterRenderer, window);
-		
+		entityGuiManager.update(entityManager, picker, window);
+
 		this.entityManager = entityManager;
-		
+
 		
 	}
 	
@@ -128,9 +146,14 @@ public class GuiManager {
 	        gui.GuiButton button4 = new gui.GuiButton("plus.png", 150, 0, 50, 50, new Runnable() {
 	            @Override
 	            public void run() {
-	                System.out.println("Add new Entity");
-	                Entity ne = new Entity();
-	                
+	                EngineSettings.EntityPlacementMode = !EngineSettings.EntityPlacementMode;
+	                if (EngineSettings.EntityPlacementMode) {
+	                    EngineSettings.TerrainEditor = false;
+	                    EngineSettings.TerrainPainter = false;
+	                    EngineSettings.ObjectPicker = true; // so the placed entity is immediately selectable/draggable
+	                    EngineSettings.LightPicker = false; // don't let clicks pick a light instead while placing
+	                }
+	                System.out.println("Entity Placement Mode: " + EngineSettings.EntityPlacementMode);
 	            }
 	        });
 	        button4.setVisible(true);
@@ -187,6 +210,7 @@ public class GuiManager {
 	            public void run() {
                 	EngineSettings.TerrainEditor = !EngineSettings.TerrainEditor;
                 	if (EngineSettings.TerrainPainter)  EngineSettings.TerrainPainter = !EngineSettings.TerrainPainter;
+                	if (EngineSettings.TerrainEditor) EngineSettings.EntityPlacementMode = false;
                 	System.out.println("Terrain Height Editor: " + EngineSettings.TerrainEditor);
 	            }
 	        });
@@ -198,6 +222,7 @@ public class GuiManager {
 	            public void run() {
                 	EngineSettings.TerrainPainter = !EngineSettings.TerrainPainter;
                 	if (EngineSettings.TerrainEditor)  EngineSettings.TerrainEditor = !EngineSettings.TerrainEditor;
+                	if (EngineSettings.TerrainPainter) EngineSettings.EntityPlacementMode = false;
                 	System.out.println("Terrain Paint Editor: " + EngineSettings.TerrainPainter);
 	            }
 	        });

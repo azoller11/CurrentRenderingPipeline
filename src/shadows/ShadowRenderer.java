@@ -32,6 +32,10 @@ public class ShadowRenderer {
 
     private Frustum frustum;
 
+    // Reused across calls to avoid allocating a new native buffer every animated entity, every frame.
+    private final FloatBuffer boneBuffer = org.lwjgl.BufferUtils.createFloatBuffer(16 * MasterRenderer.MAX_BONES);
+    private final float[] boneArrayScratch = new float[16 * MasterRenderer.MAX_BONES];
+
     public ShadowRenderer(int shadowWidth, int shadowHeight) {
         ShadowRenderer.shadowWidth = shadowWidth;
         ShadowRenderer.shadowHeight = shadowHeight;
@@ -266,7 +270,7 @@ public class ShadowRenderer {
             var bones = animatedModel.getBones();
             int boneCount = (bones == null) ? 0 : Math.min(bones.length, MasterRenderer.MAX_BONES);
 
-            float[] boneArray = new float[16 * MasterRenderer.MAX_BONES];
+            float[] boneArray = boneArrayScratch;
             int idx = 0;
 
             for (int i = 0; i < boneCount; i++) {
@@ -286,9 +290,9 @@ public class ShadowRenderer {
                 boneArray[idx++] = 0; boneArray[idx++] = 0; boneArray[idx++] = 0; boneArray[idx++] = 1;
             }
 
-            FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(16 * MasterRenderer.MAX_BONES);
-            fb.put(boneArray).flip();
-            shadowShader.setUniformMat4ArrayBones("bones", fb, MasterRenderer.MAX_BONES);
+            boneBuffer.clear();
+            boneBuffer.put(boneArray).flip();
+            shadowShader.setUniformMat4ArrayBones("bones", boneBuffer, MasterRenderer.MAX_BONES);
         } else {
             shadowShader.setUniform1i("useBones", 0);
         }

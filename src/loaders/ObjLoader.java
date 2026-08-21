@@ -210,6 +210,7 @@ public class ObjLoader {
         meshData.finalData = finalData;
         meshData.vertexCount = numVertices;
         meshData.furthestDistance = furthestDistance;
+        meshData.uniquePositions = toFloatArray(positions);
 
         // STEP 7: Create VAO, VBO and upload data to the GPU.
         long uploadStartTime = System.nanoTime();
@@ -469,8 +470,21 @@ public class ObjLoader {
         meshData.finalData = finalData;
         meshData.vertexCount = numVertices;
         meshData.furthestDistance = furthestDistance;
+        meshData.uniquePositions = toFloatArray(positions);
 
         return meshData;
+    }
+
+    // One entry per unique source "v" line, unlike the fully-expanded per-triangle-corner vertex array.
+    private static float[] toFloatArray(List<Vector3f> positions) {
+        float[] result = new float[positions.size() * 3];
+        for (int i = 0; i < positions.size(); i++) {
+            Vector3f p = positions.get(i);
+            result[3 * i] = p.x;
+            result[3 * i + 1] = p.y;
+            result[3 * i + 2] = p.z;
+        }
+        return result;
     }
 
 

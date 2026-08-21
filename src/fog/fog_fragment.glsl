@@ -8,6 +8,7 @@ uniform mat4 invProjection;
 uniform mat4 invView;
 uniform mat4 model;
 uniform mat4 invModel;
+uniform mat4 invNoiseModel;
 
 uniform vec3 cameraPos;
 
@@ -122,7 +123,7 @@ float fbm(vec3 p) {
 
 float sampleNoise(vec3 worldPos) {
 
-    vec3 local = (invModel * vec4(worldPos, 1.0)).xyz;
+    vec3 local = (invNoiseModel * vec4(worldPos, 1.0)).xyz;
 
     vec3 p = (local + 0.5) * noiseScale;
 

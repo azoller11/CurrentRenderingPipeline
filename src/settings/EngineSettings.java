@@ -46,6 +46,8 @@ public class EngineSettings {
 	
 	//Computation
 	public static boolean MemoryUsage = false;
+	public static boolean PerformanceDebug = false;
+	private static boolean perfKeyPressing = false;
 	
 	//Editor
 	public static boolean MouseItemPicker = true;
@@ -56,6 +58,7 @@ public class EngineSettings {
 	public static Terrain SelectedTerrain;
 	public static boolean TerrainEditor = false;
 	public static boolean TerrainPainter = false;
+	public static boolean EntityPlacementMode = false;
 	public static float TerrainBrushSize = 50.0f;
 	public static final float TerrainBrushStrength = 100;
 	
@@ -120,12 +123,21 @@ public class EngineSettings {
 		} else if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_RELEASE) {
 			keyPressing = false; // Reset the state when the key is released
 		}
-		
-		
-		
-		
-		
-		
+
+		if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_PRESS) {
+		    if (!perfKeyPressing) {
+		        PerformanceDebug = !PerformanceDebug;
+		        perfKeyPressing = true;
+		    }
+		} else if (glfwGetKey(window, GLFW_KEY_F3) == GLFW_RELEASE) {
+		    perfKeyPressing = false;
+		}
+
+
+
+
+
+
 		//OpenGL
 		if (PointMode) {
 			GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, GL11.GL_FILL);

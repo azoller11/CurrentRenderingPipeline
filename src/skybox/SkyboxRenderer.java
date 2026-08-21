@@ -3,7 +3,6 @@ package skybox;
 import org.joml.Matrix4f;
 import org.joml.Matrix3f;
 import org.joml.Vector3f;
-import org.lwjgl.glfw.GLFW;
 
 import shaders.ShaderProgram;
 import entities.Camera;
@@ -63,14 +62,18 @@ public class SkyboxRenderer {
         SphereMesh sphere = new SphereMesh(50);
         vao = sphere.getVao();
         vertexCount = sphere.getVertexCount();
+    }
 
-        // Mouse wheel scroll – changes time-of-day
-        GLFW.glfwSetScrollCallback(window, (win, xo, yo) -> {
-            if (EngineSettings.grabMouse) {
-                sunAngle += yo * scrollSpeed;
-                sunAngle = (float)((sunAngle % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI));
-            }
-        });
+    /**
+     * Mouse wheel scroll - changes time-of-day. Called from the single consolidated
+     * GLFW scroll callback registered in Main.java (GLFW only supports one scroll
+     * callback per window, so every scroll-driven tool routes through there).
+     */
+    public void handleScroll(double yOffset) {
+        if (EngineSettings.grabMouse) {
+            sunAngle += yOffset * scrollSpeed;
+            sunAngle = (float)((sunAngle % (2 * Math.PI) + (2 * Math.PI)) % (2 * Math.PI));
+        }
     }
 
     public void setOrbitRotation(float orbitRotation) {

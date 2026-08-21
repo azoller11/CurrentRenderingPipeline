@@ -5,9 +5,6 @@ import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
-import java.nio.FloatBuffer;
-
-import org.lwjgl.BufferUtils;
 import org.lwjgl.system.MemoryUtil;
 import shaders.ShaderProgram;
 import toolbox.Equations;
@@ -318,12 +315,10 @@ public class BloomRenderer {
      * @param threshold    The brightness threshold for bloom extraction.
      * @param bloomIntensity The intensity for combining bloom.
      */
-    float averageBrightness = 0;
-    
-    private float currentExposure = 1.0f;
-    private float currentGamma = 1.0f;
-    float smoothingFactor = 0.1f; 
-    
+    // Fixed exposure (auto-exposure was computed via a per-frame glGenerateMipmap +
+    // synchronous glGetTexImage readback but its result was always discarded below).
+    private static final float FIXED_EXPOSURE = 3.0f;
+
     public void renderBloom(int windowWidth, int windowHeight, float threshold, float bloomIntensity) {
         // Disable depth testing for 2D post-processing
         glDisable(GL_DEPTH_TEST);
@@ -370,45 +365,6 @@ public class BloomRenderer {
         }
         blurShader.unbind();
         
-        // 3. Calculate auto-exposure BEFORE rendering to combine FBO
-        // This prevents modifying the texture while it's being used
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, sceneTexture);
-        glGenerateMipmap(GL_TEXTURE_2D);
-        
-        FloatBuffer pixelBuffer = BufferUtils.createFloatBuffer(4);
-        int mipLevel = (int) (Math.log(Math.max(width, height)) / Math.log(2));
-        glGetTexImage(GL_TEXTURE_2D, mipLevel, GL_RGBA, GL_FLOAT, pixelBuffer);
-        
-        float r = pixelBuffer.get(0);
-        float g = pixelBuffer.get(1);
-        float b = pixelBuffer.get(2);
-        
-        if (!Float.isNaN(r) && !Float.isNaN(g) && !Float.isNaN(b)) {
-            averageBrightness = r * 0.2126f + g * 0.7152f + b * 0.0722f;
-        }
-        
-        // Auto-exposure calculation
-        float brightnessThresholdLow = 0.05f;
-        float brightnessThresholdHigh = 0.9f;
-        float t = smoothStep(brightnessThresholdLow, brightnessThresholdHigh, averageBrightness);
-        
-        float minExposure = 0.5f;
-        float maxExposure = 2.8f;
-        float dynamicExposure = maxExposure * (1.0f - t) + minExposure * t;
-        
-        float minGamma = 0.8f;
-        float maxGamma = 2.2f;
-        float dynamicGamma = maxGamma * (1.0f - t) + minGamma * t;
-        
-        currentExposure += (dynamicExposure - currentExposure) * smoothingFactor;
-        currentGamma += (dynamicGamma - currentGamma) * smoothingFactor;
-        
-        // Fixed exposure for testing (comment out if you want auto-exposure)
-        currentExposure = 3.0f;
-        
-        
-        
         // 4. Combine the original scene with the blurred bloom texture.
         glBindFramebuffer(GL_FRAMEBUFFER, combineFBO);
         glViewport(0, 0, width, height);
@@ -428,7 +384,7 @@ public class BloomRenderer {
         
         // Set uniforms
         bloomCombineShader.setUniform1f("gamma", 0); // dynamicGamma if enabled
-        bloomCombineShader.setUniform1f("exposure", currentExposure);
+        bloomCombineShader.setUniform1f("exposure", FIXED_EXPOSURE);
         bloomCombineShader.setUniform1f("vignetteStrength", 0.0f);
         bloomCombineShader.setUniform1f("bloomIntensity", bloomIntensity);
         
@@ -480,14 +436,8 @@ public class BloomRenderer {
   	public int getSceneDepthCopyTexture() {
   	    return sceneDepthCopyTex;
   	}
-  	
- // Define a smoothstep helper (or use your own math library)
-  	private float smoothStep(float edge0, float edge1, float x) {
-  	    float t = Math.max(0.0f, Math.min(1.0f, (x - edge0) / (edge1 - edge0)));
-  	    return t * t * (3 - 2 * t);
-  	}
 
-    
+
     // Cleanup all resources.
     public void cleanup() {
         glDeleteFramebuffers(sceneFBO);

@@ -39,7 +39,9 @@ public class Entity {
     private RigidBody collisionBody;
     private String collisionType = "STATIC";
     private float mass = 0f;
-    
+
+    private boolean saveToScene = true;
+
     
     public Entity(TexturedModel texturedModel, Vector3f position, Vector3f rotation, float scale) {
         this.texturedModel = texturedModel;
@@ -97,7 +99,7 @@ public class Entity {
 
 	
 	public void setRotation(Vector3f rotation) {
-		this.rotation = rotation;
+		this.rotation.set(rotation);
 	}
 
 	public void setScale(float scale) {
@@ -107,8 +109,7 @@ public class Entity {
 
 
 	public void setPosition(float x, float y, float z) {
-		this.position = new Vector3f(x,y,z);
-		
+		this.position.set(x, y, z);
 	}
 	
 	
@@ -167,7 +168,15 @@ public class Entity {
 	public void setMass(float mass) {
 	    this.mass = mass;
 	}
-	
+
+	public boolean isSaveToScene() {
+		return saveToScene;
+	}
+
+	public void setSaveToScene(boolean saveToScene) {
+		this.saveToScene = saveToScene;
+	}
+
 	private static int generateNewId() {
 	    return (int)(System.nanoTime() ^ System.currentTimeMillis());
 	}

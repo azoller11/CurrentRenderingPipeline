@@ -114,6 +114,57 @@ public class Terrain {
         this.mesh = new Mesh(data);  // uses your Mesh class
         this.heightData = HeightmapLoader.getLoadedHeights();
     }
+
+    // Regenerates the GPU mesh from the current (mutated) heightData array and swaps
+    // it in, disposing the old VAO/VBO/EBO. Called by the terrain editor after
+    // sculpting so height changes are visible immediately.
+    public void rebuildMeshFromHeightData() {
+        if (heightData == null || heightData.length == 0) {
+            return;
+        }
+
+        MeshData data = HeightmapLoader.createMeshFromHeightData(heightData, size, maxHeight);
+        Mesh newMesh = new Mesh(data);
+        Mesh oldMesh = this.mesh;
+        this.mesh = newMesh;
+        if (oldMesh != null) {
+            oldMesh.dispose();
+        }
+    }
+
+    // Writes the current heightData back out to the heightmap PNG on disk (as a grayscale
+    // image, inverse of the mapping HeightmapLoader.load uses to read it in) so sculpted
+    // changes survive a reload. Called by the terrain editor once a sculpting stroke ends.
+    public void saveHeightMapImage() {
+        if (heightData == null || heightData.length == 0 || heightmapPath == null) {
+            return;
+        }
+
+        final int height = heightData.length;
+        final int width = heightData[0].length;
+
+        ByteBuffer buffer = ByteBuffer.allocateDirect(width * height);
+        for (int zz = 0; zz < height; zz++) {
+            for (int xx = 0; xx < width; xx++) {
+                int pixel = Math.round((heightData[zz][xx] / maxHeight) * 255f);
+                pixel = Math.max(0, Math.min(255, pixel));
+                buffer.put((byte) pixel);
+            }
+        }
+        buffer.flip();
+
+        final String path = heightmapPath;
+
+        Thread saveThread = new Thread(() -> {
+            boolean result = STBImageWrite.stbi_write_png(path, width, height, 1, buffer, width);
+            if (!result) {
+                System.err.println("Failed to save heightmap image: " + path);
+            }
+        });
+        saveThread.setName("HeightMap-Save-Thread");
+        saveThread.setDaemon(true);
+        saveThread.start();
+    }
     
     
     public void loadBlendMapImage() {

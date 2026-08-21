@@ -13,6 +13,8 @@ public class Mesh {
     private final int vertexCount;
     private float furthestPoint;
     private MeshData meshData;
+    private int vboId = 0;
+    private int eboId = 0;
 
     public Mesh(int vaoId, int vertexCount) {
         this.vaoId = vaoId;
@@ -85,6 +87,8 @@ public class Mesh {
 
         // ----- store handles -----
         this.vaoId = vao;
+        this.vboId = vbo;
+        this.eboId = ebo;
         this.vertexCount = meshData.indices.length;
         this.furthestPoint = meshData.furthestDistance;
 
@@ -124,6 +128,14 @@ public class Mesh {
 		return this.meshData.getVertices();
 	}
 
+	// One entry per unique source vertex position (e.g. one per OBJ "v" line), for
+	// building compact convex collision hulls. Falls back to the full per-corner
+	// array if the mesh source didn't populate this (e.g. procedurally built meshes).
+	public float[] getUniquePositions() {
+		float[] unique = this.meshData.getUniquePositions();
+		return unique != null ? unique : this.meshData.getVertices();
+	}
+
 	public int[] getIndices() {
 		// TODO Auto-generated method stub
 		return this.meshData.getIndices();
@@ -151,8 +163,17 @@ public class Mesh {
 
 	public void updateNormals(float[] normals) {
 		this.meshData.normals = normals;
-		
+
 	}
-	
-	
+
+	// Frees the GPU buffers for this mesh. Only safe to call once nothing is still
+	// referencing/drawing this Mesh (e.g. right after it has been swapped out for a
+	// freshly rebuilt one, as terrain sculpting does).
+	public void dispose() {
+		if (vboId != 0) glDeleteBuffers(vboId);
+		if (eboId != 0) glDeleteBuffers(eboId);
+		if (vaoId != 0) glDeleteVertexArrays(vaoId);
+	}
+
+
 }

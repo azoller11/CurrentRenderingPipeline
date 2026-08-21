@@ -95,7 +95,7 @@ public class FogVolumeRenderer {
         time += deltaTime;
         shader.setUniform1f("time", time);
         shader.setUniform3f("windDir", new Vector3f(1.0f, 0.0f, 0.3f).normalize());
-        shader.setUniform1f("windSpeed", 0.21f); // start small
+        shader.setUniform1f("windSpeed", 0.05f); // start small
         
 
         // Depth texture
@@ -111,6 +111,13 @@ public class FogVolumeRenderer {
             Matrix4f model = v.getModelMatrix();
             shader.setUniformMat4("model", model);
             shader.setUniformMat4("invModel", new Matrix4f(model).invert());
+
+            // Noise is sampled through its own uniformly-scaled transform (same center,
+            // no non-uniform stretch) so squashing/widening the box shape doesn't
+            // squash the cloud pattern along with it.
+            Vector3f center = model.getTranslation(new Vector3f());
+            Matrix4f noiseModel = new Matrix4f().translation(center).scale(v.getUniformScale());
+            shader.setUniformMat4("invNoiseModel", new Matrix4f(noiseModel).invert());
 
             // ✅ THIS IS WHAT PREVENTS "BLACK BOX"
 

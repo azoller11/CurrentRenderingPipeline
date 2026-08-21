@@ -12,6 +12,10 @@ public class MeshData {
     public int[] indices;
     public int[] tangents;
     public float[] finalData;
+    // One entry per unique source-file vertex position (e.g. one per OBJ "v" line),
+    // unlike `vertices` which repeats a position for every triangle corner that uses it.
+    // Used for building compact convex collision hulls.
+    public float[] uniquePositions;
     // The number of vertices in the mesh.
     public int vertexCount;
     // Optional: furthest distance from the origin (can be used for scaling, etc.)
@@ -107,6 +111,12 @@ public class MeshData {
 	}
 	public void setVertices(float[] vertices) {
 		this.vertices = vertices;
+	}
+	public float[] getUniquePositions() {
+		return uniquePositions;
+	}
+	public void setUniquePositions(float[] uniquePositions) {
+		this.uniquePositions = uniquePositions;
 	}
 	public float[] getNormals() {
 		return normals;
